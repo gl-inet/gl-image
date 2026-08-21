@@ -74,7 +74,7 @@ define Device/glinet_gl-mt3600be
   DEVICE_MODEL := GL-MT3600BE
   DEVICE_DTS := mt7987a-gl-mt3600be
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  DEVICE_PACKAGES := -wpad-basic-wolfssl mtk-wifi-runtime \
+  DEVICE_PACKAGES := -wpad-basic-wolfssl -kmod-crypto-eip mtk-wifi-runtime \
                      mtk-phy-firmware
   SUPPORTED_DEVICES := glinet,gl-mt3600be
   UBINIZE_OPTS := -E 5
