@@ -1,0 +1,54 @@
+From 09c8dc7883d7e677e09adb3fa77920b476efb685 Mon Sep 17 00:00:00 2001
+From: zengyinbin <yinbin.zeng@gl-inet.com>
+Date: Mon, 15 Sep 2025 11:47:58 +0800
+Subject: [PATCH] add iwinfo htmode function
+
+---
+ iwinfo_lua.c | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/iwinfo_lua.c b/iwinfo_lua.c
+index ecf257d..96f5d44 100644
+--- a/iwinfo_lua.c
++++ b/iwinfo_lua.c
+@@ -265,6 +265,21 @@ static int iwinfo_L_mode(lua_State *L, int (*func)(const char *, int *))
+ 	return 1;
+ }
+ 
++static int iwinfo_L_htmode(lua_State *L, int (*func)(const char *, int *))
++{
++	int mode;
++	const char *ifname = luaL_checkstring(L, 1);
++
++	if ((*func)(ifname, &mode)) {
++		lua_pushnil(L);
++	} else {
++		const char *htmode = iwinfo_htmode_name(mode);
++		lua_pushstring(L, htmode ? htmode : "unknown");
++	}
++
++	return 1;
++}
++
+ static void set_rateinfo(lua_State *L, struct iwinfo_rate_entry *r, bool rx)
+ {
+ 	lua_pushnumber(L, r->rate);
+@@ -760,6 +775,7 @@ LUA_WRAP_INT_OP(nl80211,noise)
+ LUA_WRAP_INT_OP(nl80211,quality)
+ LUA_WRAP_INT_OP(nl80211,quality_max)
+ LUA_WRAP_STRING_OP(nl80211,ssid)
++LUA_WRAP_STRUCT_OP(nl80211,htmode)
+ LUA_WRAP_STRING_OP(nl80211,bssid)
+ LUA_WRAP_STRING_OP(nl80211,country)
+ LUA_WRAP_STRING_OP(nl80211,hardware_name)
+@@ -888,6 +904,7 @@ static const luaL_reg R_nl80211[] = {
+ 	LUA_REG(nl80211,quality_max),
+ 	LUA_REG(nl80211,mode),
+ 	LUA_REG(nl80211,ssid),
++	LUA_REG(nl80211,htmode),
+ 	LUA_REG(nl80211,bssid),
+ 	LUA_REG(nl80211,country),
+ 	LUA_REG(nl80211,assoclist),
+-- 
+2.34.1
+

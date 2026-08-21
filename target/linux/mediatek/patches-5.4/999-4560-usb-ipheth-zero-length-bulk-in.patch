@@ -1,0 +1,17 @@
+Index: linux-5.4.281/drivers/net/usb/ipheth.c
+===================================================================
+--- linux-5.4.281.orig/drivers/net/usb/ipheth.c
++++ linux-5.4.281/drivers/net/usb/ipheth.c
+@@ -188,7 +188,11 @@ static void ipheth_rcvbulk_callback(stru
+ 	}
+ 
+ 	if (urb->actual_length <= IPHETH_IP_ALIGN) {
+-		dev->net->stats.rx_length_errors++;
++		/*
++		 * A zero-length/short BULK IN completion can happen and should
++		 * not permanently stop RX by skipping re-submission.
++		 */
++		ipheth_rx_submit(dev, GFP_ATOMIC);
+ 		return;
+ 	}
+ 	len = urb->actual_length - IPHETH_IP_ALIGN;

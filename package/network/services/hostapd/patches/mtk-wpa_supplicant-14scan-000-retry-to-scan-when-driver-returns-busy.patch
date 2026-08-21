@@ -1,0 +1,15 @@
+Index: hostapd-2022-07-29-b704dc72/wpa_supplicant/scan.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/wpa_supplicant/scan.c
++++ hostapd-2022-07-29-b704dc72/wpa_supplicant/scan.c
+@@ -241,6 +241,10 @@ static void wpas_trigger_scan_cb(struct
+ 		if (ret == -EOPNOTSUPP)
+ 			retry = 0;
+ 
++		/* retry to scan again if driver returns EBUSY */
++ 		if (ret == -EBUSY)
++			retry = 1;
++
+ 		wpa_supplicant_notify_scanning(wpa_s, 0);
+ 		wpas_notify_scan_done(wpa_s, 0);
+ 		if (wpa_s->wpa_state == WPA_SCANNING)

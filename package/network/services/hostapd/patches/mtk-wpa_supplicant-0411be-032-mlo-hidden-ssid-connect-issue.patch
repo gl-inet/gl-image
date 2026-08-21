@@ -1,0 +1,20 @@
+Index: hostapd-2022-07-29-b704dc72/src/ml/ml_supplicant.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ml/ml_supplicant.c
++++ hostapd-2022-07-29-b704dc72/src/ml/ml_supplicant.c
+@@ -463,10 +463,15 @@ static int ml_get_wpa_ie(struct wpa_supp
+ 	struct wpa_bss *curr = NULL, *bss;
+ 	const u8 *ie;
+ 
++	wpa_printf(MSG_DEBUG, "searching for bssid: "MACSTR"", MAC2STR(bssid));
+ 	dl_list_for_each(bss, &wpa_s->bss, struct wpa_bss, list) {
+ 		wpa_printf(MSG_DEBUG, "scan table bss bssid: "MACSTR"", MAC2STR(bss->bssid));
+ 		if (os_memcmp(bss->bssid, bssid, ETH_ALEN) != 0)
+ 			continue;
++		if (bss->ssid_len == 0) {
++			wpa_printf(MSG_DEBUG, "skip for SSID len is zero means beacon entry hidden ssid");
++			continue;
++		}
+ 		curr = bss;
+ 		wpa_printf(MSG_DEBUG, "target bssid: "MACSTR"", MAC2STR(bssid));
+ 		break;

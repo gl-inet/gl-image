@@ -1,0 +1,13 @@
+diff --git a/src/ap/wpa_auth_ft.c b/src/ap/wpa_auth_ft.c
+index 83417f1..54098e1 100644
+--- a/src/ap/wpa_auth_ft.c
++++ b/src/ap/wpa_auth_ft.c
+@@ -3257,6 +3257,8 @@ u8 * wpa_sm_write_assoc_resp_ies(struct wpa_state_machine *sm, u8 *pos,
+ #ifdef	CONFIG_MTK_IEEE80211BE
+ 	if (auth_alg == WLAN_AUTH_FT && rsnxe_len && sm->dot11MultiLinkActivated)
+ 		*elem_count += ml_group->ml_link_num;
++	if (auth_alg == WLAN_AUTH_FT && rsnxe_len && !sm->dot11MultiLinkActivated)
++		*elem_count += 1;
+ #else
+ 	if (auth_alg == WLAN_AUTH_FT && rsnxe_len)
+ 		*elem_count += 1;

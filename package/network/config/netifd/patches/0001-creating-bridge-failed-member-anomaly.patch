@@ -1,0 +1,42 @@
+From a18014579d3e5c528c9b0f4c6d9a73504b891507 Mon Sep 17 00:00:00 2001
+From: zengyinbin <yinbin.zeng@gl-inet.com>
+Date: Thu, 11 Sep 2025 10:36:25 +0800
+Subject: [PATCH] repeatedly creating bridge leads to failure in adding the
+ equipment.
+
+---
+ system-linux.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/system-linux.c b/system-linux.c
+index e768853..cfafab7 100644
+--- a/system-linux.c
++++ b/system-linux.c
+@@ -47,6 +47,7 @@
+ #include <linux/version.h>
+ 
+ #include <sched.h>
++#include <unistd.h>
+ 
+ #ifndef RTN_FAILED_POLICY
+ #define RTN_FAILED_POLICY 12
+@@ -1400,9 +1401,14 @@ static void system_bridge_conf_multicast(struct device *bridge,
+ int system_bridge_addbr(struct device *bridge, struct bridge_config *cfg)
+ {
+ 	char buf[64];
++	char bridge_path[64];
+ 
+-	if (ioctl(sock_ioctl, SIOCBRADDBR, bridge->ifname) < 0)
+-		return -1;
++	snprintf(bridge_path, sizeof(bridge_path), "/sys/class/net/%s", bridge->ifname);
++	if (access(bridge_path, F_OK)) {
++		if (ioctl(sock_ioctl, SIOCBRADDBR, bridge->ifname) < 0) {
++			return -1;
++		}
++	}
+ 
+ 	system_bridge_set_stp_state(bridge, cfg->stp);
+ 
+-- 
+2.34.1
+

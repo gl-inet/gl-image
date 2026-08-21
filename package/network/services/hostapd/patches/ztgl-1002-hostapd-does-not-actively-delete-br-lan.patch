@@ -1,0 +1,26 @@
+From bd8e173f85ca883e90534136e43c331376c42b2a Mon Sep 17 00:00:00 2001
+From: zengyinbin <yinbin.zeng@gl-inet.com>
+Date: Tue, 2 Dec 2025 17:54:35 +0800
+Subject: [PATCH] hostapd does not actively delete br-lan
+
+Signed-off-by: zengyinbin <yinbin.zeng@gl-inet.com>
+---
+ src/drivers/driver_nl80211.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index 85bbe14..3863088 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -8392,7 +8392,7 @@ static int i802_check_bridge(struct wpa_driver_nl80211_data *drv,
+ 				   brname, strerror(errno));
+ 			return -1;
+ 		}
+-		bss->added_bridge = 1;
++		bss->added_bridge = 0;
+ 		br_ifindex = if_nametoindex(brname);
+ 		add_ifidx(drv, br_ifindex, drv->ifindex);
+ 	}
+-- 
+2.34.1
+

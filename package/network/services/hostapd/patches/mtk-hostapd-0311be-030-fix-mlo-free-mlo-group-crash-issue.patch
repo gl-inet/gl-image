@@ -1,0 +1,46 @@
+Index: hostapd-2022-07-29-b704dc72/src/ml/ml_common.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ml/ml_common.c
++++ hostapd-2022-07-29-b704dc72/src/ml/ml_common.c
+@@ -817,6 +817,15 @@ int ml_group_deinit_for_reconfig(struct
+ 		}
+ 	}
+ 
++	hapd->ml_group = NULL;
++	if (ml_group->ml_link_num == 0 && ml_group->links) {
++		wpa_printf(MSG_INFO, "(%s)[%d] ML: reconfig ml_group=%p, will free. ml_group->ctx(%p), hapd(%p)",
++			__func__, __LINE__, ml_group, ml_group->ctx, hapd);
++		os_free(ml_group->links);
++		ml_group->links = NULL;
++		os_free(ml_group);
++	}
++
+ 	return 0;
+ }
+ 
+@@ -848,23 +857,14 @@ int ml_group_deinit(struct hostapd_data
+ 			ml_group->ml_link_num--;
+ 		}
+ 	}
++
++	hapd->ml_group = NULL;
+ 	if (ml_group->ml_link_num == 0 && ml_group->links) {
+ 		wpa_printf(MSG_INFO, "(%s)[%d] ML: ml_group=%p, will free. ml_group->ctx(%p), hapd(%p)",
+ 			__func__, __LINE__, ml_group, ml_group->ctx, hapd);
+ 		os_free(ml_group->links);
+ 		ml_group->links = NULL;
+ 		os_free(ml_group);
+-		for (i = 0; i < hapd->iface->interfaces->count; i++) {
+-			struct hostapd_iface *iface = hapd->iface->interfaces->iface[i];
+-
+-			for (k = 0; k < iface->num_bss; k++) {
+-				struct hostapd_data *tmp_hapd = iface->bss[k];
+-
+-				if (tmp_hapd && tmp_hapd->ml_group == ml_group) {
+-					tmp_hapd->ml_group = NULL;
+-				}
+-			}
+-		}
+ 	}
+ 	return 0;
+ }

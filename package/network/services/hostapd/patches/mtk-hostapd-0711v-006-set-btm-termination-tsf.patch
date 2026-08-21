@@ -1,0 +1,96 @@
+diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
+index 3a5d844..11f86c9 100644
+--- a/hostapd/ctrl_iface.c
++++ b/hostapd/ctrl_iface.c
+@@ -1316,7 +1316,11 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
+ 
+ 		hapd->mbo_assoc_disallow = val;
+ 		ieee802_11_update_beacons(hapd->iface);
+-
++	} else if (os_strcasecmp(cmd, "bss_termination_tsf") == 0) {
++		int termination_sec = atoi(value);
++		hapd->conf->bss_termination_tsf = termination_sec;
++		wpa_printf(MSG_DEBUG, "BSS Termination TSF: value = %d",
++				termination_sec);
+ 		/*
+ 		 * TODO: Need to configure drivers that do AP MLME offload with
+ 		 * disallowing station logic.
+diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
+index b177081..471e5e1 100644
+--- a/src/ap/ap_config.c
++++ b/src/ap/ap_config.c
+@@ -138,6 +138,7 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
+ 
+ #ifdef CONFIG_MBO
+ 	bss->mbo_cell_data_conn_pref = -1;
++	bss->bss_termination_tsf = 0;
+ #endif /* CONFIG_MBO */
+ 
+ 	/* Disable TLS v1.3 by default for now to avoid interoperability issue.
+diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
+index 389076b..bc3d29b 100644
+--- a/src/ap/ap_config.h
++++ b/src/ap/ap_config.h
+@@ -577,6 +577,7 @@ struct hostapd_bss_config {
+ 	int wnm_sleep_mode;
+ 	int wnm_sleep_mode_no_keys;
+ 	int bss_transition;
++	unsigned int bss_termination_tsf;
+ 
+ 	/* IEEE 802.11u - Interworking */
+ 	int interworking;
+diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
+index 451c4eb..34ff7bf 100644
+--- a/src/ap/ctrl_iface_ap.c
++++ b/src/ap/ctrl_iface_ap.c
+@@ -1204,9 +1204,12 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+ 			wpa_printf(MSG_DEBUG, "Invalid bss_term data");
+ 			return -1;
+ 		}
+-		end--;
+-		WPA_PUT_LE16(&bss_term_dur[2], atoi(end));
+-		end += 2;
++
++		if (hapd->conf->bss_termination_tsf) {
++			WPA_PUT_LE64(&bss_term_dur[2], hapd->conf->bss_termination_tsf);
++		}
++
++		end++;
+ 		WPA_PUT_LE16(&bss_term_dur[10], atoi(end));
+ 	}
+ 
+diff --git a/src/ap/wnm_ap.c b/src/ap/wnm_ap.c
+index 1f35f6e..e55140e 100644
+--- a/src/ap/wnm_ap.c
++++ b/src/ap/wnm_ap.c
+@@ -840,6 +840,22 @@ static void set_disassoc_timer(struct hostapd_data *hapd, struct sta_info *sta,
+ }
+ 
+ 
++void bss_termination_disable_iface(void *eloop_ctx, void *timeout_ctx)
++{
++	struct hostapd_data *hapd = eloop_ctx;
++	hostapd_disable_iface(hapd->iface);
++}
++
++
++static void set_disable_iface_timer(struct hostapd_data *hapd, struct sta_info *sta,
++		int disable_iface_timer)
++{
++	wpa_printf(MSG_DEBUG, "Disable interface timer set to %d secs", disable_iface_timer);
++	eloop_register_timeout(disable_iface_timer, 0,
++			bss_termination_disable_iface, hapd, NULL);
++}
++
++
+ int wnm_send_ess_disassoc_imminent(struct hostapd_data *hapd,
+ 				   struct sta_info *sta, const char *url,
+ 				   int disassoc_timer)
+@@ -929,6 +945,7 @@ int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
+ 	    bss_term_dur) {
+ 		os_memcpy(pos, bss_term_dur, 12);
+ 		pos += 12;
++		set_disable_iface_timer(hapd, sta, hapd->conf->bss_termination_tsf);
+ 	}
+ 
+ 	if (url) {

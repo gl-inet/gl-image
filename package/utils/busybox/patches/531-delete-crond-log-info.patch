@@ -1,0 +1,13 @@
+Index: busybox-1.33.2/miscutils/crond.c
+===================================================================
+--- busybox-1.33.2.orig/miscutils/crond.c
++++ busybox-1.33.2/miscutils/crond.c
+@@ -181,7 +181,7 @@ static void crondlog(unsigned level, con
+ 		 * need not touch syslog_level
+ 		 * (they are ok with LOG_ERR default).
+ 		 */
+-		bb_vinfo_msg(msg, va);
++		//bb_vinfo_msg(msg, va);
+ 	}
+ }
+ 

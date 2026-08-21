@@ -1,0 +1,19 @@
+[ ifup = "$ACTION" ] && {
+	[ -n "$DEVICE" ] && {
+		if [ "$INTERFACE" == "lan" ]; then
+			# MT7987 HW LRO causes super-frame drops when forwarding
+			# to WG/Tailscale tunnels. Skip DIP table programming to
+			# prevent HW LRO from matching on affected platforms.
+			if ! grep -qi "mt7987" /proc/device-tree/compatible 2>/dev/null; then
+				if [ -f /usr/sbin/ethtool ]; then
+					ifname=eth0
+					lan_ip=`uci -q get network.lan.ipaddr`
+					ethdrv=`ethtool -i $ifname | grep mtk_soc_eth`
+					[ -n "$ethdrv" ] && {
+						ethtool -N $ifname flow-type tcp4 dst-ip $lan_ip loc 0
+					}
+				fi
+			fi
+		fi
+	}
+}

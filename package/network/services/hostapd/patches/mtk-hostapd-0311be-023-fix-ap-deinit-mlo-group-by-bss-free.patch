@@ -1,0 +1,58 @@
+Index: hostapd-2022-07-29-b704dc72/src/ml/ml_common.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ml/ml_common.c
++++ hostapd-2022-07-29-b704dc72/src/ml/ml_common.c
+@@ -756,40 +756,37 @@ int ml_group_deinit(struct hostapd_data
+ 	if (!ml_group)
+ 		return -1;
+ 
++	/* find the link, del it*/
+ 	for (i = 0; i < ml_group->ml_link_num; i++) {
+ 		link = &ml_group->links[i];
+ 		if (link == NULL)
+ 			continue;
+ 
+ 		if (link->ctx == hapd) {
+-			wpa_printf(MSG_INFO, "ML: Remove link %u", link->link_id);
++			wpa_printf(MSG_INFO, "ML: Remove link %d,iface(%s) mac addr("MACSTR")",
++				link->link_id, hapd->conf->iface, MAC2STR(link->addr));
+ 			k = i;
+-			while (k < (ml_group->ml_link_num - 1)) {
++			while (ml_group->ml_link_num >= 1 && (k < (ml_group->ml_link_num - 1)) ) {
+ 				os_memcpy(&ml_group->links[k],
+ 					&ml_group->links[k + 1], sizeof(*link));
+ 				k++;
+ 			}
++			os_memset(&ml_group->links[k], 0, sizeof(*link));
+ 			ml_group->ml_link_num--;
+ 		}
+ 	}
+-
+-	/* free ml group by ml group owner */
+-	if (ml_group->ctx == hapd) {
+-		for (i = 0; i < ml_group->ml_link_num; i++) {
+-			link = &ml_group->links[i];
+-			if (link == NULL)
+-				continue;
+-			wpa_printf(MSG_INFO, "ML: free sub link interface hapd:%p->ml group:%p", link->ctx, ((struct hostapd_data *)link->ctx)->ml_group);
+-			((struct hostapd_data *)link->ctx)->ml_group = NULL;  /*set other link's hapd->ml_group == NULL*/
+-		}
+-		os_free(ml_group->links);
+-		os_free(ml_group);
++	if (ml_group->ml_link_num == 0 && ml_group->links) {
++		wpa_printf(MSG_INFO, "(%s)[%d] ML: ml_group=%p, will free. ml_group->ctx(%p), hapd(%p)",
++			__func__, __LINE__, ml_group, ml_group->ctx, hapd);
++		os_free(hapd->ml_group->links);
++		ml_group->links = NULL;
++		os_free(hapd->ml_group);
++		hapd->ml_group = NULL;
+ 	}
+-	hapd->ml_group = NULL;
+-
+ 	return 0;
+ }
+ 
++
+ u8 ml_get_link_id(struct wpa_state_machine *sm)
+ {
+ 	struct wpa_ml_group *ml_group = STATE_MACHINE_ML_GROUP;

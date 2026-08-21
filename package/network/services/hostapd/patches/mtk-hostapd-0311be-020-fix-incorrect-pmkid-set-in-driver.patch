@@ -1,0 +1,15 @@
+Index: hostapd-2022-07-29-b704dc72/src/ap/pmksa_cache_auth.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/pmksa_cache_auth.c
++++ hostapd-2022-07-29-b704dc72/src/ap/pmksa_cache_auth.c
+@@ -376,9 +376,7 @@ pmksa_cache_auth_add(struct rsn_pmksa_ca
+ 	os_memcpy(pmkid_entry.sta, spa, ETH_ALEN);
+ 	os_memcpy(pmkid_entry.bssid, aa, ETH_ALEN);
+ 	os_memcpy(pmkid_entry.link_addr, link_addr, ETH_ALEN);
+-	if (pmkid) {
+-		os_memcpy(pmkid_entry.pmkid, pmkid, PMKID_LEN);
+-	}
++	os_memcpy(pmkid_entry.pmkid, entry->pmkid, PMKID_LEN);
+ 	wpa_auth = (struct wpa_authenticator *)(pmksa->ctx);
+ 	hapd = (struct hostapd_data *)(wpa_auth->cb_ctx);
+ 	pmksa_update_sta_pmkid(hapd->drv_priv, &pmkid_entry);

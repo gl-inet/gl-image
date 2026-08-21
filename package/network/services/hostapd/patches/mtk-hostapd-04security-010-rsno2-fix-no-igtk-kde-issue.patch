@@ -1,0 +1,45 @@
+Index: hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wpa_auth.c
++++ hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.c
+@@ -4454,7 +4454,9 @@ static int wpa_gtk_update(struct wpa_aut
+ 	wpa_hexdump_key(MSG_DEBUG, "GTK",
+ 			group->GTK[group->GN - 1], group->GTK_len);
+ 
+-	if (conf->ieee80211w != NO_MGMT_FRAME_PROTECTION) {
++	if (conf->ieee80211w != NO_MGMT_FRAME_PROTECTION ||
++		conf->rsn_override_mfp != NO_MGMT_FRAME_PROTECTION ||
++		conf->rsn_override_mfp_2 != NO_MGMT_FRAME_PROTECTION) {
+ 		len = wpa_cipher_key_len(conf->group_mgmt_cipher);
+ 		os_memcpy(group->GNonce, group->Counter, WPA_NONCE_LEN);
+ 		inc_byte_array(group->Counter, WPA_NONCE_LEN);
+@@ -4466,7 +4468,9 @@ static int wpa_gtk_update(struct wpa_aut
+ 				group->IGTK[group->GN_igtk - 4], len);
+ 	}
+ 
+-	if (conf->ieee80211w != NO_MGMT_FRAME_PROTECTION &&
++	if ((conf->ieee80211w != NO_MGMT_FRAME_PROTECTION ||
++		conf->rsn_override_mfp != NO_MGMT_FRAME_PROTECTION ||
++		conf->rsn_override_mfp_2 != NO_MGMT_FRAME_PROTECTION) &&
+ 	    conf->beacon_prot) {
+ 		len = wpa_cipher_key_len(conf->group_mgmt_cipher);
+ 		os_memcpy(group->GNonce, group->Counter, WPA_NONCE_LEN);
+Index: hostapd-2022-07-29-b704dc72/src/ap/wpa_auth_ie.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wpa_auth_ie.c
++++ hostapd-2022-07-29-b704dc72/src/ap/wpa_auth_ie.c
+@@ -1047,8 +1047,12 @@ wpa_validate_wpa_ie(struct wpa_authentic
+ #endif /* CONFIG_OCV */
+ 
+ 	if (wpa_auth->conf.ieee80211w == NO_MGMT_FRAME_PROTECTION ||
+-	    !(data.capabilities & WPA_CAPABILITY_MFPC))
+-		sm->mgmt_frame_prot = 0;
++	    !(data.capabilities & WPA_CAPABILITY_MFPC)) {
++	    if (sm->rsn_override || sm->rsn_override_2)
++			sm->mgmt_frame_prot = 1;
++		else
++			sm->mgmt_frame_prot = 0;
++	}
+ 	else
+ 		sm->mgmt_frame_prot = 1;
+ 

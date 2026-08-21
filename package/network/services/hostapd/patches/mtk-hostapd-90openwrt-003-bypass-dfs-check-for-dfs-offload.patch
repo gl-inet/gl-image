@@ -1,0 +1,13 @@
+diff -ruN a/src/ap/dfs.c b/src/ap/dfs.c
+--- a/src/ap/dfs.c
++++ b/src/ap/dfs.c
+@@ -1505,6 +1505,9 @@
+ {
+ 	int n_chans, n_chans1, start_chan_idx, start_chan_idx1, res;
+ 
++	if (iface->drv_flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD)
++		return 0;
++
+ 	if ((!(iface->drv_flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD) &&
+ 	     !iface->conf->ieee80211h) ||
+ 	    !iface->current_mode ||

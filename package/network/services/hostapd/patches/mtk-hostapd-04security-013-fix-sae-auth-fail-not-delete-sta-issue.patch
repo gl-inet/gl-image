@@ -1,0 +1,15 @@
+Index: hostapd-2022-07-29-b704dc72/src/ap/ieee802_11.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/ieee802_11.c
++++ hostapd-2022-07-29-b704dc72/src/ap/ieee802_11.c
+@@ -1749,6 +1749,10 @@ remove_sta:
+ 		hostapd_drv_sta_remove(hapd, sta->addr);
+ 		sta->added_unassoc = 0;
+ 	}
++	if (auth_transaction == 2 && resp == WLAN_STATUS_UNSPECIFIED_FAILURE) {
++		hostapd_drv_sta_remove(hapd, sta->addr);
++		ap_free_sta(hapd, sta);
++	}
+ 	wpabuf_free(data);
+ }
+ 

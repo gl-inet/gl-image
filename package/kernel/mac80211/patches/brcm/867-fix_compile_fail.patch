@@ -1,0 +1,19 @@
+Index: backports-6.5/backport-include/linux/skbuff.h
+===================================================================
+--- backports-6.5.orig/backport-include/linux/skbuff.h
++++ backports-6.5/backport-include/linux/skbuff.h
+@@ -106,6 +106,14 @@ static inline void nf_reset_ct(struct sk
+ }
+ #endif
+ 
++#if LINUX_VERSION_IS_LESS(6,0,0)
++#define kfree_skb_reason LINUX_BACKPORT(kfree_skb_reason)
++static inline void kfree_skb_reason(struct sk_buff *skb, int reason)
++{
++	        return kfree_skb(skb);
++}
++#endif /* < 6.0.0 */
++
+ #ifndef skb_list_walk_safe
+ #define skb_list_walk_safe(first, skb, next_skb)				\
+ 	for ((skb) = (first), (next_skb) = (skb) ? (skb)->next : NULL; (skb); 	\

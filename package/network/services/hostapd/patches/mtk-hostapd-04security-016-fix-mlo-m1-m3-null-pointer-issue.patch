@@ -1,0 +1,37 @@
+Index: hostapd-2022-07-29-b704dc72/src/ml/ml_common.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ml/ml_common.c
++++ hostapd-2022-07-29-b704dc72/src/ml/ml_common.c
+@@ -954,11 +954,19 @@ int ml_new_assoc_sta(struct wpa_state_ma
+ 
+ u8* ml_add_m1_kde(struct wpa_state_machine *sm, u8 *pos)
+ {
++	struct wpa_ml_group *ml_group = NULL;
+ 	if (!sm->dot11MultiLinkActivated)
+ 		return pos;
+-
++	
++	ml_group = STATE_MACHINE_ML_GROUP;
++	
++	if (ml_group == NULL){
++		wpa_printf(MSG_ERROR,"ML: ML group is NULL, return to send normal EAPOL-Key 1/4");
++		return pos;
++	}
++	
+ 	wpa_printf(MSG_INFO, "ML: Add Mac:(" MACSTR ") into EAPOL-Key 1/4", MAC2STR(STATE_MACHINE_ML_GROUP_ADDR));
+-	return ml_set_mac_kde(pos, STATE_MACHINE_ML_GROUP_ADDR);
++	return ml_set_mac_kde(pos, ml_group->ml_addr);
+ }
+ 
+ int ml_process_m2_kde(struct wpa_state_machine *sm,
+@@ -1046,6 +1054,10 @@ u8* ml_add_m3_kde(struct wpa_state_machi
+ 
+ 	wpa_printf(MSG_INFO, "ML: Add Mac/Link/GTK into EAPOL-Key 3/4");
+ 	ml_group = STATE_MACHINE_ML_GROUP;
++	if (ml_group == NULL){
++			wpa_printf(MSG_ERROR,"ML: ML group is NULL, return to send normal EAPOL-Key 3/4");
++			return pos;
++	}
+ 	pos = ml_set_mac_kde(pos, ml_group->ml_addr);
+ 
+ 	for (i = 0; i < ml_group->ml_link_num; i++) {

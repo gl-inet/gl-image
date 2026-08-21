@@ -1,0 +1,144 @@
+From 905058b7529e7500a2879a2cae36c226c0d5079a Mon Sep 17 00:00:00 2001
+From: zengyinbin <yinbin.zeng@gl-inet.com>
+Date: Fri, 29 Aug 2025 14:20:23 +0800
+Subject: [PATCH] Compatible with EHT
+
+---
+ include/iwinfo.h | 15 +++++++++++++++
+ iwinfo_lib.c     |  9 ++++++++-
+ iwinfo_nl80211.c | 19 +++++++++++++++++--
+ 3 files changed, 40 insertions(+), 3 deletions(-)
+
+diff --git a/include/iwinfo.h b/include/iwinfo.h
+index b50de69..8c951d1 100644
+--- a/include/iwinfo.h
++++ b/include/iwinfo.h
+@@ -192,6 +192,13 @@ enum iwinfo_htmode {
+ 	IWINFO_HTMODE_HE80,
+ 	IWINFO_HTMODE_HE80_80,
+ 	IWINFO_HTMODE_HE160,
++	IWINFO_HTMODE_EHT20,
++	IWINFO_HTMODE_EHT40,
++	IWINFO_HTMODE_EHT80,
++	IWINFO_HTMODE_EHT80_80,
++	IWINFO_HTMODE_EHT160,
++	IWINFO_HTMODE_EHT160_80,
++	IWINFO_HTMODE_EHT320,
+ 
+ 	/* keep last */
+ 	IWINFO_HTMODE_COUNT
+@@ -210,6 +217,14 @@ enum iwinfo_htmode {
+ #define IWINFO_HTMODE_HE80       (1 << IWINFO_HTMODE_HE80)
+ #define IWINFO_HTMODE_HE80_80    (1 << IWINFO_HTMODE_HE80_80)
+ #define IWINFO_HTMODE_HE160      (1 << IWINFO_HTMODE_HE160)
++#define IWINFO_HTMODE_EHT20      (1 << IWINFO_HTMODE_EHT20)
++#define IWINFO_HTMODE_EHT40      (1 << IWINFO_HTMODE_EHT40)
++#define IWINFO_HTMODE_EHT80      (1 << IWINFO_HTMODE_EHT80)
++#define IWINFO_HTMODE_EHT80_80   (1 << IWINFO_HTMODE_EHT80_80)
++#define IWINFO_HTMODE_EHT160     (1 << IWINFO_HTMODE_EHT160)
++#define IWINFO_HTMODE_EHT160_80  (1 << IWINFO_HTMODE_EHT160_80)
++#define IWINFO_HTMODE_EHT320     (1 << IWINFO_HTMODE_EHT320)
++
+ 
+ extern const char * const IWINFO_HTMODE_NAMES[IWINFO_HTMODE_COUNT];
+ 
+diff --git a/iwinfo_lib.c b/iwinfo_lib.c
+index 579efc4..2c65312 100644
+--- a/iwinfo_lib.c
++++ b/iwinfo_lib.c
+@@ -92,7 +92,14 @@ const char * const IWINFO_HTMODE_NAMES[IWINFO_HTMODE_COUNT] = {
+ 	"HE40",
+ 	"HE80",
+ 	"HE80+80",
+-	"HE160"
++	"HE160",
++	"EHT20",
++	"EHT40",
++	"EHT80",
++	"EHT80+80",
++	"EHT160",
++	"EHT160+80",
++	"EHT320"
+ };
+ 
+ const char * const IWINFO_FREQ_FLAG_NAMES[IWINFO_FREQ_FLAG_COUNT] = {
+diff --git a/iwinfo_nl80211.c b/iwinfo_nl80211.c
+index 2200249..92e745c 100644
+--- a/iwinfo_nl80211.c
++++ b/iwinfo_nl80211.c
+@@ -916,7 +916,7 @@ static int __nl80211_hostapd_query(const char *ifname, ...)
+ 	if (!phy)
+ 		return 0;
+ 
+-	snprintf(buf, sizeof(buf), "/var/run/hostapd-%s.conf", phy);
++	snprintf(buf, sizeof(buf), "/var/run/hostapd/hostapd-%s.conf", ifname);
+ 	fp = fopen(buf, "r");
+ 
+ 	if (!fp)
+@@ -3325,6 +3325,7 @@ static int nl80211_get_htmode(const char *ifname, int *buf)
+ 	char *res, b[2] = { 0 };
+ 	int err;
+ 	bool he = false;
++	bool be = false;
+ 
+ 	res = nl80211_phy2ifname(ifname);
+ 	*buf = 0;
+@@ -3335,7 +3336,11 @@ static int nl80211_get_htmode(const char *ifname, int *buf)
+ 	if (err)
+ 		return -1;
+ 
+-	if (nl80211_hostapd_query(res ? res : ifname, "ieee80211ax", b, sizeof(b)))
++	if (nl80211_hostapd_query(res ? res : ifname, "ieee80211be", b, sizeof(b)))
++		be = b[0] == '1';
++	else if (nl80211_wpactl_query(res ? res : ifname, "wifi_generation", b, sizeof(b)))
++		be = b[0] == '7';
++	else if (nl80211_hostapd_query(res ? res : ifname, "ieee80211ax", b, sizeof(b)))
+ 		he = b[0] == '1';
+ 	else if (nl80211_wpactl_query(res ? res : ifname, "wifi_generation", b, sizeof(b)))
+ 		he = b[0] == '6';
+@@ -3344,6 +3349,8 @@ static int nl80211_get_htmode(const char *ifname, int *buf)
+ 	case NL80211_CHAN_WIDTH_20:
+ 		if (he)
+ 			*buf = IWINFO_HTMODE_HE20;
++		else if (be)
++			*buf = IWINFO_HTMODE_EHT20;
+ 		else if (chn.mode == -1)
+ 			*buf = IWINFO_HTMODE_VHT20;
+ 		else
+@@ -3352,6 +3359,8 @@ static int nl80211_get_htmode(const char *ifname, int *buf)
+ 	case NL80211_CHAN_WIDTH_40:
+ 		if (he)
+ 			*buf = IWINFO_HTMODE_HE40;
++		else if (be)
++			*buf = IWINFO_HTMODE_EHT40;
+ 		else if (chn.mode == -1)
+ 			*buf = IWINFO_HTMODE_VHT40;
+ 		else
+@@ -3360,18 +3369,24 @@ static int nl80211_get_htmode(const char *ifname, int *buf)
+ 	case NL80211_CHAN_WIDTH_80:
+ 		if (he)
+ 			*buf = IWINFO_HTMODE_HE80;
++		else if (be)
++			*buf = IWINFO_HTMODE_EHT80;
+ 		else
+ 			*buf = IWINFO_HTMODE_VHT80;
+ 		break;
+ 	case NL80211_CHAN_WIDTH_80P80:
+ 		if (he)
+ 			*buf = IWINFO_HTMODE_HE80_80;
++		else if (be)
++			*buf = IWINFO_HTMODE_EHT80_80;
+ 		else
+ 			*buf = IWINFO_HTMODE_VHT80_80;
+ 		break;
+ 	case NL80211_CHAN_WIDTH_160:
+ 		if (he)
+ 			*buf = IWINFO_HTMODE_HE160;
++		else if (be)
++			*buf = IWINFO_HTMODE_EHT160;
+ 		else
+ 			*buf = IWINFO_HTMODE_VHT160;
+ 		break;
+-- 
+2.34.1
+

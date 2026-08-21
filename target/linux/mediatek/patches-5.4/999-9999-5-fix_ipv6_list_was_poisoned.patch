@@ -1,0 +1,37 @@
+--- a/net/ipv6/addrconf.c
++++ b/net/ipv6/addrconf.c
+@@ -1292,19 +1292,27 @@ static void ipv6_del_addr(struct inet6_i
+ 	write_lock_bh(&ifp->idev->lock);
+ 
+ 	if (ifp->flags&IFA_F_TEMPORARY) {
+-		list_del(&ifp->tmp_list);
+-		if (ifp->ifpub) {
+-			in6_ifa_put(ifp->ifpub);
+-			ifp->ifpub = NULL;
++		if (ifp->tmp_list.prev != LIST_POISON2 && ifp->tmp_list.next != LIST_POISON1) {
++			list_del(&ifp->tmp_list);
++			if (ifp->ifpub) {
++				in6_ifa_put(ifp->ifpub);
++				ifp->ifpub = NULL;
++			}
++			__in6_ifa_put(ifp);
++		} else {
++			printk("%s:%d ifp->tmp_list was poisoned\n",__func__,__LINE__);
+ 		}
+-		__in6_ifa_put(ifp);
+ 	}
+ 
+ 	if (ifp->flags & IFA_F_PERMANENT && !(ifp->flags & IFA_F_NOPREFIXROUTE))
+ 		action = check_cleanup_prefix_route(ifp, &expires);
+ 
+-	list_del_rcu(&ifp->if_list);
+-	__in6_ifa_put(ifp);
++	if (ifp->if_list.prev != LIST_POISON2) {
++		list_del_rcu(&ifp->if_list);
++		__in6_ifa_put(ifp);
++	} else {
++		printk("%s:%d ifp->if_list was poisoned\n", __func__,__LINE__);
++	}
+ 
+ 	write_unlock_bh(&ifp->idev->lock);
+ 

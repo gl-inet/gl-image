@@ -1,0 +1,89 @@
+From f4096e7cd595f3118972218bd0a646242be80544 Mon Sep 17 00:00:00 2001
+From: Jouni Malinen <j@w1.fi>
+Date: Sat, 17 Dec 2022 20:32:15 +0200
+Subject: [PATCH] EHT: Update EHT Operation element to P802.11be/D2.3 in AP
+ settings
+
+IEEE P802.11be/D2.0 added a 4-octet Basic EHT-MCS And Nss Set field into
+the EHT Operation element. cfg80211 is now verifying that the EHT
+Operation element has large enough payload and that check is failing
+with the previous version. This commit does not really set the correct
+Basic EHT-MCS And Nss Set values, but the IE length check is now passing
+to allow initial mac80211_hwsim testing to succeed.
+
+Signed-off-by: Jouni Malinen <j@w1.fi>
+---
+ src/ap/ieee802_11_eht.c      | 11 +++++++++--
+ src/common/ieee802_11_defs.h |  6 +++++-
+ 2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/ap/ieee802_11_eht.c b/src/ap/ieee802_11_eht.c
+index 238da2ca8..caaadcecf 100644
+--- a/src/ap/ieee802_11_eht.c
++++ b/src/ap/ieee802_11_eht.c
+@@ -197,17 +197,24 @@ u8 * hostapd_eid_eht_operation(struct hostapd_data *hapd, u8 *eid)
+ 	struct ieee80211_eht_operation *oper;
+ 	u8 *pos = eid, seg0 = 0, seg1 = 0;
+ 	enum oper_chan_width chwidth;
++	size_t elen = 1 + 4 + 3;
+ 
+ 	if (!hapd->iface->current_mode)
+ 		return eid;
+ 
+ 	*pos++ = WLAN_EID_EXTENSION;
+-	*pos++ = 5;
++	*pos++ = 1 + elen;
+ 	*pos++ = WLAN_EID_EXT_EHT_OPERATION;
+ 
+ 	oper = (struct ieee80211_eht_operation *) pos;
+ 	oper->oper_params = EHT_OPER_INFO_PRESENT;
+ 
++	/* TODO: Fill in appropriate EHT-MCS max Nss information */
++	oper->basic_eht_mcs_nss_set[0] = 0x11;
++	oper->basic_eht_mcs_nss_set[1] = 0x00;
++	oper->basic_eht_mcs_nss_set[2] = 0x00;
++	oper->basic_eht_mcs_nss_set[3] = 0x00;
++
+ 	if (is_6ghz_op_class(conf->op_class))
+ 		chwidth = op_class_to_ch_width(conf->op_class);
+ 	else
+@@ -246,7 +253,7 @@ u8 * hostapd_eid_eht_operation(struct hostapd_data *hapd, u8 *eid)
+ 	oper->oper_info.ccfs0 = seg0 ? seg0 : hapd->iconf->channel;
+ 	oper->oper_info.ccfs1 = seg1;
+ 
+-	return pos + 4;
++	return pos + elen;
+ }
+ 
+ 
+diff --git a/src/common/ieee802_11_defs.h b/src/common/ieee802_11_defs.h
+index 5408ae576..21b48ac52 100644
+--- a/src/common/ieee802_11_defs.h
++++ b/src/common/ieee802_11_defs.h
+@@ -2429,11 +2429,14 @@ struct ieee80211_he_mu_edca_parameter_set {
+ #define RNR_BSS_PARAM_CO_LOCATED                    BIT(6)
+ #define RNR_20_MHZ_PSD_MAX_TXPOWER                  255 /* dBm */
+ 
+-/* IEEE P802.11be/D1.5, 9.4.2.311 - EHT Operation element */
++/* IEEE P802.11be/D2.3, 9.4.2.311 - EHT Operation element */
+ 
+ /* Figure 9-1002b: EHT Operation Parameters field subfields */
+ #define EHT_OPER_INFO_PRESENT                          BIT(0)
+ #define EHT_OPER_DISABLED_SUBCHAN_BITMAP_PRESENT       BIT(1)
++#define EHT_OPER_DEFAULT_PE_DURATION                   BIT(2)
++#define EHT_OPER_GROUP_ADDR_BU_INDICATION_LIMIT        BIT(3)
++#define EHT_OPER_GROUP_ADDR_BU_INDICATION_EXPONENT     (BIT(4) | BIT(5))
+ 
+ /* Control subfield: Channel Width subfield; see Table 9-401b */
+ #define EHT_OPER_CHANNEL_WIDTH_20MHZ                   0
+@@ -2453,6 +2456,7 @@ struct ieee80211_eht_oper_info {
+ /* Figure 9-1002a: EHT Operation element format */
+ struct ieee80211_eht_operation {
+ 	u8 oper_params; /* EHT Operation Parameters: EHT_OPER_* bits */
++	u8 basic_eht_mcs_nss_set[4];
+ 	struct ieee80211_eht_oper_info oper_info; /* 0 or 3 or 5 octets */
+ } STRUCT_PACKED;
+ 
+-- 
+2.18.0
+

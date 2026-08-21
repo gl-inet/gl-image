@@ -1,0 +1,90 @@
+diff --git a/src/ap/wpa_auth_ft.c b/src/ap/wpa_auth_ft.c
+index 844dda5..2989635 100644
+--- a/src/ap/wpa_auth_ft.c
++++ b/src/ap/wpa_auth_ft.c
+@@ -32,6 +32,10 @@
+ #include "ml/ml_common.h"
+ #include "hostapd.h"
+ #include "wpa_auth_ie.h"
++#include "netlink/genl/genl.h"
++#include "mtk_vendor_nl80211.h"
++#include "../drivers/nl80211_copy.h"
++#include "../drivers/driver_nl80211.h"
+ 
+ extern u8 ml_get_link_id(struct wpa_state_machine *sm);
+ 
+@@ -4267,7 +4271,7 @@ static int wpa_ft_rrb_rx_request(struct wpa_authenticator *wpa_auth,
+ 	res = wpa_ft_process_auth_req(sm, body, len, &resp_ies,
+ 				      &resp_ies_len
+ #ifdef CONFIG_MTK_IEEE80211BE
+-					, NULL
++					, wpa_auth->addr
+ #endif
+ 				);
+ 	if (res < 0) {
+@@ -5156,6 +5160,41 @@ out:
+ }
+ 
+ 
++#ifdef CONFIG_MTK_IEEE80211BE
++static int nl80211_drv_del_mlo_sta_entry(struct wpa_driver_nl80211_data *drv,
++		const u8 *data, u16 data_len)
++{
++	struct nl_msg *msg = NULL;
++	struct nlattr *attr;
++	int ret;
++
++	if (!(msg = nl80211_drv_msg(drv, 0, NL80211_CMD_VENDOR)) ||
++			nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, MTK_NL80211_VENDOR_ID) ||
++			nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_DEL_MLO_STA_ENTRY))
++		goto fail;
++
++	attr = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA);
++	if (!attr)
++		goto fail;
++
++	if (nla_put(msg, MTK_NL80211_VENDOR_ATTR_DEL_MLO_STA_ENTRY, data_len,
++				(void *)data))
++		goto fail;
++
++	nla_nest_end(msg, attr);
++
++	ret = send_and_recv_msgs(drv, msg, NULL, NULL, NULL, NULL);
++	if (ret)
++		wpa_printf(MSG_DEBUG, "nl80211: Del sta vendor command failed err=%d",
++				ret);
++	return ret;
++
++fail:
++	nlmsg_free(msg);
++	return ret;
++}
++#endif
++
+ int wpa_ft_rrb_rx(struct wpa_authenticator *wpa_auth, const u8 *src_addr,
+ 		  const u8 *data, size_t data_len)
+ {
+@@ -5216,6 +5255,15 @@ int wpa_ft_rrb_rx(struct wpa_authenticator *wpa_auth, const u8 *src_addr,
+ 
+ 	pos++;
+ 	action = *pos++;
++#ifdef CONFIG_MTK_IEEE80211BE
++	if (frame->packet_type == FT_PACKET_REQUEST) {
++		struct hostapd_data *hapd = wpa_auth->cb_ctx;
++		struct i802_bss *bss = hapd->drv_priv;
++		struct wpa_driver_nl80211_data *drv = bss->drv;
++
++		nl80211_drv_del_mlo_sta_entry(drv, pos, end - pos);
++	}
++#endif
+ 	sta_addr = pos;
+ 	pos += ETH_ALEN;
+ 	target_ap_addr = pos;
+@@ -5239,7 +5287,6 @@ int wpa_ft_rrb_rx(struct wpa_authenticator *wpa_auth, const u8 *src_addr,
+ 				   "address");
+ 			return -1;
+ 		}
+-
+ 		if (wpa_ft_rrb_rx_request(wpa_auth, frame->ap_address,
+ 					  sta_addr, pos, end - pos) < 0)
+ 			return -1;

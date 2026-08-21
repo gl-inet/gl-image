@@ -1,0 +1,42 @@
+--- a/drivers/net/wireguard/receive.c	2024-12-10 15:33:46.724792586 +0800
++++ b/drivers/net/wireguard/receive.c	2024-12-10 15:34:45.967191179 +0800
+@@ -96,6 +96,7 @@ static int prepare_skb_header(struct sk_
+ 	return 0;
+ }
+ 
++extern int is_retry_count_wg;
+ static void wg_receive_handshake_packet(struct wg_device *wg,
+ 					struct sk_buff *skb)
+ {
+@@ -192,6 +193,7 @@ static void wg_receive_handshake_packet(
+ 			 */
+ 			wg_packet_send_keepalive(peer);
+ 		}
++		is_retry_count_wg = 0;
+ 		break;
+ 	}
+ 	}
+--- a/drivers/net/wireguard/timers.c	2024-12-10 15:33:56.348740147 +0800
++++ b/drivers/net/wireguard/timers.c	2024-12-10 15:34:29.471325719 +0800
+@@ -39,6 +39,7 @@ static inline void mod_peer_timer(struct
+ 	rcu_read_unlock_bh();
+ }
+ 
++int is_retry_count_wg = 0;
+ static void wg_expired_retransmit_handshake(struct timer_list *timer)
+ {
+ 	struct wg_peer *peer = from_timer(peer, timer,
+@@ -76,8 +77,12 @@ static void wg_expired_retransmit_handsh
+ 		wg_socket_clear_peer_endpoint_src(peer);
+ 
+ 		wg_packet_send_queued_handshake_initiation(peer, true);
+-
+-		wireguard_hotplug(peer->device->dev->name, REKEY_TIMEOUT_EVENT);
++		is_retry_count_wg++;
++		if(is_retry_count_wg > 3)
++		{
++			is_retry_count_wg = 0;
++			wireguard_hotplug(peer->device->dev->name, REKEY_TIMEOUT_EVENT);
++		}
+ 	}
+ }

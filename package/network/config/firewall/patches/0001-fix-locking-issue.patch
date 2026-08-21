@@ -1,0 +1,12 @@
+Index: firewall-2021-03-23-61db17ed/utils.c
+===================================================================
+--- firewall-2021-03-23-61db17ed.orig/utils.c
++++ firewall-2021-03-23-61db17ed/utils.c
+@@ -411,7 +411,6 @@ fw3_unlock_path(int *fd, const char *loc
+ 		warn("Cannot release exclusive lock: %s", strerror(errno));
+ 
+ 	close(*fd);
+-	unlink(FW3_LOCKFILE);
+ 
+ 	*fd = -1;
+ }

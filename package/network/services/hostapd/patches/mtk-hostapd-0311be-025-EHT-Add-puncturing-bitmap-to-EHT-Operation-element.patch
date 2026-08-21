@@ -1,0 +1,97 @@
+From f9fc2eabbd1005bc819b8748b29de15ce878e044 Mon Sep 17 00:00:00 2001
+From: Muna Sinada <quic_msinada@quicinc.com>
+Date: Mon, 13 Mar 2023 21:59:18 -0700
+Subject: [PATCH] EHT: Add puncturing bitmap to EHT Operation element
+
+Add preamble puncturing bitmap to the EHT Operation element as per IEEE
+P802.11be/D3.0, Figure 9-1002c (EHT Operation Information field format).
+Bits set to 1 indicate that the subchannel is punctured, otherwise
+active.
+
+Signed-off-by: Muna Sinada <quic_msinada@quicinc.com>
+Signed-off-by: Aloka Dixit <quic_alokad@quicinc.com>
+Signed-off-by: Balamurugan Mahalingam <quic_bmahalin@quicinc.com>
+---
+ src/ap/beacon.c              | 4 ++++
+ src/ap/ieee802_11.c          | 2 ++
+ src/ap/ieee802_11_eht.c      | 9 +++++++++
+ src/common/ieee802_11_defs.h | 1 +
+ 4 files changed, 16 insertions(+)
+
+diff --git a/src/ap/beacon.c b/src/ap/beacon.c
+index 48bc5a1dd..ec7ca7fc6 100644
+--- a/src/ap/beacon.c
++++ b/src/ap/beacon.c
+@@ -584,6 +584,8 @@ static u8 * hostapd_gen_probe_resp(struct hostapd_data *hapd,
+ 	if (hapd->iconf->ieee80211be && !hapd->conf->disable_11be) {
+ 		buflen += hostapd_eid_eht_capab_len(hapd, IEEE80211_MODE_AP);
+ 		buflen += 3 + sizeof(struct ieee80211_eht_operation);
++		if (hapd->iconf->punct_bitmap)
++			buflen += EHT_OPER_DISABLED_SUBCHAN_BITMAP_SIZE;
+ 	}
+ #endif /* CONFIG_IEEE80211BE */
+ 
+@@ -1687,6 +1689,8 @@ int ieee802_11_build_ap_params(struct hostapd_data *hapd,
+ 	if (hapd->iconf->ieee80211be && !hapd->conf->disable_11be) {
+ 		tail_len += hostapd_eid_eht_capab_len(hapd, IEEE80211_MODE_AP);
+ 		tail_len += 3 + sizeof(struct ieee80211_eht_operation);
++		if (hapd->iconf->punct_bitmap)
++			tail_len += EHT_OPER_DISABLED_SUBCHAN_BITMAP_SIZE;
+ 	}
+ #endif /* CONFIG_IEEE80211BE */
+ 
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index 8304e3c26..0142ee44a 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -4278,6 +4278,8 @@ static u16 send_assoc_resp(struct hostapd_data *hapd, struct sta_info *sta,
+ 	if (hapd->iconf->ieee80211be && !hapd->conf->disable_11be) {
+ 		buflen += hostapd_eid_eht_capab_len(hapd, IEEE80211_MODE_AP);
+ 		buflen += 3 + sizeof(struct ieee80211_eht_operation);
++		if (hapd->iconf->punct_bitmap)
++			buflen += EHT_OPER_DISABLED_SUBCHAN_BITMAP_SIZE;
+ 	}
+ #endif /* CONFIG_IEEE80211BE */
+ 
+diff --git a/src/ap/ieee802_11_eht.c b/src/ap/ieee802_11_eht.c
+index caaadcecf..6ebe0f91d 100644
+--- a/src/ap/ieee802_11_eht.c
++++ b/src/ap/ieee802_11_eht.c
+@@ -202,6 +202,9 @@ u8 * hostapd_eid_eht_operation(struct hostapd_data *hapd, u8 *eid)
+ 	if (!hapd->iface->current_mode)
+ 		return eid;
+ 
++	if (hapd->iconf->punct_bitmap)
++		elen += EHT_OPER_DISABLED_SUBCHAN_BITMAP_SIZE;
++
+ 	*pos++ = WLAN_EID_EXTENSION;
+ 	*pos++ = 1 + elen;
+ 	*pos++ = WLAN_EID_EXT_EHT_OPERATION;
+@@ -253,6 +256,12 @@ u8 * hostapd_eid_eht_operation(struct hostapd_data *hapd, u8 *eid)
+ 	oper->oper_info.ccfs0 = seg0 ? seg0 : hapd->iconf->channel;
+ 	oper->oper_info.ccfs1 = seg1;
+ 
++	if (hapd->iconf->punct_bitmap) {
++		oper->oper_params |= EHT_OPER_DISABLED_SUBCHAN_BITMAP_PRESENT;
++		oper->oper_info.disabled_chan_bitmap =
++			host_to_le16(hapd->iconf->punct_bitmap);
++	}
++
+ 	return pos + elen;
+ }
+ 
+diff --git a/src/common/ieee802_11_defs.h b/src/common/ieee802_11_defs.h
+index 202bfc9d1..dfad0b7b8 100644
+--- a/src/common/ieee802_11_defs.h
++++ b/src/common/ieee802_11_defs.h
+@@ -2473,6 +2473,7 @@ struct ieee80211_he_mu_edca_parameter_set {
+ #define EHT_OPER_DEFAULT_PE_DURATION                   BIT(2)
+ #define EHT_OPER_GROUP_ADDR_BU_INDICATION_LIMIT        BIT(3)
+ #define EHT_OPER_GROUP_ADDR_BU_INDICATION_EXPONENT     (BIT(4) | BIT(5))
++#define EHT_OPER_DISABLED_SUBCHAN_BITMAP_SIZE          2
+ 
+ /* Control subfield: Channel Width subfield; see Table 9-401b */
+ #define EHT_OPER_CHANNEL_WIDTH_20MHZ                   0
+-- 
+2.18.0
+

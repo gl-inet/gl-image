@@ -1,0 +1,12 @@
+diff --git a/src/ap/wps_hostapd.c b/src/ap/wps_hostapd.c
+index ec0536c..6155965 100644
+--- a/src/ap/wps_hostapd.c
++++ b/src/ap/wps_hostapd.c
+@@ -1702,6 +1702,7 @@ void hostapd_update_wps(struct hostapd_data *hapd)
+ 	wps->network_key = NULL;
+ 	wps->network_key_len = 0;
+ 	wps->psk_set = 0;
++	wps->wps_state = conf->wps_state;
+ 	if (conf->ssid.wpa_psk_file) {
+ 		/* Use per-device PSKs */
+ 	} else if (conf->ssid.wpa_passphrase) {

@@ -1,0 +1,51 @@
+From 0595d33d9917233258696f6c38067c875a0f1777 Mon Sep 17 00:00:00 2001
+From: mtk20656 <chank.chen@mediatek.com>
+Date: Mon, 9 Oct 2023 10:48:26 +0800
+Subject: [PATCH] fix wpapsk-ccmp connect fail issue
+
+Signed-off-by: mtk20656 <chank.chen@mediatek.com>
+---
+ src/rsn_supp/wpa.c | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/rsn_supp/wpa.c b/src/rsn_supp/wpa.c
+index c802e09..6b94aab 100644
+--- a/src/rsn_supp/wpa.c
++++ b/src/rsn_supp/wpa.c
+@@ -741,20 +741,20 @@ static void wpa_supplicant_process_1_of_4(struct wpa_sm *sm,
+ 
+ 	os_memset(&ie, 0, sizeof(ie));
+ 
+-	if (sm->proto == WPA_PROTO_RSN || sm->proto == WPA_PROTO_OSEN) {
+-		/* RSN: msg 1/4 should contain PMKID for the selected PMK */
+-		wpa_hexdump(MSG_DEBUG, "RSN: msg 1/4 key data",
+-			    key_data, key_data_len);
+-		if (wpa_supplicant_parse_ies(key_data, key_data_len, &ie) < 0) {
+-			wpa_printf(MSG_DEBUG,
+-				   "RSN: Discard EAPOL-Key msg 1/4 with invalid IEs/KDEs");
+-			return;
+-		}
+-		if (ie.pmkid) {
+-			wpa_hexdump(MSG_DEBUG, "RSN: PMKID from "
+-				    "Authenticator", ie.pmkid, PMKID_LEN);
+-		}
++	/* RSN: msg 1/4 should contain PMKID for the selected PMK */
++	wpa_hexdump(MSG_DEBUG, "RSN: msg 1/4 key data",
++			key_data, key_data_len);
++	if (wpa_supplicant_parse_ies(key_data, key_data_len, &ie) < 0) {
++		wpa_printf(MSG_DEBUG,
++			   "RSN: Discard EAPOL-Key msg 1/4 with invalid IEs/KDEs");
++		return;
+ 	}
++
++	if (ie.pmkid) {
++		wpa_hexdump(MSG_DEBUG, "RSN: PMKID from "
++				"Authenticator", ie.pmkid, PMKID_LEN);
++	}
++
+ #ifdef CONFIG_MTK_IEEE80211BE
+ 	if (ml_process_m1_kde(sm, &ie) < 0)
+ 		goto failed;
+-- 
+2.18.0
+

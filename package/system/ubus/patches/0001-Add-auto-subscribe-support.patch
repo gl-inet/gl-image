@@ -1,0 +1,195 @@
+From 4af91023ed01d89c1ab98652e036f129f35e47b1 Mon Sep 17 00:00:00 2001
+From: Jianhui Zhao <jianhui.zhao@gl-inet.com>
+Date: Tue, 7 Apr 2026 11:37:27 +0800
+Subject: [PATCH] Add auto subscribe support
+
+Backport from https://github.com/openwrt/ubus/commit/b3e8c4ef07ebb6f0f34a5c1f0dc1539068363619
+
+Signed-off-by: Jianhui Zhao <jianhui.zhao@gl-inet.com>
+---
+ libubus-io.c  | 25 +++++++++++++++++++++
+ libubus-sub.c | 60 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+ libubus.c     |  1 +
+ libubus.h     |  8 +++++++
+ 4 files changed, 93 insertions(+), 1 deletion(-)
+
+diff --git a/libubus-io.c b/libubus-io.c
+index a1fb62b..d190b67 100644
+--- a/libubus-io.c
++++ b/libubus-io.c
+@@ -344,6 +344,29 @@ void __hidden ubus_poll_data(struct ubus_context *ctx, int timeout)
+ 	ubus_handle_data(&ctx->sock, ULOOP_READ);
+ }
+ 
++static void
++ubus_auto_sub_lookup(struct ubus_context *ctx, struct ubus_object_data *obj,
++		     void *priv)
++{
++	struct ubus_subscriber *s;
++
++	list_for_each_entry(s, &ctx->auto_subscribers, list)
++		if (s->new_obj_cb(ctx, s, obj->path))
++			ubus_subscribe(ctx, s, obj->id);
++}
++
++static void
++ubus_refresh_auto_subscribe(struct ubus_context *ctx)
++{
++	struct ubus_event_handler *ev = &ctx->auto_subscribe_event_handler;
++
++	if (list_empty(&ctx->auto_subscribers))
++		return;
++
++	ubus_register_event_handler(ctx, ev, "ubus.object.add");
++	ubus_lookup(ctx, NULL, ubus_auto_sub_lookup, NULL);
++}
++
+ static void
+ ubus_refresh_state(struct ubus_context *ctx)
+ {
+@@ -365,6 +388,8 @@ ubus_refresh_state(struct ubus_context *ctx)
+ 
+ 	for (n = i, i = 0; i < n; i++)
+ 		ubus_add_object(ctx, objs[i]);
++
++	ubus_refresh_auto_subscribe(ctx);
+ }
+ 
+ int ubus_reconnect(struct ubus_context *ctx, const char *path)
+diff --git a/libubus-sub.c b/libubus-sub.c
+index 8793133..80d1f1a 100644
+--- a/libubus-sub.c
++++ b/libubus-sub.c
+@@ -31,14 +31,72 @@ const struct ubus_method watch_method __hidden = {
+ 	.handler = ubus_subscriber_cb,
+ };
+ 
++static void
++ubus_auto_sub_event_handler_cb(struct ubus_context *ctx,  struct ubus_event_handler *ev,
++			       const char *type, struct blob_attr *msg)
++{
++	enum {
++		EVENT_ID,
++		EVENT_PATH,
++		__EVENT_MAX
++	};
++
++	static const struct blobmsg_policy event_policy[__EVENT_MAX] = {
++		[EVENT_ID] = { .name = "id", .type = BLOBMSG_TYPE_INT32 },
++		[EVENT_PATH] = { .name = "path", .type = BLOBMSG_TYPE_STRING },
++	};
++
++	struct blob_attr *tb[__EVENT_MAX];
++	struct ubus_subscriber *s;
++	const char *path;
++	int id;
++
++	blobmsg_parse(event_policy, __EVENT_MAX, tb, blob_data(msg), blob_len(msg));
++
++	if (!tb[EVENT_ID] || !tb[EVENT_PATH])
++		return;
++
++	path = blobmsg_get_string(tb[EVENT_PATH]);
++	id = blobmsg_get_u32(tb[EVENT_ID]);
++
++	list_for_each_entry(s, &ctx->auto_subscribers, list)
++		if (s->new_obj_cb(ctx, s, path))
++			ubus_subscribe(ctx, s, id);
++}
++
++static void
++ubus_auto_sub_lookup(struct ubus_context *ctx, struct ubus_object_data *obj,
++		     void *priv)
++{
++	struct ubus_subscriber *s = priv;
++
++	if (s->new_obj_cb(ctx, s, obj->path))
++		ubus_subscribe(ctx, s, obj->id);
++}
++
+ int ubus_register_subscriber(struct ubus_context *ctx, struct ubus_subscriber *s)
+ {
+ 	struct ubus_object *obj = &s->obj;
++	int ret;
+ 
++	INIT_LIST_HEAD(&s->list);
+ 	obj->methods = &watch_method;
+ 	obj->n_methods = 1;
+ 
+-	return ubus_add_object(ctx, obj);
++	ret = ubus_add_object(ctx, obj);
++	if (ret)
++		return ret;
++
++	if (s->new_obj_cb) {
++		struct ubus_event_handler *ev = &ctx->auto_subscribe_event_handler;
++		list_add(&s->list, &ctx->auto_subscribers);
++		ev->cb = ubus_auto_sub_event_handler_cb;
++		if (!ev->obj.id)
++			ubus_register_event_handler(ctx, ev, "ubus.object.add");
++		ubus_lookup(ctx, NULL, ubus_auto_sub_lookup, s);
++	}
++
++	return 0;
+ }
+ 
+ static int
+diff --git a/libubus.c b/libubus.c
+index d625940..c9c3c6e 100644
+--- a/libubus.c
++++ b/libubus.c
+@@ -298,6 +298,7 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
+ 
+ 	INIT_LIST_HEAD(&ctx->requests);
+ 	INIT_LIST_HEAD(&ctx->pending);
++	INIT_LIST_HEAD(&ctx->auto_subscribers);
+ 	avl_init(&ctx->objects, ubus_cmp_id, false, NULL);
+ 	if (ubus_reconnect(ctx, path)) {
+ 		free(ctx->msgbuf.data);
+diff --git a/libubus.h b/libubus.h
+index 6925514..b74a823 100644
+--- a/libubus.h
++++ b/libubus.h
+@@ -63,6 +63,7 @@ typedef void (*ubus_notify_complete_handler_t)(struct ubus_notify_request *req,
+ typedef void (*ubus_notify_data_handler_t)(struct ubus_notify_request *req,
+ 					   int type, struct blob_attr *msg);
+ typedef void (*ubus_connect_handler_t)(struct ubus_context *ctx);
++typedef bool (*ubus_new_object_handler_t)(struct ubus_context *ctx, struct ubus_subscriber *sub, const char *path);
+ 
+ #define UBUS_OBJECT_TYPE(_name, _methods)		\
+ 	{						\
+@@ -139,10 +140,12 @@ struct ubus_object {
+ };
+ 
+ struct ubus_subscriber {
++	struct list_head list;
+ 	struct ubus_object obj;
+ 
+ 	ubus_handler_t cb;
+ 	ubus_remove_handler_t remove_cb;
++	ubus_new_object_handler_t new_obj_cb;
+ };
+ 
+ struct ubus_event_handler {
+@@ -170,6 +173,9 @@ struct ubus_context {
+ 	struct ubus_msghdr_buf msgbuf;
+ 	uint32_t msgbuf_data_len;
+ 	int msgbuf_reduction_counter;
++
++	struct list_head auto_subscribers;
++	struct ubus_event_handler auto_subscribe_event_handler;
+ };
+ 
+ struct ubus_object_data {
+@@ -302,6 +308,8 @@ int ubus_register_subscriber(struct ubus_context *ctx, struct ubus_subscriber *o
+ static inline int
+ ubus_unregister_subscriber(struct ubus_context *ctx, struct ubus_subscriber *obj)
+ {
++	if (!list_empty(&obj->list))
++		list_del_init(&obj->list);
+ 	return ubus_remove_object(ctx, &obj->obj);
+ }
+ 
+-- 
+2.34.1
+

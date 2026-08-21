@@ -1,0 +1,26 @@
+Index: odhcpd-2021-07-18-bc9d317f/src/odhcpd.c
+===================================================================
+--- odhcpd-2021-07-18-bc9d317f.orig/src/odhcpd.c
++++ odhcpd-2021-07-18-bc9d317f/src/odhcpd.c
+@@ -207,7 +207,7 @@ ssize_t odhcpd_send(int socket, struct s
+ 
+ 	ssize_t sent = sendmsg(socket, &msg, MSG_DONTWAIT);
+ 	if (sent < 0)
+-		syslog(LOG_ERR, "Failed to send to %s%%%s@%s (%m)",
++		syslog(LOG_DEBUG, "Failed to send to %s%%%s@%s (%m)",
+ 				ipbuf, iface->name, iface->ifname);
+ 	else
+ 		syslog(LOG_DEBUG, "Sent %zd bytes to %s%%%s@%s",
+Index: odhcpd-2021-07-18-bc9d317f/src/ndp.c
+===================================================================
+--- odhcpd-2021-07-18-bc9d317f.orig/src/ndp.c
++++ odhcpd-2021-07-18-bc9d317f/src/ndp.c
+@@ -420,7 +420,7 @@ static void setup_addr_for_relaying(stru
+ 
+ 		if (netlink_setup_proxy_neigh(addr, c->ifindex, add)) {
+ 			if (add)
+-				syslog(LOG_ERR, "Failed to add proxy neighbour entry %s on %s",
++				syslog(LOG_DEBUG, "Failed to add proxy neighbour entry %s on %s",
+ 				       ipbuf, c->name);
+ 		} else
+ 			syslog(LOG_DEBUG, "%s proxy neighbour entry %s on %s",
