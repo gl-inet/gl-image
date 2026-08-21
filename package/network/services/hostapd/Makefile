@@ -1,17 +1,19 @@
-# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2006-2014 OpenWrt.org
 #
-# Copyright (C) 2006-2021 OpenWrt.org
+# This is free software, licensed under the GNU General Public License v2.
+# See /LICENSE for more information.
+#
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=hostapd
-PKG_RELEASE:=$(AUTORELEASE).1
+PKG_RELEASE:=41
 
 PKG_SOURCE_URL:=http://w1.fi/hostap.git
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_DATE:=2022-07-29
-PKG_SOURCE_VERSION:=b704dc72ef824dfdd96674b90179b274d1d38105
-PKG_MIRROR_HASH:=6c9dd359ef5a4595b6576e07928566d6864957c4af6466d641d6c3f7717f4689
+PKG_SOURCE_DATE:=2020-06-08
+PKG_SOURCE_VERSION:=5a8b366233f5585e68a4ffbb604fbb4a848eb325
+PKG_MIRROR_HASH:=1b2a4947034142587a3f81eac2ea27dd64650e77f8943d973623b47533be2393
 
 PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
 PKG_LICENSE:=BSD-3-Clause
@@ -37,19 +39,6 @@ EAPOL_TEST_PROVIDERS:=eapol-test eapol-test-openssl eapol-test-wolfssl
 
 SUPPLICANT_PROVIDERS:=
 HOSTAPD_PROVIDERS:=
-
-include $(INCLUDE_DIR)/package.mk
-include $(INCLUDE_DIR)/kernel.mk
-
-PKG_SOURCE_EXT:=$(call ext,$(PKG_SOURCE))
-ifeq ($(PKG_SOURCE_EXT),zst)
-PKG_MIRROR_HASH:=2b09cc0dda2299465b266921890dcf83964922415038614fe80740d2f624a126
-endif
-
-TARGET_CFLAGS += -I$(LINUX_DIR)/include/uapi/linux/mtk_nl80211_inc
-ifeq ($(CONFIG_MTK_WIFI7_CFG80211_SUPPORT),y)
-TARGET_CFLAGS += -DRT_CFG80211_SUPPORT
-endif
 
 LOCAL_TYPE=$(strip \
 		$(if $(findstring wpad,$(BUILD_VARIANT)),wpad, \
@@ -104,7 +93,6 @@ DRIVER_MAKEOPTS= \
 	CONFIG_IEEE80211AC=$(HOSTAPD_IEEE80211AC) \
 	CONFIG_IEEE80211AX=$(HOSTAPD_IEEE80211AX) \
 	CONFIG_DRIVER_WEXT=$(CONFIG_DRIVER_WEXT_SUPPORT) \
-	CONFIG_MBO=$(CONFIG_WPA_MBO_SUPPORT)
 
 ifeq ($(SSL_VARIANT),openssl)
   DRIVER_MAKEOPTS += CONFIG_TLS=openssl CONFIG_SAE=y
@@ -157,12 +145,10 @@ define Package/hostapd/Default
   TITLE:=IEEE 802.1x Authenticator
   URL:=http://hostap.epitest.fi/
   DEPENDS:=$(DRV_DEPENDS) +hostapd-common +libubus
-  EXTRA_DEPENDS:=hostapd-common (=$(PKG_VERSION)-r$(PKG_RELEASE))
   USERID:=network=101:network=101
   PROVIDES:=hostapd
   CONFLICTS:=$(HOSTAPD_PROVIDERS)
   HOSTAPD_PROVIDERS+=$(1)
-  VERSION:=$(PKG_VERSION)-r$(PKG_RELEASE)
 endef
 
 define Package/hostapd
@@ -180,7 +166,7 @@ define Package/hostapd-openssl
 $(call Package/hostapd/Default,$(1))
   TITLE+= (OpenSSL full)
   VARIANT:=full-openssl
-  DEPENDS+=+PACKAGE_hostapd-openssl:libopenssl
+  DEPENDS+=+libopenssl
 endef
 
 Package/hostapd-openssl/description = $(Package/hostapd/description)
@@ -189,7 +175,7 @@ define Package/hostapd-wolfssl
 $(call Package/hostapd/Default,$(1))
   TITLE+= (wolfSSL full)
   VARIANT:=full-wolfssl
-  DEPENDS+=+PACKAGE_hostapd-wolfssl:libwolfssl
+  DEPENDS+=+libwolfssl
 endef
 
 Package/hostapd-wolfssl/description = $(Package/hostapd/description)
@@ -208,7 +194,7 @@ define Package/hostapd-basic-openssl
 $(call Package/hostapd/Default,$(1))
   TITLE+= (WPA-PSK, 11r and 11w)
   VARIANT:=basic-openssl
-  DEPENDS+=+PACKAGE_hostapd-basic-openssl:libopenssl
+  DEPENDS+=+libopenssl
 endef
 
 define Package/hostapd-basic-openssl/description
@@ -219,7 +205,7 @@ define Package/hostapd-basic-wolfssl
 $(call Package/hostapd/Default,$(1))
   TITLE+= (WPA-PSK, 11r and 11w)
   VARIANT:=basic-wolfssl
-  DEPENDS+=+PACKAGE_hostapd-basic-wolfssl:libwolfssl
+  DEPENDS+=+libwolfssl
 endef
 
 define Package/hostapd-basic-wolfssl/description
@@ -243,14 +229,12 @@ define Package/wpad/Default
   SUBMENU:=WirelessAPD
   TITLE:=IEEE 802.1x Auth/Supplicant
   DEPENDS:=$(DRV_DEPENDS) +hostapd-common +libubus
-  EXTRA_DEPENDS:=hostapd-common (=$(PKG_VERSION)-r$(PKG_RELEASE))
   USERID:=network=101:network=101
   URL:=http://hostap.epitest.fi/
   PROVIDES:=hostapd wpa-supplicant
   CONFLICTS:=$(HOSTAPD_PROVIDERS) $(SUPPLICANT_PROVIDERS)
   HOSTAPD_PROVIDERS+=$(1)
   SUPPLICANT_PROVIDERS+=$(1)
-  VERSION:=$(PKG_VERSION)-r$(PKG_RELEASE)
 endef
 
 define Package/wpad
@@ -268,7 +252,7 @@ define Package/wpad-openssl
 $(call Package/wpad/Default,$(1))
   TITLE+= (OpenSSL full)
   VARIANT:=wpad-full-openssl
-  DEPENDS+=+PACKAGE_wpad-openssl:libopenssl
+  DEPENDS+=+libopenssl
 endef
 
 Package/wpad-openssl/description = $(Package/wpad/description)
@@ -277,7 +261,7 @@ define Package/wpad-wolfssl
 $(call Package/wpad/Default,$(1))
   TITLE+= (wolfSSL full)
   VARIANT:=wpad-full-wolfssl
-  DEPENDS+=+PACKAGE_wpad-wolfssl:libwolfssl
+  DEPENDS+=+libwolfssl
 endef
 
 Package/wpad-wolfssl/description = $(Package/wpad/description)
@@ -296,7 +280,7 @@ define Package/wpad-basic-openssl
 $(call Package/wpad/Default,$(1))
   TITLE+= (OpenSSL, 11r, 11w)
   VARIANT:=wpad-basic-openssl
-  DEPENDS+=+PACKAGE_wpad-basic-openssl:libopenssl
+  DEPENDS+=+libopenssl
 endef
 
 define Package/wpad-basic-openssl/description
@@ -307,7 +291,7 @@ define Package/wpad-basic-wolfssl
 $(call Package/wpad/Default,$(1))
   TITLE+= (wolfSSL, 11r, 11w)
   VARIANT:=wpad-basic-wolfssl
-  DEPENDS+=+PACKAGE_wpad-basic-wolfssl:libwolfssl
+  DEPENDS+=+libwolfssl
 endef
 
 define Package/wpad-basic-wolfssl/description
@@ -337,7 +321,7 @@ endef
 define Package/wpad-mesh-openssl
 $(call Package/wpad-mesh,$(1))
   TITLE+= (OpenSSL, 11s, SAE)
-  DEPENDS+=+PACKAGE_wpad-mesh-openssl:libopenssl
+  DEPENDS+=+libopenssl
   VARIANT:=wpad-mesh-openssl
 endef
 
@@ -346,7 +330,7 @@ Package/wpad-mesh-openssl/description = $(Package/wpad-mesh/description)
 define Package/wpad-mesh-wolfssl
 $(call Package/wpad-mesh,$(1))
   TITLE+= (wolfSSL, 11s, SAE)
-  DEPENDS+=+PACKAGE_wpad-mesh-wolfssl:libwolfssl
+  DEPENDS+=+libwolfssl
   VARIANT:=wpad-mesh-wolfssl
 endef
 
@@ -360,12 +344,10 @@ define Package/wpa-supplicant/Default
   TITLE:=WPA Supplicant
   URL:=http://hostap.epitest.fi/wpa_supplicant/
   DEPENDS:=$(DRV_DEPENDS) +hostapd-common +libubus
-  EXTRA_DEPENDS:=hostapd-common (=$(PKG_VERSION)-r$(PKG_RELEASE))
   USERID:=network=101:network=101
   PROVIDES:=wpa-supplicant
   CONFLICTS:=$(SUPPLICANT_PROVIDERS)
   SUPPLICANT_PROVIDERS+=$(1)
-  VERSION:=$(PKG_VERSION)-r$(PKG_RELEASE)
 endef
 
 define Package/wpa-supplicant
@@ -378,14 +360,14 @@ define Package/wpa-supplicant-openssl
 $(call Package/wpa-supplicant/Default,$(1))
   TITLE+= (OpenSSL full)
   VARIANT:=supplicant-full-openssl
-  DEPENDS+=+PACKAGE_wpa-supplicant-openssl:libopenssl
+  DEPENDS+=+libopenssl
 endef
 
 define Package/wpa-supplicant-wolfssl
 $(call Package/wpa-supplicant/Default,$(1))
   TITLE+= (wolfSSL full)
   VARIANT:=supplicant-full-wolfssl
-  DEPENDS+=+PACKAGE_wpa-supplicant-wolfssl:libwolfssl
+  DEPENDS+=+libwolfssl
 endef
 
 define Package/wpa-supplicant/config
@@ -409,14 +391,14 @@ define Package/wpa-supplicant-mesh-openssl
 $(call Package/wpa-supplicant-mesh/Default,$(1))
   TITLE+= (OpenSSL, 11s, SAE)
   VARIANT:=supplicant-mesh-openssl
-  DEPENDS+=+PACKAGE_wpa-supplicant-mesh-openssl:libopenssl
+  DEPENDS+=+libopenssl
 endef
 
 define Package/wpa-supplicant-mesh-wolfssl
 $(call Package/wpa-supplicant-mesh/Default,$(1))
   TITLE+= (wolfSSL, 11s, SAE)
   VARIANT:=supplicant-mesh-wolfssl
-  DEPENDS+=+PACKAGE_wpa-supplicant-mesh-wolfssl:libwolfssl
+  DEPENDS+=+libwolfssl
 endef
 
 define Package/wpa-supplicant-basic
@@ -437,7 +419,6 @@ define Package/hostapd-common
   SECTION:=net
   CATEGORY:=Network
   SUBMENU:=WirelessAPD
-  VERSION:=$(PKG_VERSION)-r$(PKG_RELEASE)
 endef
 
 define Package/hostapd-utils
@@ -481,7 +462,7 @@ define Package/eapol-test-openssl
   TITLE+= (OpenSSL full)
   VARIANT:=supplicant-full-openssl
   CONFLICTS:=$(filter-out eapol-test-openssl ,$(EAPOL_TEST_PROVIDERS))
-  DEPENDS+=+PACKAGE_eapol-test-openssl:libopenssl
+  DEPENDS+=+libopenssl
   PROVIDES:=eapol-test
 endef
 
@@ -490,7 +471,7 @@ define Package/eapol-test-wolfssl
   TITLE+= (wolfSSL full)
   VARIANT:=supplicant-full-wolfssl
   CONFLICTS:=$(filter-out eapol-test-openssl ,$(filter-out eapol-test-wolfssl ,$(EAPOL_TEST_PROVIDERS)))
-  DEPENDS+=+PACKAGE_eapol-test-wolfssl:libwolfssl
+  DEPENDS+=+libwolfssl
   PROVIDES:=eapol-test
 endef
 
@@ -523,7 +504,7 @@ TARGET_CPPFLAGS := \
 	-D_GNU_SOURCE \
 	$(if $(CONFIG_WPA_MSG_MIN_PRIORITY),-DCONFIG_MSG_MIN_PRIORITY=$(CONFIG_WPA_MSG_MIN_PRIORITY))
 
-TARGET_CFLAGS += -ffunction-sections -fdata-sections -flto -Werror
+TARGET_CFLAGS += -ffunction-sections -fdata-sections -flto
 TARGET_LDFLAGS += -Wl,--gc-sections -flto=jobserver -fuse-linker-plugin -lubox -lubus
 
 ifdef CONFIG_PACKAGE_kmod-cfg80211
@@ -543,7 +524,6 @@ define Build/RunMake
 		LIBS_c="$(TARGET_LDFLAGS_C)" \
 		AR="$(TARGET_CROSS)gcc-ar" \
 		BCHECK= \
-		$(if $(findstring s,$(OPENWRT_VERBOSE)),V=1) \
 		$(2)
 endef
 
@@ -617,18 +597,11 @@ endef
 
 define Package/hostapd-common/install
 	$(INSTALL_DIR) $(1)/etc/capabilities $(1)/etc/rc.button $(1)/etc/hotplug.d/ieee80211 $(1)/etc/init.d $(1)/lib/netifd  $(1)/usr/share/acl.d
-	$(INSTALL_BIN) ./files/dhcp-get-server.sh $(1)/lib/netifd/dhcp-get-server.sh
 	$(INSTALL_DATA) ./files/hostapd.sh $(1)/lib/netifd/hostapd.sh
 	$(INSTALL_BIN) ./files/wpad.init $(1)/etc/init.d/wpad
-	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_DATA) ./files/wpad.config $(1)/etc/config/wpad
 	$(INSTALL_BIN) ./files/wps-hotplug.sh $(1)/etc/rc.button/wps
 	$(INSTALL_DATA) ./files/wpad_acl.json $(1)/usr/share/acl.d
 	$(INSTALL_DATA) ./files/wpad.json $(1)/etc/capabilities
-	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_DIR) $(1)/etc/wpad/template
-	$(CP) ./files/*.conf $(1)/etc/wpad/template
-	$(CP) ./files/hostapd_conf_generate.sh $(1)/usr/bin/
 endef
 
 define Package/hostapd/install
@@ -705,9 +678,6 @@ ifeq ($(BUILD_VARIANT),supplicant-full-wolfssl)
   endef
 endif
 
-# Build hostapd-common before its dependents, to avoid
-# spurious rebuilds when building multiple variants.
-$(eval $(call BuildPackage,hostapd-common))
 $(eval $(call BuildPackage,hostapd))
 $(eval $(call BuildPackage,hostapd-basic))
 $(eval $(call BuildPackage,hostapd-basic-openssl))
@@ -734,6 +704,7 @@ $(eval $(call BuildPackage,wpa-supplicant-openssl))
 $(eval $(call BuildPackage,wpa-supplicant-wolfssl))
 $(eval $(call BuildPackage,wpa-cli))
 $(eval $(call BuildPackage,hostapd-utils))
+$(eval $(call BuildPackage,hostapd-common))
 $(eval $(call BuildPackage,eapol-test))
 $(eval $(call BuildPackage,eapol-test-openssl))
 $(eval $(call BuildPackage,eapol-test-wolfssl))

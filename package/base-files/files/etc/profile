@@ -2,7 +2,6 @@
 
 [ -f /etc/banner ] && cat /etc/banner
 [ -n "$FAILSAFE" ] && cat /etc/banner.failsafe
-[ -e /tmp/.testmode ] && echo -e "\033[1;31m" &&  cat /etc/banner.testmode && echo -e "\033[0m"
 
 fgrep -sq '/ overlay ro,' /proc/mounts && {
 	echo 'Your JFFS2-partition seems full and overlayfs is mounted read-only.'
@@ -13,7 +12,6 @@ export PATH="%PATH%"
 export HOME=$(grep -e "^${USER:-root}:" /etc/passwd | cut -d ":" -f 6)
 export HOME=${HOME:-/root}
 export PS1='\u@\h:\w\$ '
-[ -e /tmp/.testmode ] && export PS1='\[\033[1;35;40m\]\u@TestMode:\w\$ \[\033[1;37;40m\]'
 export ENV=/etc/shinit
 
 case "$TERM" in
