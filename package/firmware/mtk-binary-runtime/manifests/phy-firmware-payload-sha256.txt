@@ -1,3 +1,3 @@
-1f7b7fd1c243576e04c16b98c649db1e3326f6a715556c2a56094bcd7d300d71  /workspace/home/sijia/mtk-wifi-runtime-staging/phy/files/lib/firmware/mediatek/mt7987/i2p5ge-phy-DSPBitTb.bin
-941e3118493d5cb14323968ebc1193b23411d7c330a566014eeeb51c5ea7ed45  /workspace/home/sijia/mtk-wifi-runtime-staging/phy/files/lib/firmware/mediatek/mt7987/i2p5ge-phy-pmb.bin
-643157e984732eccad6aa5e1f80a2be82a6cbf747aac25b54c75eefeccaf8aec  /workspace/home/sijia/mtk-wifi-runtime-staging/phy/files/lib/firmware/mediatek/mt7988/i2p5ge-phy-pmb.bin
+1f7b7fd1c243576e04c16b98c649db1e3326f6a715556c2a56094bcd7d300d71  rootfs/lib/firmware/mediatek/mt7987/i2p5ge-phy-DSPBitTb.bin
+941e3118493d5cb14323968ebc1193b23411d7c330a566014eeeb51c5ea7ed45  rootfs/lib/firmware/mediatek/mt7987/i2p5ge-phy-pmb.bin
+643157e984732eccad6aa5e1f80a2be82a6cbf747aac25b54c75eefeccaf8aec  rootfs/lib/firmware/mediatek/mt7988/i2p5ge-phy-pmb.bin
