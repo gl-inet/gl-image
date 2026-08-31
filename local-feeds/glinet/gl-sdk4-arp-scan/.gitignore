@@ -1,0 +1,38 @@
+/docs/
+!.mvn/wrapper/maven-wrapper.jar
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+.idea/workspace.xml
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/build/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Self
+
+.scannerwork/
+cmd/backend/copy-to-dev-server.sh
+cmd/backend/copy-to-prod-server.sh
+
+.vscode/
+/spider
+
+
+bin

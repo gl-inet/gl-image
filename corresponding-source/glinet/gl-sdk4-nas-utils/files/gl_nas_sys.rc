@@ -1,0 +1,71 @@
+#!/bin/sh /etc/rc.common
+#
+# This is free software, licensed under the GNU General Public License v3.
+# See /LICENSE for more information.
+#
+
+START=97
+
+app=/usr/bin/gl_nas_sys
+
+#use proc to exec cmd
+USE_PROCD=1
+
+start_service() {
+	#echo "start app = $app"
+
+        samba_enable=$(uci -q get nas.conf.samba_enable)
+	if ! [ -z $samba_enable ]; then
+		if ! [ "$samba_enable" -eq "1" ]; then
+			#echo "=== samba not enable"
+			/etc/init.d/samba4 stop
+			/etc/init.d/samba4 disable
+			# /etc/init.d/nas_samba3 stop
+			# /etc/init.d/nas_samba4 stop
+		fi
+	else
+		#not set config, default close smb
+		#echo "=== samba not enable"
+		/etc/init.d/samba4 stop
+		/etc/init.d/samba4 disable
+		# /etc/init.d/nas_samba3 stop
+		# /etc/init.d/nas_samba4 stop
+	fi
+
+	#service_start $app
+        nas_enable=$(uci -q get nas.conf.gl_nas_sys_enable)
+	if ! [ -z $nas_enable ]; then
+		if [ "$nas_enable" -eq "1" ]; then
+			#echo "=== nas enable"
+
+			procd_open_instance "gl_nas_sys"
+			procd_set_param command "/usr/bin/gl_nas_sys"
+			procd_set_param respawn ${respawn_threshold:-3600} ${respawn_threshold:-3} ${respawn_threshold:-30}
+			procd_close_instance
+
+		fi
+	fi
+
+
+        ps | grep 'smbd' | grep -v grep 2>/dev/null
+        if [ $? -ne 0 ]
+        then
+                #echo "not exist";
+			if [ "$samba_enable" = "1" ]; then
+				/etc/init.d/samba4 start &
+			fi
+        fi
+
+
+}
+
+stop_service()
+{
+	echo "stop app = $app"
+
+	#procd auto close app
+	#kill -9 $(pgrep -f $app) 2>/dev/null
+
+}
+
+

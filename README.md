@@ -1,5 +1,44 @@
 ![OpenWrt logo](include/logo.png)
 
+# GL-MT3600BE Open Source Build
+
+The `mt3600be-opensource` branch contains the source code, configuration and
+build inputs for the GL-MT3600BE open-source firmware. The commercial firmware
+history remains available on the `main` branch.
+
+## Contents
+
+- `.config` and `configs/gl-mt3600be-open-source.config`: build configuration
+  for the open-source firmware.
+- `configs/gl-mt3600be-shipping.config`: shipped firmware configuration,
+  retained for version traceability.
+- `local-feeds/`: package sources and build dependencies used by this build.
+- `local-feeds/SOURCES.lock`: source repository and revision mapping.
+- `corresponding-source/`: retained GPL/LGPL source files.
+- `package/firmware/mtk-binary-runtime/`: MediaTek runtime IPKs and checksums
+  for Linux 5.4.281.
+
+## Build
+
+Use a case-sensitive GNU/Linux filesystem with the standard OpenWrt build
+prerequisites installed. Run the following commands from the repository root:
+
+```sh
+./scripts/prepare_mt3600be_feeds.sh
+cp configs/gl-mt3600be-open-source.config .config
+make defconfig
+make -j"$(nproc)"
+```
+
+The preparation script checks out the pinned feeds and installs the local feed
+definitions required by this build. The resulting images are written to
+`bin/targets/mediatek/mt7987/`.
+
+The build configuration and pinned source revisions belong to the same firmware
+release and should be updated together.
+
+## OpenWrt upstream
+
 OpenWrt Project is a Linux operating system targeting embedded devices. Instead
 of trying to create a single, static firmware, OpenWrt provides a fully
 writable filesystem with package management. This frees you from the

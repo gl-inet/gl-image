@@ -1,0 +1,62 @@
+From 5aa16c5c878bab30b125c3fd98246750684e9df3 Mon Sep 17 00:00:00 2001
+From: Dongming Han <handongming@gl-inet.com>
+Date: Thu, 13 Jul 2023 19:15:06 +0800
+Subject: [PATCH] trigger REKEY_TIMEOUT hotplug after 3 consecutive failure of
+ handshake initiation
+
+detect disconnect time change from 0 ~ 2min to 15s ~ 2min15s
+Optimize the stability in packet loss environment
+
+Signed-off-by: Dongming Han <handongming@gl-inet.com>
+---
+ src/receive.c | 2 ++
+ src/timers.c  | 9 +++++++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)
+
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/receive.c
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/receive.c
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/receive.c
+@@ -118,6 +118,7 @@ static int prepare_skb_header(struct sk_
+ 	return 0;
+ }
+ 
++extern int is_retry_count_wg;
+ static void wg_receive_handshake_packet(struct wg_device *wg,
+ 					struct sk_buff *skb)
+ {
+@@ -212,6 +213,7 @@ static void wg_receive_handshake_packet(
+ 			 */
+ 			wg_packet_send_keepalive(peer);
+ 		}
++		is_retry_count_wg = 0;
+ 	}
+ 
+ 	if (unlikely(!peer)) {
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/timers.c
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/timers.c
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/timers.c
+@@ -39,6 +39,7 @@ static inline void mod_peer_timer(struct
+ 	rcu_read_unlock_bh();
+ }
+ 
++int is_retry_count_wg = 0;
+ static void wg_expired_retransmit_handshake(struct timer_list *timer)
+ {
+ 	struct wg_peer *peer = timer_container_of(peer, timer,
+@@ -76,7 +77,13 @@ static void wg_expired_retransmit_handsh
+ 		wg_socket_clear_peer_endpoint_src(peer);
+ 
+ 		wg_packet_send_queued_handshake_initiation(peer, true);
+-		wireguard_hotplug(peer->device->dev->name, REKEY_TIMEOUT_EVENT, peer->handshake.remote_static);
++
++		is_retry_count_wg++;
++		if(is_retry_count_wg > 3)
++		{
++			is_retry_count_wg = 0;
++			wireguard_hotplug(peer->device->dev->name, REKEY_TIMEOUT_EVENT, peer->handshake.remote_static);
++		}
+ 	}
+ }
+ 

@@ -3,13 +3,15 @@
 .*.swp
 /env
 /dl
-/.config
 /.config.old
 /bin
 /build_dir
 /staging_dir
 /tmp
 /logs
+/mt7987a
+/sbom-comparison
+/firmware-sbom-handoff-*.tar.gz
 /feeds
 /feeds.conf
 /files

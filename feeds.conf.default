@@ -3,3 +3,7 @@ src-git-full luci https://git.openwrt.org/project/luci.git^e4c46338
 src-git-full routing https://git.openwrt.org/feed/routing.git^a9e43101
 src-git-full telephony https://git.openwrt.org/feed/telephony.git^920fbc5c
 src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^5fbb639c
+src-link gl_feed_common ../local-feeds/gl_feed_common
+src-link gl_feed_smstools3 ../local-feeds/gl_feed_smstools3
+src-link gl_vpn_extra ../local-feeds/gl_vpn_extra
+src-link glinet ../local-feeds/glinet

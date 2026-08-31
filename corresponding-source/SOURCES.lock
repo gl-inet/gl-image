@@ -1,0 +1,11 @@
+repository	commit
+gl-sdk4-base-files	54c2700596b36d95724f049ff90c0d9d32f36c42
+gl-sdk4-clients	209fb6f2597cfe914274b741e29348e512e0fecf
+gl-sdk4-ddns	1280ef5cdcb8ac44526d35805d2866a4a26ac6a6
+gl-sdk4-logread	cda42cb785825c45609f70052e8c63c203aea902
+gl-sdk4-nas-utils	11be1f7bb02b7080cde7050958576b3ddb3b8783
+gl-sdk4-nas-web	2a4229af74b137cfb592dc637b2205f013273b4b
+gl-sdk4-ovpn-server	e05a2045affd46d3dcfa411e07f629bc9448386f
+gl-sdk4-s2s	28f0e2e112b892f0aa28a2a3ca48c9a6f96cefdd
+gl-sdk4-sqm	a770e41a26397485ea66576206ad31f0614fd452
+gl-sdk4-webdav	a654c33ec41619ffc3d0e05d894fac2e0e1b1fe7

@@ -1,0 +1,114 @@
+#!/bin/sh
+#
+# Copyright (C) 2017 
+#
+# This is free software, licensed under the GNU General Public License v3.
+# See /LICENSE for more information.
+#
+
+# Define global variable
+VPN_DIR="/etc/openvpn/cert"
+
+CA_KEY="$VPN_DIR/ca.key"
+CA_CRT="$VPN_DIR/ca.crt"
+
+SERVER_KEY="$VPN_DIR/server.key"
+SERVER_CSR="$VPN_DIR/server.csr"
+SERVER_CRT="$VPN_DIR/server.crt"
+
+CLIENT_KEY="$VPN_DIR/client.key"
+CLIENT_CSR="$VPN_DIR/client.csr"
+CLIENT_CRT="$VPN_DIR/client.crt"
+
+DH_KEY="$VPN_DIR/dh1024.pem"
+TA_KEY="$VPN_DIR/ta.key"
+
+gen_root_ca(){
+	# CA Authority
+	openssl req -nodes -x509 -days 3650 -newkey rsa:2048 -outform PEM -out \
+		$CA_CRT -keyout $CA_KEY -sha256 -subj '/CN=OpenVPN CA' >/dev/null 2>&1
+}
+
+
+gen_server_key(){
+	# Server certificate
+	openssl req -nodes -days 3650 -newkey rsa:2048 -outform PEM -out \
+		$SERVER_CSR -keyout $SERVER_KEY -sha256 -subj '/CN=OpenVpn server' >/dev/null 2>&1
+}
+
+gen_server_cert(){
+	# Sign request
+	openssl x509 -days 3650 -req -in $SERVER_CSR -CA $CA_CRT -CAkey $CA_KEY \
+		-CAcreateserial -clrext -out $SERVER_CRT -sha256 >/dev/null 2>&1	
+}
+
+gen_client_cert(){
+	# Client certificate
+	openssl req -nodes -days 3650 -newkey rsa:2048 -outform PEM -out \
+		$CLIENT_CSR -keyout $CLIENT_KEY -sha256 -subj '/CN=OpenVpn client' >/dev/null 2>&1
+	# Sign request
+	openssl x509 -days 3650 -req -in $CLIENT_CSR -CA $CA_CRT -CAkey $CA_KEY \
+		-CAcreateserial -clrext -out $CLIENT_CRT -sha256 >/dev/null 2>&1	
+}
+
+gen_dh_key(){
+	# Create Diffie-Hellman Key
+	openssl dhparam -out $DH_KEY 1024 >/dev/null 2>&1	
+}
+
+gen_tls_key(){
+	# Create TLS Key
+	openvpn --genkey --secret $TA_KEY >/dev/null 2>&1
+}
+
+create_certificates() {
+	gen_root_ca
+	gen_server_key
+	gen_server_cert
+	gen_client_cert
+#	gen_dh_key
+	gen_tls_key
+	return 0
+}
+
+! command -v openssl >/dev/null && exit 1
+
+[ ! -d "$VPN_DIR" ] && mkdir -p "$VPN_DIR"
+
+update_cs_cert() {
+	gen_server_key
+	gen_server_cert
+	gen_client_cert
+	return 0
+}
+
+ case "$1" in
+	"root_ca")
+		gen_root_ca
+	;;
+	"server_key")
+		gen_server_key
+	;;
+	"server_cert")
+		gen_server_cert
+	;;
+	"client_cert")
+		gen_client_cert
+	;;
+	"dh_key")
+		gen_dh_key
+	;;
+	"tls_key")
+		gen_tls_key
+	;;
+	"update_cs_cert")
+		update_cs_cert
+	;;
+	"force"|\
+	"all")
+		create_certificates
+	;;
+	*)
+ esac
+
+sync

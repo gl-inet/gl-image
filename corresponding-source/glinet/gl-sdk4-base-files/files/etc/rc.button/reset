@@ -1,0 +1,36 @@
+#!/bin/sh
+
+. /lib/functions.sh
+. /lib/functions/gl_util.sh
+
+OVERLAY="$( grep ' /overlay ' /proc/mounts )"
+
+case "$ACTION" in
+pressed)
+	[ -z "$OVERLAY" ] && return 0
+
+	reset_btn_pressed
+;;
+timeout)
+	. /etc/diag.sh
+	set_state failsafe
+;;
+released)
+	[ -z "$OVERLAY" ] && return 0
+
+	reset_btn_released
+
+	if [ "$SEEN" -ge 20 ]
+	then
+		return 0
+	elif [ "$SEEN" -ge 8 ]
+	then
+		factory_reset
+	elif [ "$SEEN" -ge 3 ]
+	then
+		reset_network &
+	fi
+;;
+esac
+
+return 0
