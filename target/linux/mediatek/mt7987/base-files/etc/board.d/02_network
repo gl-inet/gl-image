@@ -14,6 +14,9 @@ mediatek_setup_interfaces()
 		ucidef_add_switch "switch0" \
 			"0:lan" "1:lan" "2:lan" "3:lan" "4:wan" "6u@eth0" "5u@eth1"
 		;;
+	*be10000*)
+		ucidef_set_interfaces_lan_wan eth1 eth0
+		;;
 	*mt3600be*)
 		ucidef_set_interfaces_lan_wan eth1 eth0
 		;;
@@ -61,6 +64,9 @@ mediatek_setup_macs()
 	local wan_mac_offset=""
 
 	case $board in
+	*be10000*)
+		wan_mac_offset="0x4000"
+		;;
 	*mt3600be*)
 		wan_mac_offset="0x4000"
 		;;
@@ -89,6 +95,10 @@ mediatek_setup_macs()
 	fi
 
 	case $board in
+	glinet,gl-be10000)
+		lan2_mac=""
+		lan_mac=$(macaddr_add "$wan_mac" 1)
+		;;
 	glinet,gl-mt3600be)
 		lan2_mac=""
 		lan_mac=$(macaddr_add "$wan_mac" 1)

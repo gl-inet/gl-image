@@ -1,0 +1,16 @@
+Index: linux-5.4.281/fs/ubifs/debug.c
+===================================================================
+--- linux-5.4.281.orig/fs/ubifs/debug.c
++++ linux-5.4.281/fs/ubifs/debug.c
+@@ -3000,7 +3000,10 @@ void ubifs_assert_failed(struct ubifs_in
+ 		break;
+ 
+ 		case ASSACT_RO:
+-		ubifs_ro_mode(c, -EINVAL);
++		/*
++		 * Do not force read-only mode on UBIFS assertions.
++		 */
++		dump_stack();
+ 		break;
+ 
+ 		case ASSACT_REPORT:

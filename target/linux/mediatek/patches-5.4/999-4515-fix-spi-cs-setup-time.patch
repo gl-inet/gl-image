@@ -1,0 +1,32 @@
+Index: linux-5.4.281/drivers/spi/spi-mt65xx.c
+===================================================================
+--- linux-5.4.281.orig/drivers/spi/spi-mt65xx.c
++++ linux-5.4.281/drivers/spi/spi-mt65xx.c
+@@ -139,6 +139,7 @@ struct mtk_spi {
+ 	const struct mtk_spi_compatible *dev_comp;
+ 	struct mtk_spi_config dev_config;
+ 	u32 spi_clk_hz;
++	u32 cs_setup_time;
+ 	struct completion spimem_done;
+ 	bool use_spimem;
+ 	struct device *dev;
+@@ -393,6 +394,9 @@ static void mtk_spi_prepare_transfer(str
+ 
+ 	sck_time = (div + 1) / 2;
+ 	cs_time = sck_time * 2;
++	if (mdata->cs_setup_time) {
++		cs_time = cs_time * mdata->cs_setup_time;
++	}
+ 
+ 	if (mdata->dev_comp->enhance_timing) {
+ 		reg_val = readl(mdata->base + SPI_CFG2_REG);
+@@ -1204,6 +1208,9 @@ static int mtk_spi_probe(struct platform
+ 		goto err_put_master;
+ 	}
+ 
++	mdata->cs_setup_time = 0;
++	of_property_read_u32(dev->of_node, "cs_setup_time", &mdata->cs_setup_time);
++
+ 	ret = clk_set_parent(mdata->sel_clk, mdata->parent_clk);
+ 	if (ret < 0) {
+ 		dev_err(dev, "failed to clk_set_parent (%d)\n", ret);

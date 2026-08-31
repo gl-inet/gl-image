@@ -2,7 +2,7 @@ ARCH:=aarch64
 SUBTARGET:=mt7987
 BOARDNAME:=MT7987
 CPU_TYPE:=cortex-a53
-FEATURES:=squashfs nand ramdisk
+FEATURES:=squashfs nand ramdisk display
 
 KERNELNAME:=Image dtbs
 

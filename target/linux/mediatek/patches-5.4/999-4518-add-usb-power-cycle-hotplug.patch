@@ -1,0 +1,78 @@
+Index: linux-5.4.281/drivers/usb/core/hub.c
+===================================================================
+--- linux-5.4.281.orig/drivers/usb/core/hub.c
++++ linux-5.4.281/drivers/usb/core/hub.c
+@@ -1,3 +1,4 @@
++
+ // SPDX-License-Identifier: GPL-2.0
+ /*
+  * USB hub driver.
+@@ -33,6 +34,9 @@
+ #include <linux/uaccess.h>
+ #include <asm/byteorder.h>
+ 
++#include <linux/netlink.h>
++#include <linux/skbuff.h>
++
+ #include "hub.h"
+ #include "otg_whitelist.h"
+ 
+@@ -5047,6 +5051,48 @@ hub_power_remaining(struct usb_hub *hub)
+ 	return remaining;
+ }
+ 
++static int bh_event_add_var(struct sk_buff *skb, int argv, const char *format, ...)
++{
++    static char buf[128];
++    char *s;
++    va_list args;
++    int len;
++
++    if (argv)
++        return 0;
++
++    va_start(args, format);
++    len = vsnprintf(buf, sizeof(buf), format, args);
++    va_end(args);
++
++    if (len >= sizeof(buf)) {
++        //WARN(1, "buffer size too small\n");
++        return -ENOMEM;
++    }
++
++    s = skb_put(skb, len + 1);
++    strcpy(s, buf);
++
++    return 0;
++}
++
++
++static void hotplug_work(void)
++{
++       struct sk_buff *skb;
++
++       skb = alloc_skb(2048, GFP_KERNEL);
++       if (!skb)
++               return;
++
++       bh_event_add_var(skb, 0, "SUBSYSTEM=%s", "watchdog");
++       bh_event_add_var(skb, 0, "ACTION=%s", "shutdown");
++       bh_event_add_var(skb, 0, "IFNAME=%s", "usb");
++
++       NETLINK_CB(skb).dst_group = 1;
++       broadcast_uevent(skb, 0, 1, GFP_KERNEL);
++}
++
+ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
+ 		u16 portchange)
+ {
+@@ -5265,6 +5311,9 @@ loop:
+ 			msleep(2 * hub_power_on_good_delay(hub));
+ 			usb_hub_set_port_power(hdev, hub, port1, true);
+ 			msleep(hub_power_on_good_delay(hub));
++
++			dev_info(&port_dev->dev, "trigger usb power cycle hotplug\n");
++			hotplug_work();
+ 		}
+ 	}
+ 	if (hub->hdev->parent ||

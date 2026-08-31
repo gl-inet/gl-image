@@ -1,3 +1,7 @@
+4395287210dd38249bbb4c827091d34f88db4e3e497a235a5b06700ec16b3375  rootfs/etc/modules.d/15-air-an8811hb
+07eb147071aad149356129e73ee17ceeb7a7b1a3feb84d9adc2e3a1a5ce3670b  rootfs/etc/modules.d/73-mt798x-2p5g-phy
 1f7b7fd1c243576e04c16b98c649db1e3326f6a715556c2a56094bcd7d300d71  rootfs/lib/firmware/mediatek/mt7987/i2p5ge-phy-DSPBitTb.bin
 941e3118493d5cb14323968ebc1193b23411d7c330a566014eeeb51c5ea7ed45  rootfs/lib/firmware/mediatek/mt7987/i2p5ge-phy-pmb.bin
 643157e984732eccad6aa5e1f80a2be82a6cbf747aac25b54c75eefeccaf8aec  rootfs/lib/firmware/mediatek/mt7988/i2p5ge-phy-pmb.bin
+edc6311de34ba7cb634e31888c2c9038e5d8fb23a530d90a1de5698a0b86fec8  rootfs/lib/modules/5.4.281/air_an8811hb.ko
+8f00b821f5ee419bb4d7dbc4f0ab488ade9d288c0943de45f645c394dc2a4a9d  rootfs/lib/modules/5.4.281/mtk-2p5ge.ko

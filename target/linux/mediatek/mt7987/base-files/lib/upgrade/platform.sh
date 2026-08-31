@@ -6,6 +6,7 @@ platform_do_upgrade() {
 	local board=$(board_name)
 
 	case "$board" in
+	glinet,gl-be10000 |\
 	glinet,gl-mt3600be |\
 	*snand*)
 		ubi_do_upgrade "$1"
@@ -29,6 +30,7 @@ platform_check_image() {
 	[ "$#" -gt 1 ] && return 1
 
 	case "$board" in
+	glinet,gl-be10000 |\
 	glinet,gl-mt3600be |\
 	glinet,gl-mt5000 |\
 	*snand* |\

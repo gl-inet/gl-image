@@ -1,0 +1,99 @@
+Index: linux-5.4.281/drivers/staging/fbtft/fbtft-core.c
+===================================================================
+--- linux-5.4.281.orig/drivers/staging/fbtft/fbtft-core.c
++++ linux-5.4.281/drivers/staging/fbtft/fbtft-core.c
+@@ -239,11 +239,14 @@ static void fbtft_update_display(struct
+ 				 unsigned int end_line)
+ {
+ 	size_t offset, len;
++#if 0
+ 	ktime_t ts_start, ts_end;
+ 	long fps, throughput;
+ 	bool timeit = false;
++#endif
+ 	int ret = 0;
+ 
++#if 0
+ 	if (unlikely(par->debug & (DEBUG_TIME_FIRST_UPDATE |
+ 			DEBUG_TIME_EACH_UPDATE))) {
+ 		if ((par->debug & DEBUG_TIME_EACH_UPDATE) ||
+@@ -253,27 +256,34 @@ static void fbtft_update_display(struct
+ 			timeit = true;
+ 		}
+ 	}
++#endif
+ 
+ 	/* Sanity checks */
+ 	if (start_line > end_line) {
++#if 0
+ 		dev_warn(par->info->device,
+ 			 "%s: start_line=%u is larger than end_line=%u. Shouldn't happen, will do full display update\n",
+ 			 __func__, start_line, end_line);
++#endif
+ 		start_line = 0;
+ 		end_line = par->info->var.yres - 1;
+ 	}
+ 	if (start_line > par->info->var.yres - 1 ||
+ 	    end_line > par->info->var.yres - 1) {
++#if 0
+ 		dev_warn(par->info->device,
+ 			 "%s: start_line=%u or end_line=%u is larger than max=%d. Shouldn't happen, will do full display update\n",
+ 			 __func__, start_line,
+ 			 end_line, par->info->var.yres - 1);
++#endif
+ 		start_line = 0;
+ 		end_line = par->info->var.yres - 1;
+ 	}
+ 
++#if 0
+ 	fbtft_par_dbg(DEBUG_UPDATE_DISPLAY, par, "%s(start_line=%u, end_line=%u)\n",
+ 		      __func__, start_line, end_line);
++#endif
+ 
+ 	if (par->fbtftops.set_addr_win)
+ 		par->fbtftops.set_addr_win(par, 0, start_line,
+@@ -287,6 +297,7 @@ static void fbtft_update_display(struct
+ 			"%s: write_vmem failed to update display buffer\n",
+ 			__func__);
+ 
++#if 0
+ 	if (unlikely(timeit)) {
+ 		ts_end = ktime_get();
+ 		if (!ktime_to_ns(par->update_time))
+@@ -305,12 +316,13 @@ static void fbtft_update_display(struct
+ 			 throughput, fps);
+ 		par->first_update_done = true;
+ 	}
++#endif
+ }
+ 
+ static void fbtft_mkdirty(struct fb_info *info, int y, int height)
+ {
+ 	struct fbtft_par *par = info->par;
+-	struct fb_deferred_io *fbdefio = info->fbdefio;
++	//struct fb_deferred_io *fbdefio = info->fbdefio;
+ 
+ 	/* special case, needed ? */
+ 	if (y == -1) {
+@@ -327,7 +339,7 @@ static void fbtft_mkdirty(struct fb_info
+ 	spin_unlock(&par->dirty_lock);
+ 
+ 	/* Schedule deferred_io to update display (no-op if already on queue)*/
+-	schedule_delayed_work(&info->deferred_work, fbdefio->delay);
++	schedule_delayed_work(&info->deferred_work, 1);
+ }
+ 
+ static void fbtft_deferred_io(struct fb_info *info, struct list_head *pagelist)
+Index: linux-5.4.281/drivers/video/fbdev/core/fb_defio.c
+===================================================================
+--- linux-5.4.281.orig/drivers/video/fbdev/core/fb_defio.c
++++ linux-5.4.281/drivers/video/fbdev/core/fb_defio.c
+@@ -138,7 +138,7 @@ page_already_added:
+ 	mutex_unlock(&fbdefio->lock);
+ 
+ 	/* come back after delay to process the deferred IO */
+-	schedule_delayed_work(&info->deferred_work, fbdefio->delay);
++	schedule_delayed_work(&info->deferred_work, 1);
+ 	return VM_FAULT_LOCKED;
+ }
+ 

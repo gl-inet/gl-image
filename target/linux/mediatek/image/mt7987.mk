@@ -18,6 +18,28 @@ define Device/mediatek_mt7987a-spim-nand
 endef
 TARGET_DEVICES += mediatek_mt7987a-spim-nand
 
+define Device/glinet_gl-be10000
+  DEVICE_VENDOR := GL.iNet
+  DEVICE_MODEL := GL-BE10000
+  DEVICE_DTS := mt7987a-gl-be10000-nand
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  DEVICE_PACKAGES := -wpad-basic-wolfssl -kmod-crypto-eip mtk-wifi-runtime \
+                     mtk-phy-runtime mtk-network-runtime kmod-gl-sdk4-fan \
+                     kmod-gl-sdk4-hw-info kmod-gl-sdk4-usb-control \
+                     kmod-cst353x kmod-fb-tft-st7789p3 \
+                     kmod-fb-tft-glinet-be10000-logo
+  SUPPORTED_DEVICES := glinet,gl-be10000
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 256k
+  PAGESIZE := 4096
+  IMAGE_SIZE := 131072k
+  KERNEL_IN_UBI := 1
+  IMAGES += factory.bin
+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-gl-metadata
+endef
+TARGET_DEVICES += glinet_gl-be10000
+
 define Device/mediatek_mt7987a-spim-nand-cob
   DEVICE_VENDOR := MediaTek
   DEVICE_MODEL := mt7987a-spim-nand-cob
@@ -68,38 +90,6 @@ define Device/mediatek_mt7987a-spim-nand-cob-usb3
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += mediatek_mt7987a-spim-nand-cob-usb3
-
-define Device/glinet_gl-mt3600be
-  DEVICE_VENDOR := GL.iNet
-  DEVICE_MODEL := GL-MT3600BE
-  DEVICE_DTS := mt7987a-gl-mt3600be
-  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  DEVICE_PACKAGES := -wpad-basic-wolfssl -kmod-crypto-eip mtk-wifi-runtime \
-                     mtk-phy-firmware
-  SUPPORTED_DEVICES := glinet,gl-mt3600be
-  UBINIZE_OPTS := -E 5
-  BLOCKSIZE := 256k
-  PAGESIZE := 4096
-  IMAGE_SIZE := 131072k
-  KERNEL_IN_UBI := 1
-  IMAGES += factory.bin
-  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
-  IMAGE/sysupgrade.bin := sysupgrade-tar | append-gl-metadata
-endef
-TARGET_DEVICES += glinet_gl-mt3600be
-
-define Device/glinet_gl-mt5000
-  DEVICE_VENDOR := GL.iNet
-  DEVICE_MODEL := GL-MT5000
-  DEVICE_DTS := mt7987a-gl-mt5000
-  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := glinet,gl-mt5000
-  DEVICE_PACKAGES := mkf2fs e2fsprogs blkid blockdev losetup kmod-fs-ext4 \
-		     kmod-mmc kmod-fs-f2fs kmod-fs-vfat kmod-nls-cp437 \
-		     kmod-nls-iso8859-1
-  IMAGE/sysupgrade.bin := sysupgrade-tar | append-gl-metadata
-endef
-TARGET_DEVICES += glinet_gl-mt5000
 
 define Device/mediatek_mt7987a-spim-nand-gsw
   DEVICE_VENDOR := MediaTek

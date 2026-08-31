@@ -1,0 +1,31 @@
+Index: linux-5.4.281/drivers/staging/fbtft/fbtft-core.c
+===================================================================
+--- linux-5.4.281.orig/drivers/staging/fbtft/fbtft-core.c
++++ linux-5.4.281/drivers/staging/fbtft/fbtft-core.c
+@@ -485,7 +485,13 @@ static int fbtft_fb_blank(int blank, str
+ 	switch (blank) {
+ 	case FB_BLANK_POWERDOWN:
+ 	case FB_BLANK_VSYNC_SUSPEND:
++		//write_reg(par, MIPI_DCS_SET_DISPLAY_ON);
++		ret = 0;
++		break;
+ 	case FB_BLANK_HSYNC_SUSPEND:
++		//write_reg(par, MIPI_DCS_SET_DISPLAY_OFF);
++		ret = 0;
++		break;
+ 	case FB_BLANK_NORMAL:
+ 		ret = par->fbtftops.blank(par, true);
+ 		break;
+Index: linux-5.4.281/drivers/video/fbdev/core/fbmem.c
+===================================================================
+--- linux-5.4.281.orig/drivers/video/fbdev/core/fbmem.c
++++ linux-5.4.281/drivers/video/fbdev/core/fbmem.c
+@@ -1083,7 +1083,7 @@ fb_blank(struct fb_info *info, int blank
+ 	if (info->fbops->fb_blank)
+ 		ret = info->fbops->fb_blank(blank, info);
+ 
+-	if (!ret)
++	if (!ret && blank <= FB_BLANK_NORMAL)
+ 		fb_notifier_call_chain(FB_EVENT_BLANK, &event);
+ 
+ 	return ret;

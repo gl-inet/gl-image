@@ -1,0 +1,73 @@
+Index: linux-5.4.281/drivers/scsi/sd.c
+===================================================================
+--- linux-5.4.281.orig/drivers/scsi/sd.c
++++ linux-5.4.281/drivers/scsi/sd.c
+@@ -58,7 +58,8 @@
+ #include <linux/t10-pi.h>
+ #include <linux/uaccess.h>
+ #include <asm/unaligned.h>
+-
++#include <linux/netlink.h>
++#include <linux/skbuff.h>
+ #include <scsi/scsi.h>
+ #include <scsi/scsi_cmnd.h>
+ #include <scsi/scsi_dbg.h>
+@@ -141,6 +142,49 @@ static const char *sd_cache_types[] = {
+ 	"write back, no read (daft)"
+ };
+ 
++static int bh_event_add_var(struct sk_buff *skb, int argv, const char *format, ...)
++{
++    static char buf[128];
++    char *s;
++    va_list args;
++    int len;
++
++    if (argv)
++        return 0;
++
++    va_start(args, format);
++    len = vsnprintf(buf, sizeof(buf), format, args);
++    va_end(args);
++
++    if (len >= sizeof(buf)) {
++        //WARN(1, "buffer size too small\n");
++        return -ENOMEM;
++    }
++
++    s = skb_put(skb, len + 1);
++    strcpy(s, buf);
++
++    return 0;
++}
++
++
++static void hotplug_work(struct scsi_disk *sdkp)
++{
++       struct sk_buff *skb;
++
++       skb = alloc_skb(2048, GFP_KERNEL);
++       if (!skb)
++               return;
++
++       bh_event_add_var(skb, 0, "SUBSYSTEM=%s", "watchdog");
++       bh_event_add_var(skb, 0, "ACTION=%s", "shutdown");
++       bh_event_add_var(skb, 0, "IFNAME=%s", "usb");
++
++       NETLINK_CB(skb).dst_group = 1;
++       broadcast_uevent(skb, 0, 1, GFP_KERNEL);
++	   sd_printk(KERN_NOTICE, sdkp, "trigger sd_shutdown hotplug\n");
++}
++
+ static void sd_set_flush_flag(struct scsi_disk *sdkp)
+ {
+ 	bool wc = false, fua = false;
+@@ -1651,6 +1695,8 @@ static int sd_sync_cache(struct scsi_dis
+ 	if (res) {
+ 		sd_print_result(sdkp, "Synchronize Cache(10) failed", res);
+ 
++		hotplug_work(sdkp);
++
+ 		if (driver_byte(res) == DRIVER_SENSE)
+ 			sd_print_sense_hdr(sdkp, sshdr);
+ 

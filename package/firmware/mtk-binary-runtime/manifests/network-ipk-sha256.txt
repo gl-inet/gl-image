@@ -1,3 +1,3 @@
-70fce85440dd48d756a6d6b4cd0539ce630032adf13d6275908e18c9155cd9c2  package/firmware/mtk-binary-runtime/blobs/network/kmod-mapfilter_5.4.281+2025-06-13-1_aarch64_cortex-a53.ipk
-1485cb683ab28b8f17314ce93f50c204642b32a004dfe847e5b4da3249eafd0b  package/firmware/mtk-binary-runtime/blobs/network/kmod-mtfwd_5.4.281+2025-06-13-1_aarch64_cortex-a53.ipk
-dcd8f2231bd14b0be6094b32e8bf0e0c496b0be9df9ae8f281aae5c82a1d0392  package/firmware/mtk-binary-runtime/blobs/network/kmod-mtqos_5.4.281+2025-06-13-1_aarch64_cortex-a53.ipk
+e1246884df230dba7a4883a7dade343fbcce3c2f29a30a2a45b5db28951c9455  package/firmware/mtk-binary-runtime/blobs/network/kmod-mapfilter_5.4.281-1_aarch64_cortex-a53.ipk
+747b8c21b2856ecf2c31d2e27bab6b77ae1d1cc680dcde69db647dd4bc81d669  package/firmware/mtk-binary-runtime/blobs/network/kmod-mtfwd_5.4.281-1_aarch64_cortex-a53.ipk
+5889362c20ec6973f115d6a6c99cd3f975e7458680baf84d0d9a34e99221ab5a  package/firmware/mtk-binary-runtime/blobs/network/kmod-mtqos_5.4.281-1_aarch64_cortex-a53.ipk

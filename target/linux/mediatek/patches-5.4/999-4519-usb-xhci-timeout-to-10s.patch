@@ -1,0 +1,35 @@
+Index: linux-5.4.281/drivers/usb/host/xhci-ring.c
+===================================================================
+--- linux-5.4.281.orig/drivers/usb/host/xhci-ring.c
++++ linux-5.4.281/drivers/usb/host/xhci-ring.c
+@@ -370,7 +370,7 @@ static int xhci_abort_cmd_ring(struct xh
+ 	 * and try to recover a -ETIMEDOUT with a host controller reset.
+ 	 */
+ 	ret = xhci_handshake(&xhci->op_regs->cmd_ring,
+-			CMD_RING_RUNNING, 0, 5 * 1000 * 1000);
++			CMD_RING_RUNNING, 0, 10 * 1000 * 1000);
+ 	if (ret < 0) {
+ 		xhci_err(xhci, "Abort failed to stop command ring: %d\n", ret);
+ 		xhci_halt(xhci);
+@@ -385,7 +385,7 @@ static int xhci_abort_cmd_ring(struct xh
+ 	 */
+ 	spin_unlock_irqrestore(&xhci->lock, flags);
+ 	ret = wait_for_completion_timeout(&xhci->cmd_ring_stop_completion,
+-					  msecs_to_jiffies(2000));
++					  msecs_to_jiffies(5000));
+ 	spin_lock_irqsave(&xhci->lock, flags);
+ 	if (!ret) {
+ 		xhci_dbg(xhci, "No stop event for abort, ring start fail?\n");
+Index: linux-5.4.281/drivers/usb/host/xhci.h
+===================================================================
+--- linux-5.4.281.orig/drivers/usb/host/xhci.h
++++ linux-5.4.281/drivers/usb/host/xhci.h
+@@ -1551,7 +1551,7 @@ struct xhci_td {
+ };
+ 
+ /* xHCI command default timeout value */
+-#define XHCI_CMD_DEFAULT_TIMEOUT	(5 * HZ)
++#define XHCI_CMD_DEFAULT_TIMEOUT	(10 * HZ)
+ 
+ /* command descriptor */
+ struct xhci_cd {

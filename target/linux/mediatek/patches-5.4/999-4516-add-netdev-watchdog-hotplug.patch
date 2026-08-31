@@ -1,0 +1,70 @@
+Index: linux-5.4.281/net/sched/sch_generic.c
+===================================================================
+--- linux-5.4.281.orig/net/sched/sch_generic.c
++++ linux-5.4.281/net/sched/sch_generic.c
+@@ -30,6 +30,8 @@
+ #include <trace/events/qdisc.h>
+ #include <trace/events/net.h>
+ #include <net/xfrm.h>
++#include <linux/netlink.h>
++#include <linux/skbuff.h>
+ 
+ /* Qdisc to use by default */
+ const struct Qdisc_ops *default_qdisc_ops = &fq_codel_qdisc_ops;
+@@ -440,6 +442,48 @@ unsigned long dev_trans_start(struct net
+ }
+ EXPORT_SYMBOL(dev_trans_start);
+ 
++static int bh_event_add_var(struct sk_buff *skb, int argv, const char *format, ...)
++{
++    static char buf[128];
++    char *s;
++    va_list args;
++    int len;
++
++    if (argv)
++        return 0;
++
++    va_start(args, format);
++    len = vsnprintf(buf, sizeof(buf), format, args);
++    va_end(args);
++
++    if (len >= sizeof(buf)) {
++        //WARN(1, "buffer size too small\n");
++        return -ENOMEM;
++    }
++
++    s = skb_put(skb, len + 1);
++    strcpy(s, buf);
++
++    return 0;
++}
++
++
++static void hotplug_work(char *name)
++{
++       struct sk_buff *skb;
++
++       skb = alloc_skb(2048, GFP_KERNEL);
++       if (!skb)
++               return;
++
++       bh_event_add_var(skb, 0, "SUBSYSTEM=%s", "watchdog");
++       bh_event_add_var(skb, 0, "IFNAME=%s", name);
++	   bh_event_add_var(skb, 0, "ACTION=%s", "timeout");
++
++       NETLINK_CB(skb).dst_group = 1;
++       broadcast_uevent(skb, 0, 1, GFP_KERNEL);
++}
++
+ static void dev_watchdog(struct timer_list *t)
+ {
+ 	struct net_device *dev = from_timer(dev, t, watchdog_timer);
+@@ -472,6 +516,7 @@ static void dev_watchdog(struct timer_li
+ 				WARN_ONCE(1, KERN_INFO "NETDEV WATCHDOG: %s (%s): transmit queue %u timed out\n",
+ 				       dev->name, netdev_drivername(dev), i);
+ 				dev->netdev_ops->ndo_tx_timeout(dev);
++				hotplug_work(dev->name);
+ 			}
+ 			if (!mod_timer(&dev->watchdog_timer,
+ 				       round_jiffies(jiffies +

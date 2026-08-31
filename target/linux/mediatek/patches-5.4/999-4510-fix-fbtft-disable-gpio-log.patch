@@ -1,0 +1,15 @@
+Index: linux-5.4.281/drivers/staging/fbtft/fbtft-core.c
+===================================================================
+--- linux-5.4.281.orig/drivers/staging/fbtft/fbtft-core.c
++++ linux-5.4.281/drivers/staging/fbtft/fbtft-core.c
+@@ -85,8 +85,8 @@ static int fbtft_request_one_gpio(struct
+ 			"Failed to request %s GPIO: %d\n", name, ret);
+ 		return ret;
+ 	}
+-	fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par, "%s: '%s' GPIO\n",
+-		      __func__, name);
++	//fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par, "%s: '%s' GPIO\n",
++	//	      __func__, name);
+ 
+ 	return ret;
+ }

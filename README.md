@@ -1,5 +1,42 @@
 ![OpenWrt logo](include/logo.png)
 
+## GL-BE10000 4.8.4 source release
+
+This tree preserves the OpenWrt build system and contains the GL-BE10000 board
+DTS, image definition, network mapping, upgrade support and GL.iNet hardware
+drivers as source code. MediaTek components that are not distributed as source
+are packaged under `package/firmware/mtk-binary-runtime/` as ABI-locked runtime
+files for Linux 5.4.281.
+
+| Area | Delivery form |
+| --- | --- |
+| OpenWrt framework, board support and GL.iNet hardware drivers | Source code |
+| MT7990/MT7991 Wi-Fi stack and control programs | Binary runtime package |
+| MT7987 internal 2.5G PHY driver and firmware | Binary runtime package |
+| MediaTek mapfilter, forwarding and QoS extensions | Binary runtime package |
+
+The binary runtime packages are selected by the versioned device configuration
+and are included automatically in the generated firmware image.
+
+### Build GL-BE10000
+
+Use a case-sensitive GNU/Linux filesystem and install the normal OpenWrt build
+dependencies. Then run:
+
+```sh
+./scripts/feeds update -a
+./scripts/feeds install -a
+cp configs/gl-be10000-open-source.config .config
+make defconfig
+make -j1
+```
+
+The sysupgrade image is generated under `bin/targets/mediatek/mt7987/`.
+Do not change the kernel version or ABI-relevant kernel configuration unless
+matching MediaTek runtime modules are supplied for the new ABI.
+
+## OpenWrt
+
 OpenWrt Project is a Linux operating system targeting embedded devices. Instead
 of trying to create a single, static firmware, OpenWrt provides a fully
 writable filesystem with package management. This frees you from the

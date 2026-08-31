@@ -1,0 +1,26 @@
+Index: linux-5.4.281/drivers/video/fbdev/core/fbmem.c
+===================================================================
+--- linux-5.4.281.orig/drivers/video/fbdev/core/fbmem.c
++++ linux-5.4.281/drivers/video/fbdev/core/fbmem.c
+@@ -1171,7 +1171,7 @@ static long do_fb_ioctl(struct fb_info *
+ 		lock_fb_info(info);
+ 		ret = fb_blank(info, arg);
+ 		/* might again call into fb_blank */
+-		fbcon_fb_blanked(info, arg);
++		//fbcon_fb_blanked(info, arg);
+ 		unlock_fb_info(info);
+ 		console_unlock();
+ 		break;
+Index: linux-5.4.281/drivers/video/fbdev/core/fbsysfs.c
+===================================================================
+--- linux-5.4.281.orig/drivers/video/fbdev/core/fbsysfs.c
++++ linux-5.4.281/drivers/video/fbdev/core/fbsysfs.c
+@@ -308,7 +308,7 @@ static ssize_t store_blank(struct device
+ 	console_lock();
+ 	err = fb_blank(fb_info, arg);
+ 	/* might again call into fb_blank */
+-	fbcon_fb_blanked(fb_info, arg);
++	//fbcon_fb_blanked(fb_info, arg);
+ 	console_unlock();
+ 	if (err < 0)
+ 		return err;

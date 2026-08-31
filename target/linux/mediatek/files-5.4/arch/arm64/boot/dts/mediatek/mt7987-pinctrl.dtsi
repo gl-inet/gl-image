@@ -15,17 +15,17 @@
 			       "SPI0_CS", "SPI0_HOLD", "SPI0_WP",
 			       "SPI1_CLK", "SPI1_MOSI", "SPI1_MISO";
 			input-enable;
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <MTK_DRIVE_12mA>;
 			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
 		};
 		conf-clk {
 			pins = "SPI1_CS";
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <MTK_DRIVE_12mA>;
 			mediatek,pull-down-adv = <2>;	/* pull-down 50K */
 		};
 		conf-rst {
 			pins = "USB_VBUS";
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <MTK_DRIVE_12mA>;
 			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
 		};
 	};
@@ -40,17 +40,17 @@
 			       "SPI0_CS", "SPI0_HOLD", "SPI0_WP",
 			       "SPI1_CLK", "SPI1_MOSI", "SPI1_MISO";
 			input-enable;
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <MTK_DRIVE_12mA>;
 			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
 		};
 		conf-clk {
 			pins = "SPI1_CS";
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <MTK_DRIVE_12mA>;
 			mediatek,pull-down-adv = <2>;	/* pull-down 50K */
 		};
 		conf-rst {
 			pins = "USB_VBUS";
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <MTK_DRIVE_12mA>;
 			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
 		};
 	};
