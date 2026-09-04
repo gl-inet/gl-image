@@ -1,0 +1,6 @@
+9ac611a5dbc56cd4b184f80152badc31919a92f82da276e0fe0b18ef1e82a690  kmod-rtl8261x_5.4.281+1.0.0-1_aarch64_cortex-a53.ipk:etc/modules.d/rtl8261x
+30fd78b29f8dacff09589ba3695bc9d0d18208d4a57ad3a864bbeaec24360f0b  kmod-rtl8261x_5.4.281+1.0.0-1_aarch64_cortex-a53.ipk:lib/modules/5.4.281/rtl8261x-mdio.ko
+7abdc0c437ed19f6a181da6dabc9b96eb9579864bb2fad33a3e84c2f4dc6dd85  kmod-switch-yt92xx_5.4.281-1_aarch64_cortex-a53.ipk:etc/modules.d/42-switch-yt92xx
+26be5cdae8fdfe0a9f8710d819c37f8667c3506eb84603b7122437d435b5c0ef  kmod-switch-yt92xx_5.4.281-1_aarch64_cortex-a53.ipk:lib/modules/5.4.281/ytswconfig.ko
+068cf82a29eea568c52f4c911e0fea19c47fca4ffc767d2dde9f9e01bef842e0  kmod-yt-sdk-binary_5.4.281-1_aarch64_cortex-a53.ipk:etc/modules.d/41-yt-sdk
+97c04aba19b79b1d355e69a2d4d43d63cb11e1b1c7d7e25889f636882c4bd895  kmod-yt-sdk-binary_5.4.281-1_aarch64_cortex-a53.ipk:lib/modules/5.4.281/yt_sdk.ko

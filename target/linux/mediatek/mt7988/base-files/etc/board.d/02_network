@@ -23,12 +23,31 @@ mediatek_setup_interfaces()
 		ucidef_set_interfaces_lan_wan "lan0 lan1 lan2 lan3 eth1" eth2
 		;;
 	*mxl86252*)
-		ucidef_set_interfaces_lan_wan "lan2 lan3 mxl_lan0 mxl_lan1 mxl_lan2 mxl_lan3" eth1
+		ucidef_set_interfaces_lan_wan "lan2 lan3 mxl_lan0 mxl_lan1 mxl_lan2 mxl_lan3 mxl_lan5" eth1
+		;;
+	glinet,gl-be14000)
+		ucidef_add_switch "switch0" \
+			"0:lan" "1:lan" "2:lan" "3:lan" \
+			"4:secondwan" \
+			"5t@eth1"
+		ucidef_set_interfaces_lan_wan "eth1.1 lan5 lan6 lan7 lan8" "eth2"
+		ucidef_set_interface "secondwan" protocol dhcp
+		ucidef_add_switch_attr "switch0" "reset" "0"
 		;;
 	*)
 		ucidef_set_interfaces_lan_wan "lan0 lan1 lan2 lan3 eth2" eth1
 		;;
 	esac
+}
+
+find_factory_partition() {
+	for device in /sys/class/block/mmcblk0p*; do
+		if grep -qi 'Factory' "$device/uevent"; then
+			# Extract the partition number
+			part=$(echo "$device" | grep -o 'mmcblk0p[0-9]*')
+			echo "$part"
+		fi
+	done
 }
 
 mediatek_setup_macs()
@@ -50,9 +69,29 @@ mediatek_setup_macs()
 		;;
 	esac
 
-	lan2_mac=$(mtd_get_mac_binary $part_name $lan2_mac_offset)
-	lan_mac=$(mtd_get_mac_binary $part_name $lan_mac_offset)
-	wan_mac=$(mtd_get_mac_binary $part_name $wan_mac_offset)
+	# Find the Factory partition
+	local factory_part=$(find_factory_partition)
+	if [ -n "$factory_part" ]; then
+		# For eMMC/SD
+		lan2_mac=$(get_mac_binary "/dev/$factory_part" $lan2_mac_offset)
+		lan_mac=$(get_mac_binary "/dev/$factory_part" $lan_mac_offset)
+		wan_mac=$(get_mac_binary "/dev/$factory_part" $wan_mac_offset)
+	else
+		# For NAND/NOR
+		lan2_mac=$(mtd_get_mac_binary $part_name $lan2_mac_offset)
+		lan_mac=$(mtd_get_mac_binary $part_name $lan_mac_offset)
+		wan_mac=$(mtd_get_mac_binary $part_name $wan_mac_offset)
+	fi
+
+	case $board in
+	glinet,gl-be14000)
+		wan_mac_offset="0x4000"
+		wan_mac=$(get_mac_binary "/dev/$factory_part" $wan_mac_offset)
+		secondwan_mac=$(macaddr_add "$wan_mac" 1)
+		lan_mac=$(macaddr_add "$wan_mac" 2)
+		sfp_mac=$(macaddr_add "$wan_mac" 3)
+		;;
+	esac
 
 	case "$lan2_mac" in
 		00:00:00:00:00:00);;
@@ -75,6 +114,22 @@ mediatek_setup_macs()
 		ff:ff:ff:ff:ff:ff);;
 		*)
 		[ -n "$wan_mac" ] && ucidef_set_interface_macaddr "wan" "$wan_mac"
+	;;
+	esac
+
+	case "$secondwan_mac" in
+		00:00:00:00:00:00);;
+		ff:ff:ff:ff:ff:ff);;
+		*)
+		[ -n "$secondwan_mac" ] && ucidef_set_interface_macaddr "secondwan" "$secondwan_mac"
+	;;
+	esac
+
+	case "$sfp_mac" in
+		00:00:00:00:00:00);;
+		ff:ff:ff:ff:ff:ff);;
+		*)
+		[ -n "$sfp_mac" ] && ucidef_set_interface_macaddr "sfp" "$sfp_mac"
 	;;
 	esac
 }

@@ -1049,3 +1049,18 @@ define KernelPackage/fb-tft-glinet-be10000-logo/description
 endef
 
 $(eval $(call KernelPackage,fb-tft-glinet-be10000-logo))
+define KernelPackage/fb-tft-glinet-be14000-logo
+  SUBMENU:=$(VIDEO_MENU)
+  TITLE:=FB driver for the GL.iNet be14000 LCD Controller LOGO
+  KCONFIG:= CONFIG_LOGO=y \
+	  CONFIG_LOGO_GLINET_BE14000_CLUT224=y \
+	  CONFIG_LOGO_LINUX_MONO=n \
+	  CONFIG_LOGO_LINUX_VGA16=n \
+	  CONFIG_LOGO_LINUX_CLUT224=n
+endef
+
+define KernelPackage/fb-tft-glinet-be14000-logo/description
+  FB driver for the st7789p3 LCD Controller logo
+endef
+
+$(eval $(call KernelPackage,fb-tft-glinet-be14000-logo))

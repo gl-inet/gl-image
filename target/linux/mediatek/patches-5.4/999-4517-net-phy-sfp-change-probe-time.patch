@@ -1,0 +1,221 @@
+Index: linux-5.4.281/drivers/net/phy/sfp.c
+===================================================================
+--- linux-5.4.281.orig/drivers/net/phy/sfp.c
++++ linux-5.4.281/drivers/net/phy/sfp.c
+@@ -21,6 +21,58 @@
+ #include "sfp.h"
+ #include "swphy.h"
+ 
++
++bool yt9224_ready;
++EXPORT_SYMBOL_GPL(yt9224_ready);
++
++static DEFINE_MUTEX(yt9224_sfp_lock);
++static void (*yt9224_sfp_notify_cb)(u8 br_nominal, u8 ext_comp);
++static void (*yt9224_sfp_remove_cb)(void);
++static void (*yt9224_sfp_los_low_cb)(void);
++static void (*yt9224_sfp_los_high_cb)(void);
++static u8 yt9224_pending_br;
++static u8 yt9224_pending_ext;
++static bool yt9224_pending_valid;
++static bool be14000_los_replay_pending;
++static struct sfp *be14000_sfp;
++
++void yt9224_sfp_register_callbacks(
++	void (*notify)(u8 br_nominal, u8 ext_comp),
++	void (*remove)(void),
++	void (*los_low)(void),
++	void (*los_high)(void))
++{
++	void (*notify_cb)(u8 br_nominal, u8 ext_comp) = NULL;
++	u8 br = 0, ext = 0;
++	bool pending = false;
++
++	mutex_lock(&yt9224_sfp_lock);
++	yt9224_sfp_notify_cb = notify;
++	yt9224_sfp_remove_cb = remove;
++	yt9224_sfp_los_low_cb = los_low;
++	yt9224_sfp_los_high_cb = los_high;
++	/* Do not clear yt9224_pending_valid on unregister — module may stay
++	 * in socket across ytswconfig rmmod/insmod; replay on re-register.
++	 */
++	pending = yt9224_pending_valid;
++	br = yt9224_pending_br;
++	ext = yt9224_pending_ext;
++	if (notify && pending)
++		notify_cb = notify;
++	mutex_unlock(&yt9224_sfp_lock);
++
++	if (notify_cb)
++		notify_cb(br, ext);
++}
++EXPORT_SYMBOL_GPL(yt9224_sfp_register_callbacks);
++
++static bool sfp_is_be14000_slot(struct device *dev)
++{
++	return dev && of_machine_is_compatible("glinet,gl-be14000") &&
++	       dev->of_node &&
++	       of_device_is_compatible(dev->of_node, "sff,sfp");
++}
++
+ enum {
+ 	GPIO_MODDEF0,
+ 	GPIO_LOS,
+@@ -274,6 +326,81 @@
+ #endif
+ };
+ 
++
++static void sfp_be14000_los_low_notify(struct sfp *sfp, unsigned int event)
++{
++	void (*cb)(void);
++
++	if (event != SFP_E_LOS_LOW || !sfp_is_be14000_slot(sfp->dev))
++		return;
++	if (!(sfp->state & SFP_F_PRESENT) || !yt9224_ready)
++		return;
++	if (sfp->sm_mod_state < SFP_MOD_WAITDEV)
++		return;
++
++	mutex_lock(&yt9224_sfp_lock);
++	cb = yt9224_sfp_los_low_cb;
++	mutex_unlock(&yt9224_sfp_lock);
++	if (cb)
++		cb();
++}
++
++static void sfp_be14000_los_high_notify(struct sfp *sfp, unsigned int event)
++{
++	void (*cb)(void);
++
++	if (event != SFP_E_LOS_HIGH || !sfp_is_be14000_slot(sfp->dev))
++		return;
++	if (!(sfp->state & SFP_F_PRESENT) || !yt9224_ready)
++		return;
++	if (sfp->sm_mod_state < SFP_MOD_WAITDEV)
++		return;
++
++	mutex_lock(&yt9224_sfp_lock);
++	cb = yt9224_sfp_los_high_cb;
++	mutex_unlock(&yt9224_sfp_lock);
++	if (cb)
++		cb();
++}
++
++static void sfp_be14000_los_replay_if_needed(struct sfp *sfp)
++{
++	void (*cb)(void);
++
++	if (!be14000_los_replay_pending || !sfp_is_be14000_slot(sfp->dev))
++		return;
++	if (sfp->sm_mod_state < SFP_MOD_WAITDEV)
++		return;
++	if (!(sfp->state & SFP_F_PRESENT) || !yt9224_ready)
++		return;
++	if (sfp->state & SFP_F_LOS)
++		return;
++
++	be14000_los_replay_pending = false;
++	mutex_lock(&yt9224_sfp_lock);
++	cb = yt9224_sfp_los_low_cb;
++	mutex_unlock(&yt9224_sfp_lock);
++	if (cb)
++		cb();
++}
++
++void yt9224_sfp_replay_media_if_present(void)
++{
++	struct sfp *sfp;
++
++	if (!yt9224_ready)
++		return;
++
++	mutex_lock(&yt9224_sfp_lock);
++	sfp = be14000_sfp;
++	mutex_unlock(&yt9224_sfp_lock);
++	if (!sfp)
++		return;
++
++	sfp_be14000_los_replay_if_needed(sfp);
++}
++EXPORT_SYMBOL_GPL(yt9224_sfp_replay_media_if_present);
++
+ static bool sff_module_supported(const struct sfp_eeprom_id *id)
+ {
+ 	return id->base.phys_id == SFF8024_ID_SFF_8472 &&
+@@ -2237,6 +2362,25 @@
+ 	if (sfp->quirk && sfp->quirk->fixup)
+ 		sfp->quirk->fixup(sfp);
+ 
++	if (sfp_is_be14000_slot(sfp->dev)) {
++		void (*notify_cb)(u8 br_nominal, u8 ext_comp);
++		u8 br = sfp->id.base.br_nominal;
++		u8 ext = sfp->id.base.extended_cc;
++
++		be14000_sfp = sfp;
++		mutex_lock(&yt9224_sfp_lock);
++		yt9224_pending_br = br;
++		yt9224_pending_ext = ext;
++		yt9224_pending_valid = true;
++		notify_cb = yt9224_sfp_notify_cb;
++		mutex_unlock(&yt9224_sfp_lock);
++		if (notify_cb)
++			notify_cb(br, ext);
++		/* Always replay LOS-low after mod_probe so "module without fiber,
++		 * insert fiber later" still triggers P4 10G restore.
++		 */
++		be14000_los_replay_pending = true;
++	}
+ 	sfp->state_hw_mask &= ~sfp->state_ignore_mask;
+ 
+ 	return 0;
+@@ -2244,6 +2388,18 @@
+ 
+ static void sfp_sm_mod_remove(struct sfp *sfp)
+ {
++	if (sfp_is_be14000_slot(sfp->dev)) {
++		void (*remove_cb)(void);
++
++		mutex_lock(&yt9224_sfp_lock);
++		be14000_sfp = NULL;
++		yt9224_pending_valid = false;
++		be14000_los_replay_pending = false;
++		remove_cb = yt9224_sfp_remove_cb;
++		mutex_unlock(&yt9224_sfp_lock);
++		if (remove_cb)
++			remove_cb();
++	}
+ 	if (sfp->sm_mod_state > SFP_MOD_WAITDEV)
+ 		sfp_module_remove(sfp->sfp_bus);
+ 
+@@ -2578,6 +2734,10 @@
+ 	sfp_sm_module(sfp, event);
+ 	sfp_sm_main(sfp, event);
+ 
++	sfp_be14000_los_low_notify(sfp, event);
++	sfp_be14000_los_high_notify(sfp, event);
++	sfp_be14000_los_replay_if_needed(sfp);
++
+ 	dev_info(sfp->dev, "SM: exit %s:%s:%s\n",
+ 		mod_state_to_str(sfp->sm_mod_state),
+ 		dev_state_to_str(sfp->sm_dev_state),
+@@ -2909,6 +3069,19 @@
+ 	if (!sfp->sfp_bus)
+ 		return -ENOMEM;
+ 
++	/*
++	 * BE14000: switch readiness and module probing can race. When a module
++	 * is already present, trigger one timeout event to keep identification
++	 * and EEPROM replay moving after the socket is registered.
++	 */
++	if (of_machine_is_compatible("glinet,gl-be14000") &&
++	    of_device_is_compatible(sfp->dev->of_node, "sff,sfp") &&
++	    (sfp->state & SFP_F_PRESENT)) {
++		rtnl_lock();
++		sfp_module_tx_enable(sfp);
++		sfp_sm_event(sfp, SFP_E_TIMEOUT);
++		rtnl_unlock();
++	}
+ 	sfp_debugfs_init(sfp);
+ 
+ 	return 0;
