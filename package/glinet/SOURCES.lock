@@ -1,0 +1,11 @@
+source_group	package	commit
+gl_feed_common	gl-sdk4-fan	763868c2bb9dbc26f8d9911a86c103abd7a8f1b5
+gl_feed_common	gl-sdk4-hw-info	763868c2bb9dbc26f8d9911a86c103abd7a8f1b5
+glinet	gl-sdk4-black_white_list	1feaf4afd4b88290ff36b44d4678b11992f31458
+glinet	gl-sdk4-dns-mark	c80883038a1f0dfec5ab7e37fe85ffd1b15f75bb
+glinet	gl-sdk4-hw-check	ad85675270fd47a865e930eaf401dcd19e2f70da
+glinet	gl-sdk4-kmwan	c882b9c294604726bbddfc9b7d9e749842d062ea
+glinet	gl-sdk4-mpflow_statistics	ddc056ac1470d9c403e13d495ced14a07ff9c7fc
+glinet	gl-sdk4-parental-control	5b8b0897a4594e0c8652641e41e4f8ad15a721d8
+glinet	gl-sdk4-repeater-v2	ce789c8975b8840493d1e27fc090f3886a897a71
+glinet	gl-sdk4-tertf	6daeab15549873be397da2d5e8cf1edc4680ea93
