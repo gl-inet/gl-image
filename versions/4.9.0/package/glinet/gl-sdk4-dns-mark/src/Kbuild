@@ -1,0 +1,4 @@
+ccflags-y := -Wall -I$(src)
+
+obj-m := dns_mark.o
+dns_mark-objs := main.o dns.o rules.o proc.o

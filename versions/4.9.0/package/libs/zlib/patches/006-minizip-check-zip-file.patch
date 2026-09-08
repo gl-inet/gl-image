@@ -1,0 +1,44 @@
+--- a/contrib/minizip/miniunz.c
++++ b/contrib/minizip/miniunz.c
+@@ -368,6 +368,20 @@ static int do_extract_currentfile(uf,pop
+         else
+             write_filename = filename_withoutpath;
+ 
++	if (write_filename[0]!='\0')
++        {
++            const char* relative_check = write_filename;
++            while (relative_check[1]!='\0')
++            {
++                if (relative_check[0]=='.' && relative_check[1]=='.')
++                    write_filename = relative_check;
++                relative_check++;
++            }
++        }
++
++        while (write_filename[0]=='/' || write_filename[0]=='.')
++            write_filename++;
++
+         err = unzOpenCurrentFilePassword(uf,password);
+         if (err!=UNZ_OK)
+         {
+===================================================================
+--- a/contrib/minizip/zip.c
++++ b/contrib/minizip/zip.c
+@@ -1083,6 +1083,17 @@ extern int ZEXPORT zipOpenNewFileInZip4_
+       return ZIP_PARAMERROR;
+ #endif
+ 
++    // The filename and comment length must fit in 16 bits.
++    if ((filename!=NULL) && (strlen(filename)>0xffff))
++        return ZIP_PARAMERROR;
++    if ((comment!=NULL) && (strlen(comment)>0xffff))
++        return ZIP_PARAMERROR;
++    // The extra field length must fit in 16 bits. If the member also requires
++    // a Zip64 extra block, that will also need to fit within that 16-bit
++    // length, but that will be checked for later.
++    if ((size_extrafield_local>0xffff) || (size_extrafield_global>0xffff))
++        return ZIP_PARAMERROR;
++
+     zi = (zip64_internal*)file;
+ 
+     if (zi->in_opened_file_inzip == 1)

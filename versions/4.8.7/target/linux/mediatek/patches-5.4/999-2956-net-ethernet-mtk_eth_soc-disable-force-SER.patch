@@ -1,0 +1,25 @@
+From 584f3094f535a2ae128ab6034861f43d15502025 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Fri, 30 Aug 2024 22:23:00 +0800
+Subject: [PATCH] net ethernet mtk_eth_soc disable force SER
+
+---
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c   | 2 +++--
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+index ee19f45..08ff889 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -34,7 +34,7 @@
+ 
+ static int mtk_msg_level = -1;
+ atomic_t reset_lock = ATOMIC_INIT(0);
+-atomic_t force = ATOMIC_INIT(1);
++atomic_t force = ATOMIC_INIT(0);
+ 
+ module_param_named(msg_level, mtk_msg_level, int, 0);
+ MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
+-- 
+2.45.2
+

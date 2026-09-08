@@ -1,0 +1,28 @@
+Index: hostapd-2022-07-29-b704dc72/src/ml/ml_common.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ml/ml_common.c
++++ hostapd-2022-07-29-b704dc72/src/ml/ml_common.c
+@@ -783,10 +783,20 @@ int ml_group_deinit(struct hostapd_data
+ 	if (ml_group->ml_link_num == 0 && ml_group->links) {
+ 		wpa_printf(MSG_INFO, "(%s)[%d] ML: ml_group=%p, will free. ml_group->ctx(%p), hapd(%p)",
+ 			__func__, __LINE__, ml_group, ml_group->ctx, hapd);
+-		os_free(hapd->ml_group->links);
++		os_free(ml_group->links);
+ 		ml_group->links = NULL;
+-		os_free(hapd->ml_group);
+-		hapd->ml_group = NULL;
++		os_free(ml_group);
++		for (i = 0; i < hapd->iface->interfaces->count; i++) {
++			struct hostapd_iface *iface = hapd->iface->interfaces->iface[i];
++
++			for (k = 0; k < iface->num_bss; k++) {
++				struct hostapd_data *tmp_hapd = iface->bss[k];
++
++				if (tmp_hapd && tmp_hapd->ml_group == ml_group) {
++					tmp_hapd->ml_group = NULL;
++				}
++			}
++		}
+ 	}
+ 	return 0;
+ }

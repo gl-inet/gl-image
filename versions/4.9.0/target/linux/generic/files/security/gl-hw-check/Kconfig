@@ -1,0 +1,3 @@
+config SECURITY_GL_HW_CHECK
+	bool "GL.iNet hw check support"
+	default n

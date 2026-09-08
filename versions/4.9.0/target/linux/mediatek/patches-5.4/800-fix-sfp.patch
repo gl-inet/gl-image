@@ -1,0 +1,17 @@
+--- a/drivers/net/phy/sfp-bus.c
++++ b/drivers/net/phy/sfp-bus.c
+@@ -266,10 +266,12 @@ void sfp_parse_support(struct sfp_bus *b
+ 	 * 1310nm/1550nm) are not 1000BASE-BX compliant due to the differing
+ 	 * wavelengths, so do not set any transceiver bits.
+ 	 */
+-	if (bitmap_empty(modes, __ETHTOOL_LINK_MODE_MASK_NBITS)) {
++	if (bitmap_empty(modes, __ETHTOOL_LINK_MODE_MASK_NBITS) && br_nom) {
+ 		/* If the bit rate allows 1000baseX */
+-		if (br_nom && br_min <= 1300 && br_max >= 1200)
++		if (br_min <= 1300 && br_max >= 1200)
+ 			phylink_set(modes, 1000baseX_Full);
++		if (br_min <= 3200 && br_max >= 2500)
++			phylink_set(modes, 2500baseX_Full);
+ 	}
+ 
+ 	if (bus->sfp_quirk && bus->sfp_quirk->modes)

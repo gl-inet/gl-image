@@ -1,0 +1,12 @@
+--- a/drivers/net/phy/realtek.c
++++ b/drivers/net/phy/realtek.c
+@@ -706,6 +706,9 @@ static int rtl822x_c45_config_aneg(struc
+ 	if (ret > 0)
+ 		changed = true;
+ 
++	phy_write_mmd(phydev, MDIO_MMD_AN, 0x3c, 0); //disable 1G/2.5G EEE advertisement
++	phy_write_mmd(phydev, MDIO_MMD_AN, 0x3e, 0);
++
+ 	val = linkmode_adv_to_mii_ctrl1000_t(phydev->advertising);
+ 
+ 	/* Vendor register as C45 has no standardized support for 1000BaseT */

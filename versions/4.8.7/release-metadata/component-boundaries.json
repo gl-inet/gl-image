@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "components": [
+    {
+      "name": "GL.iNet retained kernel modules",
+      "decision": "source",
+      "source_authorization": "confirmed",
+      "binary_redistribution": "confirmed",
+      "source_globs": [
+        "package/glinet/**"
+      ],
+      "source_tokens": [],
+      "forbidden_config_symbols": [],
+      "required_config_symbols": [],
+      "binary_globs": [],
+      "license": "GPL-2.0-only",
+      "source_reference": "package/glinet/SOURCES.lock",
+      "impact": "Source is included but the modules are not selected by the public default configuration."
+    },
+    {
+      "name": "MediaTek GPL helper source",
+      "decision": "source",
+      "source_authorization": "confirmed",
+      "binary_redistribution": "confirmed",
+      "source_globs": [
+        "corresponding-source/mediatek/mwctl/**",
+        "corresponding-source/mediatek/wifi-profile/**"
+      ],
+      "source_tokens": [],
+      "forbidden_config_symbols": [],
+      "required_config_symbols": [],
+      "binary_globs": [],
+      "license": "GPL-2.0-only",
+      "source_reference": "corresponding-source/mediatek",
+      "impact": "Corresponding source satisfies the source obligation for the mwctl and wifi-profile payloads."
+    },
+    {
+      "name": "MediaTek MT7993 Wi-Fi runtime",
+      "decision": "binary",
+      "source_authorization": "denied",
+      "binary_redistribution": "unconfirmed",
+      "source_globs": [
+        "**/mt7993_*.tar.*",
+        "package/**/mt_hwifi/**",
+        "package/**/mt_wifi7/**",
+        "package/**/mt_wifi_osal/**",
+        "package/**/warp/**"
+      ],
+      "source_tokens": [],
+      "forbidden_config_symbols": [],
+      "required_config_symbols": [
+        "CONFIG_PACKAGE_mtk-wifi-runtime"
+      ],
+      "binary_globs": [
+        "package/firmware/mtk-binary-runtime/blobs/wifi/*.ipk"
+      ],
+      "kernel_release": "5.4.281",
+      "impact": "Wi-Fi remains available through ABI-locked runtime IPKs. Exact per-IPK redistribution evidence is required before publication."
+    },
+    {
+      "name": "MediaTek network extension runtime",
+      "decision": "binary",
+      "source_authorization": "denied",
+      "binary_redistribution": "unconfirmed",
+      "source_globs": [
+        "package/**/mapfilter/**",
+        "package/**/mtfwd/**",
+        "package/**/mtqos/**",
+        "**/mapfilter-*.tar.*",
+        "**/mtfwd-*.tar.*",
+        "**/mtqos-*.tar.*"
+      ],
+      "source_tokens": [],
+      "forbidden_config_symbols": [],
+      "required_config_symbols": [
+        "CONFIG_PACKAGE_mtk-network-runtime"
+      ],
+      "binary_globs": [
+        "package/firmware/mtk-binary-runtime/blobs/network/*.ipk"
+      ],
+      "kernel_release": "5.4.281",
+      "impact": "MediaTek forwarding, map filtering and QoS remain available through ABI-locked runtime IPKs. Exact BSD grant and redistribution evidence is required before publication."
+    },
+    {
+      "name": "GL.iNet proprietary applications and web UI",
+      "decision": "remove",
+      "source_authorization": "denied",
+      "binary_redistribution": "denied",
+      "source_globs": [
+        "feeds/glinet/**",
+        "package/feeds/glinet/**"
+      ],
+      "source_tokens": [],
+      "forbidden_config_symbols": [],
+      "required_config_symbols": [],
+      "binary_globs": [],
+      "impact": "The public image does not include independent proprietary application or GL.iNet web UI features."
+    }
+  ]
+}

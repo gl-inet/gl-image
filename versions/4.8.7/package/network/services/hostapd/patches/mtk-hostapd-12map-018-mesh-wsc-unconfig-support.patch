@@ -1,0 +1,28 @@
+diff --git a/src/ap/wps_hostapd.c b/src/ap/wps_hostapd.c
+index ec0536c..bc17bd3 100644
+--- a/src/ap/wps_hostapd.c
++++ b/src/ap/wps_hostapd.c
+@@ -503,8 +503,22 @@ static int hapd_wps_cred_cb(struct hostapd_data *hapd, void *ctx)
+ 	} else
+ 		wpa_msg(hapd->msg_ctx, MSG_INFO, WPS_EVENT_NEW_AP_SETTINGS);
+ 
+-	if (hapd->conf->wps_cred_processing == 1)
++	if (hapd->conf->wps_cred_processing == 1) {
++#if defined (WPS_UNCONFIG_FEATURE_SUPPORT) && defined (CONFIG_MTK_MAP)
++		/* Send Credentials to wappd for UN-CONFIG WPS MAP feature */
++		size_t blen_map = (sizeof(struct wps_credential) - sizeof(size_t) - sizeof (const u8 *)) * 2 + 1;
++		size_t wps_cred_len_map = sizeof(struct wps_credential) - sizeof(size_t) - sizeof (const u8 *);
++		char *msg_map = os_malloc(blen_map);
++
++		if (msg_map) {
++			wpa_snprintf_hex(msg_map, blen_map, (u8 *)cred, wps_cred_len_map);
++			wpa_msg(hapd, MSG_INFO, "%s%s", WPS_EVENT_CRED_RECEIVED, msg_map);
++			wpa_printf(MSG_INFO, "WPS CRED recieved AP event sent");
++			os_free(msg_map);
++		}
++#endif /* WPS_UNCONFIG_FEATURE_SUPPORT && CONFIG_MTK_MAP */
+ 		return 0;
++	}
+ 
+ 	os_memcpy(hapd->wps->ssid, cred->ssid, cred->ssid_len);
+ 	hapd->wps->ssid_len = cred->ssid_len;

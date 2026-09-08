@@ -1,0 +1,21 @@
+From 8bfdfc1e0546835e25ae011053ae4e52583d8220 Mon Sep 17 00:00:00 2001
+From: Dongming Han <handongming@gl-inet.com>
+Date: Wed, 1 Feb 2023 19:14:16 +0800
+Subject: [PATCH] make wireguard server not do handshake initiation
+
+---
+ drivers/net/wireguard/send.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+--- a/drivers/net/wireguard/send.c
++++ b/drivers/net/wireguard/send.c
+@@ -22,6 +22,9 @@ static void wg_packet_send_handshake_ini
+ {
+ 	struct message_handshake_initiation packet;
+ 
++	if (!strncmp(peer->device->dev->name, "wgs", 3))
++		return;
++
+ 	if (!wg_birthdate_has_expired(atomic64_read(&peer->last_sent_handshake),
+ 				      REKEY_TIMEOUT))
+ 		return; /* This function is rate limited. */

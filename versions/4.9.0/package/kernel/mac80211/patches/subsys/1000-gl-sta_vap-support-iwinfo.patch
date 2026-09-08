@@ -1,0 +1,24 @@
+From 073401b771c6231e80139b3ceaeb197430aafd30 Mon Sep 17 00:00:00 2001
+From: zengyinbin <yinbin.zeng@gl-inet.com>
+Date: Mon, 15 Sep 2025 12:05:04 +0800
+Subject: [PATCH] add NL80211_IFTYPE_STATION type
+
+---
+ net/wireless/chan.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/net/wireless/chan.c b/net/wireless/chan.c
+index f8348bc..9656fcc 100644
+--- a/net/wireless/chan.c
++++ b/net/wireless/chan.c
+@@ -1499,6 +1499,7 @@ struct cfg80211_chan_def *wdev_chandef(struct wireless_dev *wdev,
+ 	case NL80211_IFTYPE_OCB:
+ 		return &wdev->u.ocb.chandef;
+ 	case NL80211_IFTYPE_AP:
++	case NL80211_IFTYPE_STATION:
+ 	case NL80211_IFTYPE_P2P_GO:
+ 		return &wdev->links[link_id].ap.chandef;
+ 	default:
+-- 
+2.34.1
+

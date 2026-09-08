@@ -1,0 +1,117 @@
+From c552849e8a08a063289d0ffb86b36adedcdcda93 Mon Sep 17 00:00:00 2001
+From: Dongming Han <handongming@gl-inet.com>
+Date: Thu, 26 Dec 2024 18:55:12 +0800
+Subject: [PATCH] feat: dnsmasq support config mark for outgoing packet
+
+Why need this patch:
+
+1. Binding outgoing interface is not able to failover once interface is down
+/tmp/dnsmasq.d.wgclient1# cat ser
+server=1.1.1.2@wgclient1
+
+2. conntrack method may fail to mark packet when /proc/net/nf_conntrack is changing fastly
+
+Set example:
+echo "mark=0x1000" >/tmp/dnsmasq.d.wgclient1/mark
+echo "mark=0x2000" >/tmp/dnsmasq.d.wgclient2/mark
+
+Signed-off-by: Dongming Han <handongming@gl-inet.com>
+---
+ src/dnsmasq.h |  1 +
+ src/forward.c | 14 +++++++++++++-
+ src/option.c  |  7 +++++++
+ 3 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/dnsmasq.h b/src/dnsmasq.h
+index 11eab26..6037ebf 100644
+--- a/src/dnsmasq.h
++++ b/src/dnsmasq.h
+@@ -1058,6 +1058,7 @@ extern struct daemon {
+   char *log_file; /* optional log file */
+   int max_logs;  /* queue limit */
+   int cachesize, ftabsize;
++  int outgoing_mark;
+   int port, query_port, min_port, max_port, log_level;
+   unsigned long local_ttl, neg_ttl, max_ttl, min_cache_ttl, max_cache_ttl, auth_ttl, dhcp_ttl, use_dhcp_ttl;
+   char *dns_client_id;
+diff --git a/src/forward.c b/src/forward.c
+index 40c9723..edd3dc6 100644
+--- a/src/forward.c
++++ b/src/forward.c
+@@ -572,7 +572,11 @@ static int forward_query(int udpfd, union mysockaddr *udpaddr,
+ 	      if (option_bool(OPT_CONNTRACK))
+ 		set_outgoing_mark(forward, fd);
+ #endif
+-	      
++
++	if (daemon->outgoing_mark) {
++		setsockopt(fd, SOL_SOCKET, SO_MARK, &daemon->outgoing_mark, sizeof(unsigned int));
++	}
++
+ #ifdef HAVE_DNSSEC
+ 	      if (option_bool(OPT_DNSSEC_VALID) && (forward->flags & FREC_ADDED_PHEADER))
+ 		{
+@@ -1700,6 +1704,10 @@ static int tcp_key_recurse(time_t now, int status, struct dns_header *header, si
+ 		setsockopt(server->tcpfd, SOL_SOCKET, SO_MARK, &mark, sizeof(unsigned int));
+ #endif	
+ 	      
++	      if (daemon->outgoing_mark) {
++		setsockopt(server->tcpfd, SOL_SOCKET, SO_MARK, &daemon->outgoing_mark, sizeof(unsigned int));
++	      }
++
+ 	      if (!local_bind(server->tcpfd,  &server->source_addr, server->interface, 0, 1))
+ 		{
+ 		  close(server->tcpfd);
+@@ -2013,6 +2021,10 @@ unsigned char *tcp_request(int confd, time_t now,
+ 			    setsockopt(last_server->tcpfd, SOL_SOCKET, SO_MARK, &mark, sizeof(unsigned int));
+ #endif			  
+ 		      
++			  if (daemon->outgoing_mark) {
++			    setsockopt(last_server->tcpfd, SOL_SOCKET, SO_MARK, &daemon->outgoing_mark, sizeof(unsigned int));
++			  }
++
+ 			  if ((!local_bind(last_server->tcpfd,  &last_server->source_addr, last_server->interface, 0, 1)))
+ 			    {
+ 			      close(last_server->tcpfd);
+diff --git a/src/option.c b/src/option.c
+index 1312033..386d4bd 100644
+--- a/src/option.c
++++ b/src/option.c
+@@ -172,6 +172,7 @@ struct myoption {
+ #define LOPT_LOG_DEBUG     363
+ #define LOPT_DHCP_MODE     364
+ #define LOPT_LOG_LEVEL     365
++#define LOPT_MARK          500
+  
+ #ifdef HAVE_GETOPT_LONG
+ static const struct option opts[] =  
+@@ -192,6 +193,7 @@ static const struct myoption opts[] =
+     { "mx-host", 1, 0, 'm' },
+     { "mx-target", 1, 0, 't' },
+     { "cache-size", 2, 0, 'c' },
++    { "mark", 1, 0, LOPT_MARK },
+     { "port", 1, 0, 'p' },
+     { "dhcp-leasefile", 2, 0, 'l' },
+     { "dhcp-lease", 1, 0, 'l' },
+@@ -370,6 +372,7 @@ static struct {
+   { 'b', OPT_BOGUSPRIV, NULL, gettext_noop("Fake reverse lookups for RFC1918 private address ranges."), NULL },
+   { 'B', ARG_DUP, "<ipaddr>", gettext_noop("Treat ipaddr as NXDOMAIN (defeats Verisign wildcard)."), NULL }, 
+   { 'c', ARG_ONE, "<integer>", gettext_noop("Specify the size of the cache in entries (defaults to %s)."), "$" },
++  { LOPT_MARK, ARG_ONE, "<hex>", gettext_noop("Specify the outgoing packet mark."), NULL },
+   { 'C', ARG_DUP, "<path>", gettext_noop("Specify configuration file (defaults to %s)."), CONFFILE },
+   { 'd', OPT_DEBUG, NULL, gettext_noop("Do NOT fork into the background: run in debug mode."), NULL },
+   { 'D', OPT_NODOTS_LOCAL, NULL, gettext_noop("Do NOT forward queries with no domain part."), NULL }, 
+@@ -2790,6 +2793,10 @@ static int one_opt(int option, char *arg, char *errstr, char *gen_err, int comma
+ 	break;
+       }
+       
++    case LOPT_MARK:  /* ----mark */
++      daemon->outgoing_mark = strtol(arg, NULL, 0);
++      break;
++
+     case 'p':  /* --port */
+       if (!atoi_check16(arg, &daemon->port))
+ 	ret_err(gen_err);
+-- 
+2.25.1
+

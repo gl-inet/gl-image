@@ -1,0 +1,40 @@
+--- a/libfstools/libfstools.h
++++ b/libfstools/libfstools.h
+@@ -29,6 +29,7 @@ enum {
+ 	FS_UBIFS,
+ 	FS_F2FS,
+ 	FS_EXT4,
++	FS_TARGZ,
+ };
+ 
+ enum fs_state {
+--- a/libfstools/rootdisk.c
++++ b/libfstools/rootdisk.c
+@@ -206,6 +206,12 @@ static int rootdisk_volume_identify(stru
+ 	if (!f)
+ 		return ret;
+ 
++	fseeko(f, p->offset, SEEK_SET);
++
++	n = fread(&magic, sizeof(magic), 1, f);
++	if (magic == cpu_to_le32(0x88b1f))
++		return FS_TARGZ;
++
+ 	fseeko(f, p->offset + 0x400, SEEK_SET);
+ 	n = fread(&magic, sizeof(magic), 1, f);
+ 	if (n != 1)
+@@ -319,6 +325,14 @@ static int rootdisk_volume_init(struct v
+ 
+ do_format:
+ 	switch (rootdisk_volume_identify(v)) {
++	case FS_TARGZ:
++		snprintf(str, sizeof(str),
++			 "dd if=%s bs=512 2>/dev/null | gzip -cd > /tmp/sysupgrade.tar 2>/dev/null", v->blk);
++		ret = system(str);
++		if (ret < 0) {
++			ULOG_ERR("failed extracting config backup from %s\n", v->blk);
++			break;
++		}
+ 	case FS_NONE:
+ 		ULOG_INFO("rootdisk overlay filesystem has not been formatted yet\n");
+ 		if (rootdisk_use_f2fs(p))

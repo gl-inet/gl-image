@@ -1,0 +1,98 @@
+Index: hostapd-2022-07-29-b704dc72/src/ap/hostapd.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/hostapd.h
++++ hostapd-2022-07-29-b704dc72/src/ap/hostapd.h
+@@ -205,7 +205,8 @@ struct hostapd_data {
+ 	unsigned int reenable_beacon:1;
+ 
+ 	u8 own_addr[ETH_ALEN];
+-
++	u8 sta_link_addr[ETH_ALEN];
++	u8 update_sta_link_mac;
+ 	/* OpenWrt specific statistics */
+ 	struct hostapd_openwrt_stats openwrt_stats;
+ 
+Index: hostapd-2022-07-29-b704dc72/src/ap/wpa_auth_ft.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wpa_auth_ft.c
++++ hostapd-2022-07-29-b704dc72/src/ap/wpa_auth_ft.c
+@@ -3930,6 +3930,7 @@ int wpa_ft_validate_reassoc(struct wpa_s
+ 	u8 fte_elem_count;
+ 	int rsnxe_used;
+ 	struct wpa_auth_config *conf;
++	struct hostapd_data *hapd = sm->wpa_auth->cb_ctx;
+ #ifdef CONFIG_MTK_IEEE80211BE
+ 	u8 setup_link_id;
+ #endif
+@@ -4087,7 +4088,25 @@ int wpa_ft_validate_reassoc(struct wpa_s
+ 		setup_link_id = ml_get_link_id(sm);
+ #endif
+ 
+-	if (wpa_ft_mic(conf->wpa_key_mgmt, kck, kck_len, ml_auth_spa(sm, sm->addr), ml_auth_aa(sm, sm->wpa_auth->addr), 5,
++	if (hapd && sm->wpa_auth->conf.ft_over_ds && hapd->update_sta_link_mac) {
++		if (wpa_ft_mic(conf->wpa_key_mgmt, kck, kck_len, ml_auth_spa(sm, sm->addr), ml_auth_aa(sm, sm->wpa_auth->addr), 5,
++		       parse.mdie - 2, parse.mdie_len + 2,
++		       parse.ftie - 2, parse.ftie_len + 2,
++		       parse.rsn - 2, parse.rsn_len + 2,
++		       parse.ric, parse.ric_len,
++		       parse.rsnxe ? parse.rsnxe - 2 : NULL,
++		       parse.rsnxe ? parse.rsnxe_len + 2 : 0,
++#ifdef CONFIG_MTK_IEEE80211BE
++			   parse.mlie ? parse.mlie : NULL,
++			   parse.mlie ? parse.mlie_len : 0,
++			   setup_link_id, hapd->sta_link_addr, 0, NULL,
++#endif
++		       mic) < 0) {
++			wpa_printf(MSG_DEBUG, "FT: Failed to calculate MIC");
++			return WLAN_STATUS_UNSPECIFIED_FAILURE;
++		}
++	} else {
++		if (wpa_ft_mic(conf->wpa_key_mgmt, kck, kck_len, ml_auth_spa(sm, sm->addr), ml_auth_aa(sm, sm->wpa_auth->addr), 5,
+ 		       parse.mdie - 2, parse.mdie_len + 2,
+ 		       parse.ftie - 2, parse.ftie_len + 2,
+ 		       parse.rsn - 2, parse.rsn_len + 2,
+@@ -4100,8 +4119,9 @@ int wpa_ft_validate_reassoc(struct wpa_s
+ 			   setup_link_id, sm->addr, 0, NULL,
+ #endif
+ 		       mic) < 0) {
+-		wpa_printf(MSG_DEBUG, "FT: Failed to calculate MIC");
+-		return WLAN_STATUS_UNSPECIFIED_FAILURE;
++			wpa_printf(MSG_DEBUG, "FT: Failed to calculate MIC");
++			return WLAN_STATUS_UNSPECIFIED_FAILURE;
++		}
+ 	}
+ 
+ 	if (os_memcmp_const(mic, fte_mic, mic_len) != 0) {
+Index: hostapd-2022-07-29-b704dc72/src/drivers/mediatek_driver_cmd_nl80211.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/mediatek_driver_cmd_nl80211.c
++++ hostapd-2022-07-29-b704dc72/src/drivers/mediatek_driver_cmd_nl80211.c
+@@ -342,6 +342,16 @@ void mtk_nl80211_rxt2lm_stop_disassoc_ti
+ 	}
+ }
+ 
++void mtk_nl80211_rx_sta_link_mac_event(struct wpa_driver_nl80211_data *drv,
++		u8 *data, size_t data_len)
++{
++	struct hostapd_data *hapd = drv->ctx;
++
++	hapd->update_sta_link_mac = 1;
++	os_memcpy(hapd->sta_link_addr, data + 4, ETH_ALEN);
++	wpa_hexdump(MSG_MSGDUMP, "Sta Link Mac", data, data_len);
++}
++
+ void nl80211_vendor_event_mtk(struct wpa_driver_nl80211_data *drv, struct i802_bss *bss,
+                   u32 subcmd, u8 *data, size_t len)
+ {
+@@ -364,6 +374,11 @@ void nl80211_vendor_event_mtk(struct wpa
+ 		"nl80211: MTK_NL80211_VENDOR_EVENT_RX_T2LM_STOP_DISASSOC_TIMER event %u", subcmd);
+ 		mtk_nl80211_rxt2lm_stop_disassoc_timer_event(drv, data, len);
+ 		break;
++	case MTK_NL80211_VENDOR_EVENT_SEND_MLO_STA_LINK_MAC:
++		wpa_printf(MSG_DEBUG,
++		"nl80211: MTK_NL80211_VENDOR_EVENT_SEND_MLO_STA_LINK_MAC event %u", subcmd);
++		mtk_nl80211_rx_sta_link_mac_event(drv, data, len);
++		break;
+ 	    default:
+ 	        wpa_printf(MSG_DEBUG,
+ 	            "nl80211:Ignore unsupported mtk vendor event %u, MTK_NL80211_VENDOR_EVENT_MLO_EVENT(%u)",

@@ -1,0 +1,818 @@
+Index: hostapd-2022-07-29-b704dc72/hostapd/config_file.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/hostapd/config_file.c
++++ hostapd-2022-07-29-b704dc72/hostapd/config_file.c
+@@ -3216,6 +3216,8 @@ static int hostapd_config_fill(struct ho
+ 		os_free(bss->rsn_preauth_interfaces);
+ 		bss->rsn_preauth_interfaces = os_strdup(pos);
+ #endif /* CONFIG_RSN_PREAUTH */
++	} else if (os_strcmp(buf, "rsn_override_omit_rsnxe") == 0) {
++		bss->rsn_override_omit_rsnxe = atoi(pos);
+ 	} else if (os_strcmp(buf, "peerkey") == 0) {
+ 		wpa_printf(MSG_INFO,
+ 			   "Line %d: Obsolete peerkey parameter ignored", line);
+Index: hostapd-2022-07-29-b704dc72/src/ap/ap_config.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/ap_config.h
++++ hostapd-2022-07-29-b704dc72/src/ap/ap_config.h
+@@ -415,6 +415,8 @@ struct hostapd_bss_config {
+ 	int rsn_preauth;
+ 	char *rsn_preauth_interfaces;
+ 
++	int rsn_override_omit_rsnxe;
++
+ #ifdef CONFIG_IEEE80211R_AP
+ 	/* IEEE 802.11r - Fast BSS Transition */
+ 	u8 mobility_domain[MOBILITY_DOMAIN_ID_LEN];
+Index: hostapd-2022-07-29-b704dc72/src/ap/drv_callbacks.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/drv_callbacks.c
++++ hostapd-2022-07-29-b704dc72/src/ap/drv_callbacks.c
+@@ -376,10 +376,8 @@ int hostapd_notif_assoc(struct hostapd_d
+ 				   "Failed to initialize WPA state machine");
+ 			return -1;
+ 		}
+-		wpa_auth_set_rsn_override(sta->wpa_sm,
+-					  elems.rsne_override != NULL);
+-		wpa_auth_set_rsn_override_2(sta->wpa_sm,
+-					    elems.rsne_override_2 != NULL);
++		wpa_auth_set_rsn_selection(sta->wpa_sm, elems.rsn_selection,
++					   elems.rsn_selection_len);
+ #ifdef CONFIG_MTK_IEEE80211BE
+ 		ml_new_assoc_sta(sta->wpa_sm, elems.ml, elems.ml_len);
+ #endif
+Index: hostapd-2022-07-29-b704dc72/src/ap/ieee802_11.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/ieee802_11.c
++++ hostapd-2022-07-29-b704dc72/src/ap/ieee802_11.c
+@@ -2048,7 +2048,8 @@ void handle_auth_fils(struct hostapd_dat
+ 		resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
+ 		goto fail;
+ 	}
+-
++	wpa_auth_set_rsn_selection(sta->wpa_sm, elems.rsn_selection,
++				   elems.rsn_selection_len);
+ 	res = wpa_validate_wpa_ie(hapd->wpa_auth, sta->wpa_sm,
+ 				  hapd->iface->freq,
+ 				  elems.rsn_ie - 2, elems.rsn_ie_len + 2,
+@@ -2059,9 +2060,6 @@ void handle_auth_fils(struct hostapd_dat
+ 	if (resp != WLAN_STATUS_SUCCESS)
+ 		goto fail;
+ 
+- 	wpa_auth_set_rsn_override(sta->wpa_sm, elems.rsne_override != NULL);
+-	wpa_auth_set_rsn_override_2(sta->wpa_sm, elems.rsne_override_2 != NULL);
+-
+ 	if (!elems.fils_nonce) {
+ 		wpa_printf(MSG_DEBUG, "FILS: No FILS Nonce field");
+ 		resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
+@@ -4812,10 +4810,8 @@ static int check_assoc_ies(struct hostap
+ 				   "state machine");
+ 			return WLAN_STATUS_UNSPECIFIED_FAILURE;
+ 		}
+-		wpa_auth_set_rsn_override(sta->wpa_sm,
+-						  elems.rsne_override != NULL);
+-		wpa_auth_set_rsn_override_2(sta->wpa_sm,
+-					    elems.rsne_override_2 != NULL);
++		wpa_auth_set_rsn_selection(sta->wpa_sm, elems.rsn_selection,
++				   elems.rsn_selection_len);
+ #ifdef CONFIG_MTK_IEEE80211BE
+ 		ml_new_assoc_sta(sta->wpa_sm, elems.ml, elems.ml_len); /*for logan owe flow*/
+ #endif
+Index: hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wpa_auth.c
++++ hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.c
+@@ -771,9 +771,6 @@ void wpa_deinit(struct wpa_authenticator
+ 
+ 
+ 	os_free(wpa_auth->wpa_ie);
+-	os_free(wpa_auth->rsne_override);
+-	os_free(wpa_auth->rsne_override_2);
+-	os_free(wpa_auth->rsnxe_override);
+ 
+ 	group = wpa_auth->group;
+ 	while (group) {
+@@ -927,6 +924,7 @@ static void wpa_free_sta_sm(struct wpa_s
+ 	os_free(sm->last_rx_eapol_key);
+ 	os_free(sm->wpa_ie);
+ 	os_free(sm->rsnxe);
++	os_free(sm->rsn_selection);
+ 	wpa_group_put(sm->wpa_auth, sm->group);
+ #ifdef CONFIG_DPP2
+ 	wpabuf_clear_free(sm->dpp_z);
+@@ -1621,7 +1619,8 @@ continue_processing:
+ 	sm->EAPOLKeyReceived = true;
+ 	sm->EAPOLKeyPairwise = !!(key_info & WPA_KEY_INFO_KEY_TYPE);
+ 	sm->EAPOLKeyRequest = !!(key_info & WPA_KEY_INFO_REQUEST);
+-	os_memcpy(sm->SNonce, key->key_nonce, WPA_NONCE_LEN);
++	if (msg == PAIRWISE_2)
++		os_memcpy(sm->SNonce, key->key_nonce, WPA_NONCE_LEN);
+ 	wpa_sm_step(sm);
+ }
+ 
+@@ -3392,6 +3391,33 @@ SM_STATE(WPA_PTK, PTKCALCNEGOTIATING)
+ 		return;
+ 	}
+ #endif /* CONFIG_IEEE80211R_AP */
++
++/* Verify RSN Selection element for RSN overriding */
++	if ((wpa_auth->conf.rsn_override_key_mgmt ||
++	     wpa_auth->conf.rsn_override_key_mgmt_2) &&
++	    ((rsn_is_snonce_cookie(sm->SNonce) && !kde.rsn_selection) ||
++	     (!rsn_is_snonce_cookie(sm->SNonce) && kde.rsn_selection) ||
++	     (sm->rsn_selection && !kde.rsn_selection) ||
++	     (!sm->rsn_selection && kde.rsn_selection) ||
++	     (sm->rsn_selection && kde.rsn_selection &&
++	      (sm->rsn_selection_len != kde.rsn_selection_len ||
++	       os_memcmp(sm->rsn_selection, kde.rsn_selection,
++			 sm->rsn_selection_len) != 0)))) {
++		wpa_printf(MSG_DEBUG,
++			   "RSN Selection element from (Re)AssocReq did not match the one in EAPOL-Key msg 2/4");
++		wpa_printf(MSG_DEBUG,
++			   "SNonce cookie for RSN overriding %sused",
++			   rsn_is_snonce_cookie(sm->SNonce) ? "" : "not ");
++		wpa_hexdump(MSG_DEBUG, "RSN Selection in AssocReq",
++			    sm->rsn_selection, sm->rsn_selection_len);
++		wpa_hexdump(MSG_DEBUG, "RSN Selection in EAPOL-Key msg 2/4",
++			    kde.rsn_selection, kde.rsn_selection_len);
++		/* MLME-DEAUTHENTICATE.request */
++		wpa_sta_disconnect(wpa_auth, sm->addr,
++				   WLAN_REASON_PREV_AUTH_NOT_VALID);
++		return;
++	}
++
+ #ifdef CONFIG_P2P
+ 	if (kde.ip_addr_req && kde.ip_addr_req[0] &&
+ 	    wpa_auth->ip_pool && WPA_GET_BE32(sm->ip_addr) == 0) {
+@@ -3678,80 +3704,39 @@ SM_STATE(WPA_PTK, PTKINITNEGOTIATING)
+ 			wpa_ie = wpa_ie + wpa_ie[1] + 2;
+ 		wpa_ie_len = wpa_ie[1] + 2;
+ 	}
+-	if ((sm->rsn_override &&
+-	     get_vendor_ie(wpa_ie, wpa_ie_len, RSNE_OVERRIDE_IE_VENDOR_TYPE)) ||
+-	    (sm->rsn_override_2 &&
+-	     get_vendor_ie(wpa_ie, wpa_ie_len,
+-			   RSNE_OVERRIDE_2_IE_VENDOR_TYPE))) {
+-		const u8 *mde, *fte, *tie, *tie2 = NULL;
+-		const u8 *override_rsne = NULL, *override_rsnxe = NULL;
+-		const struct element *elem;
++	if ((conf->rsn_override_key_mgmt || conf->rsn_override_key_mgmt_2) &&
++	    !rsn_is_snonce_cookie(sm->SNonce)) {
++		u8 *ie;
++		size_t ie_len;
++		u32 ids[] = {
++			RSNE_OVERRIDE_IE_VENDOR_TYPE,
++			RSNE_OVERRIDE_2_IE_VENDOR_TYPE,
++			RSNXE_OVERRIDE_IE_VENDOR_TYPE,
++			0
++		};
++		int i;
+ 
+ 		wpa_printf(MSG_DEBUG,
+-			   "RSN: Use RSNE/RSNXE override element contents");
+-		mde = get_ie(wpa_ie, wpa_ie_len, WLAN_EID_MOBILITY_DOMAIN);
+-		fte = get_ie(wpa_ie, wpa_ie_len, WLAN_EID_FAST_BSS_TRANSITION);
+-		tie = get_ie(wpa_ie, wpa_ie_len, WLAN_EID_TIMEOUT_INTERVAL);
+-		if (tie) {
+-			const u8 *next = tie + 2 + tie[1];
+-
+-			tie2 = get_ie(next, wpa_ie + wpa_ie_len - next,
+-				      WLAN_EID_TIMEOUT_INTERVAL);
+-		}
+-		for_each_element_id(elem, WLAN_EID_VENDOR_SPECIFIC,
+-				    wpa_ie, wpa_ie_len) {
+-			if (elem->datalen >= 4) {
+-				if (WPA_GET_BE32(elem->data) ==
+-				    (sm->rsn_override_2 ?
+-				     RSNE_OVERRIDE_2_IE_VENDOR_TYPE :
+-				     RSNE_OVERRIDE_IE_VENDOR_TYPE))
+-					override_rsne = &elem->id;
+-				if (WPA_GET_BE32(elem->data) ==
+-				    RSNXE_OVERRIDE_IE_VENDOR_TYPE)
+-					override_rsnxe = &elem->id;
+-			}
+-		}
++			   "RSN: Remove RSNE/RSNXE override elements");
+ 		wpa_hexdump(MSG_DEBUG, "EAPOL-Key msg 3/4 IEs before edits",
+ 			    wpa_ie, wpa_ie_len);
+-		wpa_ie_buf3 = os_malloc(wpa_ie_len);
++		wpa_ie_buf3 = os_memdup(wpa_ie, wpa_ie_len);
+ 		if (!wpa_ie_buf3)
+ 			goto done;
+-		pos = wpa_ie_buf3;
+-		if (override_rsne) {
+-			*pos++ = WLAN_EID_RSN;
+-			*pos++ = override_rsne[1] - 4;
+-			os_memcpy(pos, &override_rsne[2 + 4],
+-				  override_rsne[1] - 4);
+-			pos += override_rsne[1] - 4;
+-		}
+-		if (mde) {
+-			os_memcpy(pos, mde, 2 + mde[1]);
+-			pos += 2 + mde[1];
+-		}
+-		if (fte) {
+-			os_memcpy(pos, fte, 2 + fte[1]);
+-			pos += 2 + fte[1];
+-		}
+-		if (tie) {
+-			os_memcpy(pos, tie, 2 + tie[1]);
+-			pos += 2 + tie[1];
+-		}
+-		if (tie2) {
+-			os_memcpy(pos, tie2, 2 + tie2[1]);
+-			pos += 2 + tie2[1];
+-		}
+-		if (override_rsnxe) {
+-			*pos++ = WLAN_EID_RSNX;
+-			*pos++ = override_rsnxe[1] - 4;
+-			os_memcpy(pos, &override_rsnxe[2 + 4],
+-				  override_rsnxe[1] - 4);
+-			pos += override_rsnxe[1] - 4;
+-		}
+ 		wpa_ie = wpa_ie_buf3;
+-		wpa_ie_len = pos - wpa_ie_buf3;
++
++		for (i = 0; ids[i]; i++) {
++			ie = (u8 *) get_vendor_ie(wpa_ie, wpa_ie_len, ids[i]);
++			if (ie) {
++				ie_len = 2 + ie[1];
++				os_memmove(ie, ie + ie_len,
++					   wpa_ie_len - (ie + ie_len - wpa_ie));
++				wpa_ie_len -= ie_len;
++			}
++		}
+ 		wpa_hexdump(MSG_DEBUG, "EAPOL-Key msg 3/4 IEs after edits",
+ 			    wpa_ie, wpa_ie_len);
+-	}
++	} 
+ #ifdef CONFIG_TESTING_OPTIONS
+ 	if (conf->rsne_override_eapol_set) {
+ 		wpa_ie_buf2 = replace_ie(
+@@ -5845,17 +5830,29 @@ void wpa_auth_set_auth_alg(struct wpa_st
+ }
+ 
+ 
+-void wpa_auth_set_rsn_override(struct wpa_state_machine *sm, bool val)
++void wpa_auth_set_rsn_selection(struct wpa_state_machine *sm, const u8 *ie,
++				size_t len)
+ {
+-	if (sm)
+-		sm->rsn_override = val;
++	if (!sm)
++		return;
++	os_free(sm->rsn_selection);
++	sm->rsn_selection = NULL;
++	sm->rsn_selection_len = 0;
++	sm->rsn_override = false;
++	sm->rsn_override_2 = false;
++	if (ie) {
++		if (len >=  1) {
++			if (ie[0] == RSN_SELECTION_RSNE_OVERRIDE)
++				sm->rsn_override = true;
++			else if (ie[0] == RSN_SELECTION_RSNE_OVERRIDE_2)
++				sm->rsn_override_2 = true;
++		}
++		sm->rsn_selection = os_memdup(ie, len);
++		if (sm->rsn_selection)
++			sm->rsn_selection_len = len;
++	}
+ }
+ 
+-void wpa_auth_set_rsn_override_2(struct wpa_state_machine *sm, bool val)
+-{
+-	if (sm)
+-		sm->rsn_override_2 = val;
+-}
+ 
+ #ifdef CONFIG_DPP2
+ void wpa_auth_set_dpp_z(struct wpa_state_machine *sm, const struct wpabuf *z)
+Index: hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wpa_auth.h
++++ hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.h
+@@ -284,6 +284,8 @@ struct wpa_auth_config {
+ 	bool force_kdk_derivation;
+ 
+ 	bool radius_psk;
++
++	int rsn_override_omit_rsnxe;
+ };
+ 
+ typedef enum {
+@@ -572,8 +574,8 @@ u8 * wpa_auth_write_assoc_resp_fils(stru
+ bool wpa_auth_write_fd_rsn_info(struct wpa_authenticator *wpa_auth,
+ 				u8 *fd_rsn_info);
+ void wpa_auth_set_auth_alg(struct wpa_state_machine *sm, u16 auth_alg);
+-void wpa_auth_set_rsn_override(struct wpa_state_machine *sm, bool val);
+-void wpa_auth_set_rsn_override_2(struct wpa_state_machine *sm, bool val);
++void wpa_auth_set_rsn_selection(struct wpa_state_machine *sm, const u8 *ie,
++				size_t len);
+ void wpa_auth_set_dpp_z(struct wpa_state_machine *sm, const struct wpabuf *z);
+ void wpa_auth_set_transition_disable(struct wpa_authenticator *wpa_auth,
+ 				     u8 val);
+Index: hostapd-2022-07-29-b704dc72/src/ap/wpa_auth_glue.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wpa_auth_glue.c
++++ hostapd-2022-07-29-b704dc72/src/ap/wpa_auth_glue.c
+@@ -223,6 +223,8 @@ static void hostapd_wpa_auth_conf(struct
+ #endif /* CONFIG_PASN */
+ 
+ 	wconf->radius_psk = conf->wpa_psk_radius == PSK_RADIUS_DURING_4WAY_HS;
++
++	wconf->rsn_override_omit_rsnxe = conf->rsn_override_omit_rsnxe;
+ }
+ 
+ 
+Index: hostapd-2022-07-29-b704dc72/src/ap/wpa_auth_i.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wpa_auth_i.h
++++ hostapd-2022-07-29-b704dc72/src/ap/wpa_auth_i.h
+@@ -122,6 +122,8 @@ struct wpa_state_machine {
+ 	size_t wpa_ie_len;
+ 	u8 *rsnxe;
+ 	size_t rsnxe_len;
++	u8 *rsn_selection;
++	size_t rsn_selection_len;
+ 
+ 	enum {
+ 		WPA_VERSION_NO_WPA = 0 /* WPA not used */,
+@@ -252,10 +254,6 @@ struct wpa_authenticator {
+ 	u8 *wpa_ie;
+ 	size_t wpa_ie_len;
+ 
+-	u8 *rsne_override; /* RSNE with overridden payload */
+-	u8 *rsne_override_2; /* RSNE with overridden (2) payload */
+-	u8 *rsnxe_override; /* RSNXE with overridden payload */
+-
+ 	u8 addr[ETH_ALEN];
+ 
+ 	struct rsn_pmksa_cache *pmksa;
+Index: hostapd-2022-07-29-b704dc72/src/ap/wpa_auth_ie.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wpa_auth_ie.c
++++ hostapd-2022-07-29-b704dc72/src/ap/wpa_auth_ie.c
+@@ -648,8 +648,13 @@ int wpa_auth_gen_wpa_ie(struct wpa_authe
+ 		if (res < 0)
+ 			return res;
+ 		pos += res;
+-		res = wpa_write_rsnxe(&wpa_auth->conf, pos,
+-				      buf + sizeof(buf) - pos);
++
++		if (wpa_auth->conf.rsn_override_omit_rsnxe)
++			res = 0;
++		else
++			res = wpa_write_rsnxe(&wpa_auth->conf, pos,
++					      buf + sizeof(buf) - pos);
++
+ 		if (res < 0)
+ 			return res;
+ 		pos += res;
+@@ -704,60 +709,6 @@ int wpa_auth_gen_wpa_ie(struct wpa_authe
+ 	os_memcpy(wpa_auth->wpa_ie, buf, pos - buf);
+ 	wpa_auth->wpa_ie_len = pos - buf;
+ 
+-	if ((wpa_auth->conf.wpa & WPA_PROTO_RSN) &&
+-	    wpa_auth->conf.rsn_override_key_mgmt) {
+-		res = wpa_write_rsne_override(&wpa_auth->conf, buf,
+-					      sizeof(buf));
+-		if (res < 0)
+-			return res;
+-		os_free(wpa_auth->rsne_override);
+-		wpa_auth->rsne_override = os_malloc(res - 4);
+-		if (!wpa_auth->rsne_override)
+-			return -1;
+-		pos = wpa_auth->rsne_override;
+-		*pos++ = WLAN_EID_RSN;
+-		*pos++ = res - 2 - 4;
+-		os_memcpy(pos, &buf[2 + 4], res - 2 - 4);
+-	}
+-
+-	if ((wpa_auth->conf.wpa & WPA_PROTO_RSN) &&
+-	    wpa_auth->conf.rsn_override_key_mgmt_2) {
+-		res = wpa_write_rsne_override_2(&wpa_auth->conf, buf,
+-						sizeof(buf));
+-		if (res < 0)
+-			return res;
+-		os_free(wpa_auth->rsne_override_2);
+-		wpa_auth->rsne_override_2 = os_malloc(res - 4);
+-		if (!wpa_auth->rsne_override_2)
+-			return -1;
+-		pos = wpa_auth->rsne_override_2;
+-		*pos++ = WLAN_EID_RSN;
+-		*pos++ = res - 2 - 4;
+-		os_memcpy(pos, &buf[2 + 4], res - 2 - 4);
+-	}
+-
+-	if ((wpa_auth->conf.wpa & WPA_PROTO_RSN) &&
+-	    (wpa_auth->conf.rsn_override_key_mgmt ||
+-	     wpa_auth->conf.rsn_override_key_mgmt_2)) {
+-
+-		res = wpa_write_rsnxe_override(&wpa_auth->conf, buf,
+-					       sizeof(buf));
+-		if (res < 0)
+-			return res;
+-		os_free(wpa_auth->rsnxe_override);
+-		if (res == 0) {
+-			wpa_auth->rsnxe_override = NULL;
+-			return 0;
+-		}
+-		wpa_auth->rsnxe_override = os_malloc(res - 4);
+-		if (!wpa_auth->rsnxe_override)
+-			return -1;
+-		pos = wpa_auth->rsnxe_override;
+-		*pos++ = WLAN_EID_RSNX;
+-		*pos++ = res - 2 - 4;
+-		os_memcpy(pos, &buf[2 + 4], res - 2 - 4);
+-	}
+-
+ 	return 0;
+ }
+ 
+@@ -957,9 +908,13 @@ wpa_validate_wpa_ie(struct wpa_authentic
+ 		return WPA_INVALID_GROUP;
+ 	}
+ 
+-	key_mgmt = data.key_mgmt & (wpa_auth->conf.wpa_key_mgmt |
+-				    wpa_auth->conf.rsn_override_key_mgmt |
+-				    wpa_auth->conf.rsn_override_key_mgmt_2);
++	if (sm->rsn_override_2)
++		key_mgmt = data.key_mgmt &
++			wpa_auth->conf.rsn_override_key_mgmt_2;
++	else if (sm->rsn_override)
++		key_mgmt = data.key_mgmt & wpa_auth->conf.rsn_override_key_mgmt;
++	else
++		key_mgmt = data.key_mgmt & wpa_auth->conf.wpa_key_mgmt;
+ 	if (!key_mgmt) {
+ 		wpa_printf(MSG_DEBUG, "Invalid WPA key mgmt (0x%x) from "
+ 			   MACSTR, data.key_mgmt, MAC2STR(sm->addr));
+@@ -1024,11 +979,14 @@ wpa_validate_wpa_ie(struct wpa_authentic
+ 	else
+ 		sm->wpa_key_mgmt = WPA_KEY_MGMT_PSK;
+ 
+-	if (version == WPA_PROTO_RSN)
++	if (version == WPA_PROTO_RSN && sm->rsn_override_2)
++		ciphers = data.pairwise_cipher &
++			wpa_auth->conf.rsn_override_pairwise_2;
++	else if (version == WPA_PROTO_RSN && sm->rsn_override)
+ 		ciphers = data.pairwise_cipher &
+-			(wpa_auth->conf.rsn_pairwise |
+-			 wpa_auth->conf.rsn_override_pairwise |
+-			 wpa_auth->conf.rsn_override_pairwise_2);
++			wpa_auth->conf.rsn_override_pairwise;
++	else if (version == WPA_PROTO_RSN)
++		ciphers = data.pairwise_cipher & wpa_auth->conf.rsn_pairwise;
+ 	else
+ 		ciphers = data.pairwise_cipher & wpa_auth->conf.wpa_pairwise;
+ 	if (!ciphers) {
+Index: hostapd-2022-07-29-b704dc72/src/common/ieee802_11_common.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/common/ieee802_11_common.c
++++ hostapd-2022-07-29-b704dc72/src/common/ieee802_11_common.c
+@@ -148,6 +148,15 @@ static int ieee802_11_parse_vendor_speci
+ 			elems->rsne_override_2 = pos;
+ 			elems->rsne_override_2_len = elen;
+ 			break;
++		case WFA_RSN_SELECTION_OUI_TYPE:
++			if (elen < 4 + 1) {
++				wpa_printf(MSG_DEBUG,
++					   "Too short RSN Selection element ignored");
++				return -1;
++			}
++			elems->rsn_selection = pos + 4;
++			elems->rsn_selection_len = elen - 4;
++			break;
+ 		default:
+ 			wpa_printf(MSG_MSGDUMP, "Unknown WFA "
+ 				   "information element ignored "
+Index: hostapd-2022-07-29-b704dc72/src/common/ieee802_11_common.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/common/ieee802_11_common.h
++++ hostapd-2022-07-29-b704dc72/src/common/ieee802_11_common.h
+@@ -125,6 +125,7 @@ struct ieee802_11_elems {
+ #endif
+ 	const u8 *rsne_override;
+ 	const u8 *rsne_override_2;
++	const u8 *rsn_selection;
+ 
+ 	u8 ssid_len;
+ 	u8 supp_rates_len;
+@@ -186,6 +187,7 @@ struct ieee802_11_elems {
+ #endif
+ 	size_t rsne_override_len;
+ 	size_t rsne_override_2_len;
++	size_t rsn_selection_len;
+ 
+ 	struct mb_ies_info mb_ies;
+ 	struct frag_ies_info frag_ies;
+Index: hostapd-2022-07-29-b704dc72/src/common/ieee802_11_defs.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/common/ieee802_11_defs.h
++++ hostapd-2022-07-29-b704dc72/src/common/ieee802_11_defs.h
+@@ -1380,9 +1380,12 @@ struct ieee80211_ampe_ie {
+ #define WFA_RSNE_OVERRIDE_OUI_TYPE 0x29
+ #define WFA_RSNE_OVERRIDE_2_OUI_TYPE 0x2a
+ #define WFA_RSNXE_OVERRIDE_OUI_TYPE 0x2b
++#define WFA_RSN_SELECTION_OUI_TYPE 0x2c
+ #define RSNE_OVERRIDE_IE_VENDOR_TYPE 0x506f9a29
+ #define RSNE_OVERRIDE_2_IE_VENDOR_TYPE 0x506f9a2a
+ #define RSNXE_OVERRIDE_IE_VENDOR_TYPE 0x506f9a2b
++#define RSN_SELECTION_IE_VENDOR_TYPE 0x506f9a2c
++
+ 
+ #define MULTI_AP_SUB_ELEM_TYPE 0x06
+ #define MULTI_AP_TEAR_DOWN BIT(4)
+Index: hostapd-2022-07-29-b704dc72/src/common/wpa_common.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/common/wpa_common.c
++++ hostapd-2022-07-29-b704dc72/src/common/wpa_common.c
+@@ -3690,7 +3690,53 @@ static int wpa_parse_generic(const u8 *p
+ 				pos, dlen);
+ 		return 0;
+ 	}
+-#endif
++	if (left >= 1 && selector == WFA_KEY_DATA_RSN_OVERRIDE_LINK) {
++		link_id = p[0];
++		if (link_id >= MAX_NUM_MLO_LINKS)
++			return 2;
++
++		ie->rsn_override_link[link_id] = p;
++		ie->rsn_override_link_len[link_id] = left;
++		wpa_printf(MSG_INFO, "ML: RSN: Link ID %u - RSN Override Link KDE in EAPOL-Key\n", link_id);
++		return 0;
++	}
++#endif /*CONFIG_MTK_IEEE80211BE*/
++
++	if (selector == RSNE_OVERRIDE_IE_VENDOR_TYPE) {
++		ie->rsne_override = pos;
++		ie->rsne_override_len = dlen;
++		wpa_hexdump(MSG_DEBUG,
++			    "RSN: RSNE Override element in EAPOL-Key",
++			    ie->rsne_override, ie->rsne_override_len);
++		return 0;
++	}
++
++	if (selector == RSNE_OVERRIDE_2_IE_VENDOR_TYPE) {
++		ie->rsne_override_2 = pos;
++		ie->rsne_override_2_len = dlen;
++		wpa_hexdump(MSG_DEBUG,
++			    "RSN: RSNE Override 2 element in EAPOL-Key",
++			    ie->rsne_override_2, ie->rsne_override_2_len);
++		return 0;
++	}
++
++	if (selector == RSNXE_OVERRIDE_IE_VENDOR_TYPE) {
++		ie->rsnxe_override = pos;
++		ie->rsnxe_override_len = dlen;
++		wpa_hexdump(MSG_DEBUG,
++			    "RSN: RSNXE Override element in EAPOL-Key",
++			    ie->rsnxe_override, ie->rsnxe_override_len);
++		return 0;
++	}
++
++	if (selector == RSN_SELECTION_IE_VENDOR_TYPE) {
++		ie->rsn_selection = p;
++		ie->rsn_selection_len = left;
++		wpa_hexdump(MSG_DEBUG,
++			    "RSN: RSN Selection element in EAPOL-Key",
++			    ie->rsn_selection, ie->rsn_selection_len);
++		return 0;
++	}
+ 
+ 	return 2;
+ }
+@@ -4298,3 +4344,13 @@ void wpa_pasn_add_rsnxe(struct wpabuf *b
+ }
+ 
+ #endif /* CONFIG_PASN */
++
++bool rsn_is_snonce_cookie(const u8 *snonce)
++{
++	const u8 *pos;
++
++	pos = snonce + WPA_NONCE_LEN - 6;
++	return WPA_GET_BE24(pos) == OUI_WFA &&
++		WPA_GET_BE24(pos + 3) == 0x000029;
++}
++
+Index: hostapd-2022-07-29-b704dc72/src/common/wpa_common.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/common/wpa_common.h
++++ hostapd-2022-07-29-b704dc72/src/common/wpa_common.h
+@@ -144,6 +144,7 @@ WPA_CIPHER_BIP_CMAC_256)
+ #define WFA_KEY_DATA_IP_ADDR_ALLOC RSN_SELECTOR(0x50, 0x6f, 0x9a, 5)
+ #define WFA_KEY_DATA_TRANSITION_DISABLE RSN_SELECTOR(0x50, 0x6f, 0x9a, 0x20)
+ #define WFA_KEY_DATA_DPP RSN_SELECTOR(0x50, 0x6f, 0x9a, 0x21)
++#define WFA_KEY_DATA_RSN_OVERRIDE_LINK RSN_SELECTOR(0x50, 0x6f, 0x9a, 0x2d)
+ 
+ #define WPA_OUI_TYPE RSN_SELECTOR(0x00, 0x50, 0xf2, 1)
+ 
+@@ -618,6 +619,14 @@ struct wpa_pasn_params_data {
+ #define WPA_PASN_PUBKEY_COMPRESSED_1 0x03
+ #define WPA_PASN_PUBKEY_UNCOMPRESSED 0x04
+ 
++/* WPA3 specification - RSN Selection element */
++enum rsn_selection_variant {
++	RSN_SELECTION_RSNE = 0,
++	RSN_SELECTION_RSNE_OVERRIDE = 1,
++	RSN_SELECTION_RSNE_OVERRIDE_2 = 2,
++};
++
++
+ int wpa_ft_parse_ies(const u8 *ies, size_t ies_len, struct wpa_ft_ies *parse,
+ 		     int use_sha384);
+ 
+@@ -733,8 +742,17 @@ struct wpa_eapol_ie_parse {
+ 	struct ml_kde mlo_igtk;
+ 	struct ml_kde mlo_bigtk;
+ 	struct ml_kde mlo_link;
++	const u8 *rsn_override_link[MAX_NUM_MLO_LINKS];
++	size_t rsn_override_link_len[MAX_NUM_MLO_LINKS];
+ #endif
+-
++	const u8 *rsn_selection;
++	size_t rsn_selection_len;
++	const u8 *rsne_override;
++	size_t rsne_override_len;
++	const u8 *rsne_override_2;
++	size_t rsne_override_2_len;
++	const u8 *rsnxe_override;
++	size_t rsnxe_override_len;
+ };
+ 
+ int wpa_parse_kde_ies(const u8 *buf, size_t len, struct wpa_eapol_ie_parse *ie);
+@@ -801,5 +819,6 @@ int wpa_pasn_parse_parameter_ie(const u8
+ 				struct wpa_pasn_params_data *pasn_params);
+ 
+ void wpa_pasn_add_rsnxe(struct wpabuf *buf, u16 capab);
++bool rsn_is_snonce_cookie(const u8 *snonce);
+ 
+ #endif /* WPA_COMMON_H */
+Index: hostapd-2022-07-29-b704dc72/src/ml/ml_common.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ml/ml_common.c
++++ hostapd-2022-07-29-b704dc72/src/ml/ml_common.c
+@@ -126,6 +126,70 @@ u8* ml_set_ml_link_kde(u8 *pos, u8 link_
+ 	return pos;
+ }
+ 
++u8* ml_set_ml_rsno_link_kde(u8 *pos, u8 link_id,
++	struct wpa_state_machine *sm, struct wpa_authenticator *wpa_auth)
++{
++	const u8 *rsnoe, *rsno2e, *rsnxoe;
++	size_t rsnoe_len, rsno2e_len, rsnxoe_len;
++	size_t kde_len;
++	u8 *ori;
++
++	if (!rsn_is_snonce_cookie(sm->SNonce))
++		return pos;
++	ori = pos;
++
++	rsnoe = get_vendor_ie(wpa_auth->wpa_ie, wpa_auth->wpa_ie_len,
++			      RSNE_OVERRIDE_IE_VENDOR_TYPE);
++	rsnoe_len = rsnoe ? 2 + rsnoe[1] : 0;
++
++	rsno2e = get_vendor_ie(wpa_auth->wpa_ie, wpa_auth->wpa_ie_len,
++			       RSNE_OVERRIDE_2_IE_VENDOR_TYPE);
++	rsno2e_len = rsno2e ? 2 + rsno2e[1] : 0;
++
++	rsnxoe = get_vendor_ie(wpa_auth->wpa_ie, wpa_auth->wpa_ie_len,
++			       RSNXE_OVERRIDE_IE_VENDOR_TYPE);
++	rsnxoe_len = rsnxoe ? 2 + rsnxoe[1] : 0;
++
++	wpa_printf(MSG_DEBUG,
++		   "ML: RSN Override Link KDE: link=%u, len=%zu",
++		   link_id, RSN_SELECTOR_LEN + rsnoe_len + rsno2e_len +
++		   rsnxoe_len);
++
++	/* RSN Override Link KDE */
++	*pos++ = WLAN_EID_VENDOR_SPECIFIC;
++	kde_len = RSN_SELECTOR_LEN + 1 + rsnoe_len + rsno2e_len +
++		rsnxoe_len;
++	if (kde_len > 255) {
++		wpa_printf(MSG_ERROR,
++			   "RSN: RSNOE/RSNO2E/RSNXOE too long (KDE length %zu) to fit in RSN Override Link KDE for link %u",
++			   kde_len, link_id);
++		return pos;
++	}
++	*pos++ = kde_len;
++
++	RSN_SELECTOR_PUT(pos, WFA_KEY_DATA_RSN_OVERRIDE_LINK);
++	pos += RSN_SELECTOR_LEN;
++
++	*pos++ = link_id;
++
++	if (rsnoe_len) {
++		os_memcpy(pos, rsnoe, rsnoe_len);
++		pos += rsnoe_len;
++	}
++
++	if (rsno2e_len) {
++		os_memcpy(pos, rsno2e, rsno2e_len);
++		pos += rsno2e_len;
++	}
++
++	if (rsnxoe_len) {
++		os_memcpy(pos, rsnxoe, rsnxoe_len);
++		pos += rsnxoe_len;
++	}
++	wpa_hexdump(MSG_DEBUG, "ML: RSNO Link KDE", ori, pos - ori);
++	return pos;
++}
++
+ int ml_parse_ie(const u8 *ie, size_t len, struct wpa_ml_ie_parse *ml, u8 *bssid)
+ {
+ 	const u8 *pos, *end, *ci_end, *info_end;;
+@@ -950,7 +1014,6 @@ u8* ml_add_m3_kde(struct wpa_state_machi
+ #endif
+ 		const u8 *rsne, *rsnxe;
+ 		size_t rsne_len = 0, rsnxe_len = 0;
+-		u8 *rsn_tmp_buff = NULL, *rsnx_tmp_buff = NULL, *wpa_ie_buf = NULL;
+ 
+ 		link = &ml_group->links[i];
+ 		if (link->link_id == sm->sta_ml_ie->link_id) {
+@@ -973,65 +1036,10 @@ u8* ml_add_m3_kde(struct wpa_state_machi
+ 			return NULL;
+ 		}
+ 
+-		wpa_printf(MSG_INFO, "ML: rsn_override:%d, rsn_override_2:%d", sm->rsn_override, sm->rsn_override_2);
+-		if ((sm->rsn_override && 
+-			get_vendor_ie(auth->wpa_ie, auth->wpa_ie_len, RSNE_OVERRIDE_IE_VENDOR_TYPE)) ||
+-			(sm->rsn_override_2 && 
+-			get_vendor_ie(auth->wpa_ie, auth->wpa_ie_len, RSNE_OVERRIDE_2_IE_VENDOR_TYPE))) {
+-			const u8 *override_rsne = NULL, *override_rsnxe = NULL;
+-			const struct element *elem;
+-
+-			for_each_element_id(elem, WLAN_EID_VENDOR_SPECIFIC,
+-				    auth->wpa_ie, auth->wpa_ie_len) {
+-				if (elem->datalen >= 4) {
+-					if (WPA_GET_BE32(elem->data) ==
+-					    	(sm->rsn_override_2 ?
+-				     		RSNE_OVERRIDE_2_IE_VENDOR_TYPE :
+-				     		RSNE_OVERRIDE_IE_VENDOR_TYPE))
+-						override_rsne = &elem->id;
+-					if (WPA_GET_BE32(elem->data) ==
+-					    RSNXE_OVERRIDE_IE_VENDOR_TYPE)
+-						override_rsnxe = &elem->id;
+-				}
+-			}
+-			wpa_ie_buf = os_malloc(auth->wpa_ie_len);
+-			if (!wpa_ie_buf) {
+-				wpa_printf(MSG_ERROR, "ML: rsn_tmp_buff alloc fail");
+-				return pos;
+-			}
+-			rsn_tmp_buff = wpa_ie_buf;
+-			if (override_rsne) {
+-				*rsn_tmp_buff++ = WLAN_EID_RSN;
+-				*rsn_tmp_buff++ = override_rsne[1] - 4;
+-				os_memcpy(rsn_tmp_buff, &override_rsne[2 + 4],
+-					  override_rsne[1] - 4);
+-				rsn_tmp_buff += override_rsne[1] - 4;
+-
+-				rsne = wpa_ie_buf;
+-				rsne_len = rsn_tmp_buff - wpa_ie_buf;
+-				wpa_hexdump(MSG_DEBUG, "ML: converted rsno to rsn",
+-			    rsne, rsne_len);
+-			}
+-			rsnx_tmp_buff = rsn_tmp_buff;
+-			if (override_rsnxe) {
+-				*rsnx_tmp_buff++ = WLAN_EID_RSNX;
+-				*rsnx_tmp_buff++ = override_rsnxe[1] - 4;
+-				os_memcpy(rsnx_tmp_buff, &override_rsnxe[2 + 4],
+-					  override_rsnxe[1] - 4);
+-				rsnx_tmp_buff += override_rsnxe[1] - 4;
+-
+-				rsnxe = rsn_tmp_buff;
+-				rsnxe_len = rsnx_tmp_buff - rsn_tmp_buff;
+-				wpa_hexdump(MSG_DEBUG, "ML: converted rsnxo to rsnx",
+-			    rsnxe, rsnxe_len);
+-			}
+-		} else {
+-			rsne = get_ie(auth->wpa_ie, auth->wpa_ie_len, WLAN_EID_RSN);
+-			rsne_len = rsne ? rsne[1] + 2 : 0;
+-			rsnxe = get_ie(auth->wpa_ie, auth->wpa_ie_len, WLAN_EID_RSNX);
+-			rsnxe_len = rsnxe ? rsnxe[1] + 2 : 0;
+-			wpa_printf(MSG_INFO, "ML: get rsne or rsnxe in normal mode");
+-		}
++		rsne = get_ie(auth->wpa_ie, auth->wpa_ie_len, WLAN_EID_RSN);
++		rsne_len = rsne ? rsne[1] + 2 : 0;
++		rsnxe = get_ie(auth->wpa_ie, auth->wpa_ie_len, WLAN_EID_RSNX);
++		rsnxe_len = rsnxe ? rsnxe[1] + 2 : 0;
+ 
+ #ifdef CONFIG_IEEE80211R_AP
+ 		if (wpa_key_mgmt_ft(sm->wpa_key_mgmt) && rsne) {
+@@ -1072,13 +1080,13 @@ u8* ml_add_m3_kde(struct wpa_state_machi
+ 
+ 		pos = ml_set_ml_link_kde(pos, link->link_id, link->addr,
+ 			rsne, rsne_len, rsnxe, rsnxe_len);
++		pos = ml_set_ml_rsno_link_kde(pos, link->link_id, sm, auth);
+ 		pos = ml_set_gtk_kde(sm, pos, link);
+ 		pos = ml_set_ieee80211w_kde(sm, pos, link);
+ 
+ #ifdef CONFIG_IEEE80211R_AP
+ 		os_free(rsn_ie_buf);
+ #endif
+-		os_free(wpa_ie_buf);
+ 	}
+ 
+ 	return pos;

@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "artifacts": [
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/network/kmod-mapfilter_5.4.281-1_aarch64_cortex-a53.ipk",
+      "sha256": "19421b6a589a1de27944e7253866cbb0d4c5db5bc57bfac3b6d08b93abd24f94",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/network/kmod-mtfwd_5.4.281-1_aarch64_cortex-a53.ipk",
+      "sha256": "490b8c99172607abd09fddfd65ccfb3228443dd41753eab3e53925e0764abbea",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/network/kmod-mtqos_5.4.281-1_aarch64_cortex-a53.ipk",
+      "sha256": "f2e6b178a15b663711c1b5669e0933e1b30dabc3fb07242fa7ef1b24cc85f024",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/datconf-lua_1_aarch64_cortex-a53.ipk",
+      "sha256": "67f884eb73e0c3440a28e0aa825df8bc7607be52377ec7575d1c62a90ab853ab",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/datconf_1_aarch64_cortex-a53.ipk",
+      "sha256": "a63fd4d272f3082feb5f7ddb8b367d8a93435460e2579bd77098543e4f5cb816",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/fwdd_1_aarch64_cortex-a53.ipk",
+      "sha256": "7ba1be7a0abcaca790796a8b4621a1a071e1ff4c967d40851120767d2297def2",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/hostapd-common_2022-07-29-b704dc72-r123.1_aarch64_cortex-a53.ipk",
+      "sha256": "cde2e07ae17b82c2f40a239e7d13e91aff77335768deae7a3c4077a204d41600",
+      "license_conclusion": "BSD-3-Clause",
+      "redistribution_authorization": "confirmed",
+      "source_obligation": "not_required",
+      "source_reference": "package/network/services/hostapd at the pinned OpenWrt source revision",
+      "notice_files": [
+        "package/firmware/mtk-binary-runtime/files/hostapd-BSD-3-Clause.txt"
+      ],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/hostapd-utils_2022-07-29-b704dc72-123.1_aarch64_cortex-a53.ipk",
+      "sha256": "93b0cebd63a501801c2a17cc2c2d75e82c0bfdb69c3fc88f28b6482b9636537b",
+      "license_conclusion": "BSD-3-Clause",
+      "redistribution_authorization": "confirmed",
+      "source_obligation": "not_required",
+      "source_reference": "package/network/services/hostapd at the pinned OpenWrt source revision",
+      "notice_files": [
+        "package/firmware/mtk-binary-runtime/files/hostapd-BSD-3-Clause.txt"
+      ],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/kmod-connac_if_5.4.281+TEST-1_aarch64_cortex-a53.ipk",
+      "sha256": "d641ce8da235e68bcb5d1670b9c3cc1bb343da3bc9198ee677766a80bb71dbc4",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt7993_5.4.281+TEST-1_aarch64_cortex-a53.ipk",
+      "sha256": "ce825a214c7d79a24d28a2386a9c823c62cb56107061b5970c79356e9a528581",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt7993_dbg_5.4.281+TEST-1_aarch64_cortex-a53.ipk",
+      "sha256": "6b1971c5d025aa0359c53e00a3af7e31cb8f962e60a28cb9de085ab79745758f",
+      "license_conclusion": "BSD-3-Clause",
+      "redistribution_authorization": "confirmed",
+      "source_obligation": "not_required",
+      "source_reference": "MediaTek MT7993 diagnostic module BSD grant",
+      "notice_files": [
+        "package/firmware/mtk-binary-runtime/files/mt7993_dbg-BSD-3-Clause.txt"
+      ],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt_hwifi_5.4.281+TEST-1_aarch64_cortex-a53.ipk",
+      "sha256": "a97aa0f4ae3bac1abb8283bacd592f8c6fe5143367090b109a0e5a9c32222e2c",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt_wifi7_5.4.281+TEST-1_aarch64_cortex-a53.ipk",
+      "sha256": "3df4b21dd4a09821f423d07892b8a991482ee458f5f2509441edbad54b424839",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt_wifi_osal_5.4.281-1_aarch64_cortex-a53.ipk",
+      "sha256": "49c7e142f3e522d41c5603f3510002109d2549f43c0f6ecb06c908c9ab1de0fc",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mtk_pci_5.4.281+TEST-1_aarch64_cortex-a53.ipk",
+      "sha256": "d93508b287e44754ddb380732faef7deb871708768b4453b4e917f43ab9a3995",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mtk_wed_5.4.281+TEST-1_aarch64_cortex-a53.ipk",
+      "sha256": "68813b85f1e99cb92203ac4acf5c2239b64974778c2d1910d7f9cb01bdacab44",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/kmod-warp_5.4.281-1_aarch64_cortex-a53.ipk",
+      "sha256": "a3ed0cce6e7c1fb5bed961d37de3a6b7cb921a164ce855dd28e18cb5d231f072",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/kvcedit_1_aarch64_cortex-a53.ipk",
+      "sha256": "adcb5547c683e943027d652fe705d66c0625bbeb0e4f7fbd5387f133e30c92f3",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/libkvcutil_1_aarch64_cortex-a53.ipk",
+      "sha256": "ab7dcf9da4468bff1528e4bc5a42ab4735423c4a3c8a849caef6feaa32fdc6bf",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/libwpactrl20130104_1_aarch64_cortex-a53.ipk",
+      "sha256": "b973acb351e03b85d0e25cb20ce41bd8bac667fb5e29863c92d26a8b448441ee",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/mwctl_1_aarch64_cortex-a53.ipk",
+      "sha256": "ba5a3d464da0a4bbf76b5c74bb3b1556c715aab9e697f2caddabbab6d2facc73",
+      "license_conclusion": "GPL-2.0-only",
+      "redistribution_authorization": "confirmed",
+      "source_obligation": "satisfied",
+      "source_reference": "corresponding-source/mediatek/mwctl",
+      "notice_files": [
+        "corresponding-source/mediatek/mwctl/LICENSE"
+      ],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/wapp_1_aarch64_cortex-a53.ipk",
+      "sha256": "4b3f4343f8947959c97f560a6cd4b04ffa6f4acd657e1554c443bdd3796fae31",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/wifi-profile_1-_aarch64_cortex-a53.ipk",
+      "sha256": "8e084d40970f2776f5eba5bc3534db59097ec2eeff14bd7f8e5fac4df8bceb1c",
+      "license_conclusion": "GPL-2.0-only",
+      "redistribution_authorization": "confirmed",
+      "source_obligation": "satisfied",
+      "source_reference": "corresponding-source/mediatek/wifi-profile",
+      "notice_files": [
+        "COPYING"
+      ],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/wificonf_1_aarch64_cortex-a53.ipk",
+      "sha256": "87847a7df48f72d2d47e9c754695e16069352826152490b0a7f8c080f716a373",
+      "license_conclusion": "unconfirmed",
+      "redistribution_authorization": "unconfirmed",
+      "source_obligation": "unconfirmed",
+      "source_reference": "MediaTek license and binary redistribution record required for this exact SHA256",
+      "notice_files": [],
+      "owner": "GL.iNet OSS compliance"
+    },
+    {
+      "path": "package/firmware/mtk-binary-runtime/blobs/wifi/wpad-openssl_2022-07-29-b704dc72-r123.1_aarch64_cortex-a53.ipk",
+      "sha256": "5cd8d75fec1e6522ca280b5cbcc0952feaf6e87438f084b9f791ee2dc8cf7d91",
+      "license_conclusion": "BSD-3-Clause",
+      "redistribution_authorization": "confirmed",
+      "source_obligation": "not_required",
+      "source_reference": "package/network/services/hostapd at the pinned OpenWrt source revision",
+      "notice_files": [
+        "package/firmware/mtk-binary-runtime/files/hostapd-BSD-3-Clause.txt"
+      ],
+      "owner": "GL.iNet OSS compliance"
+    }
+  ]
+}

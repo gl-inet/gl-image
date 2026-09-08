@@ -1,0 +1,13 @@
+diff --git a/src/wps/wps_enrollee.c b/src/wps/wps_enrollee.c
+index b310848..a901ffa 100644
+--- a/src/wps/wps_enrollee.c
++++ b/src/wps/wps_enrollee.c
+@@ -404,7 +404,7 @@ static struct wpabuf * wps_build_m7(struct wps_data *wps)
+ 	    wps_build_e_snonce2(wps, plain) ||
+ 	    (wps->wps->ap && wps_build_ap_settings(wps, plain)) ||
+ #if defined(CONFIG_MTK_MAP)
+-	(wps->wps && wps->wps->cb_ctx && ((struct wpa_supplicant *)wps->wps->cb_ctx)->dpp_uri && wps_build_dpp_uri(wps, plain)) ||
++	(wps->wps && wps->wps->cb_ctx && wps->multi_ap_backhaul_sta == 1 && ((struct wpa_supplicant *)wps->wps->cb_ctx)->dpp_uri && wps_build_dpp_uri(wps, plain)) ||
+ #endif /* CONFIG_MTK_MAP */
+ 	    wps_build_key_wrap_auth(wps, plain) ||
+ 	    wps_build_encr_settings(wps, msg, plain) ||

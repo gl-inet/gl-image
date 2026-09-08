@@ -1,0 +1,127 @@
+diff --git a/src/ap/ubus.c b/src/ap/ubus.c
+index e6a09b3..ffec999 100644
+--- a/src/ap/ubus.c
++++ b/src/ap/ubus.c
+@@ -142,8 +142,10 @@ static void hostapd_send_procd_event(char *bssname, char *event)
+ 	blob_buf_init(&b, 0);
+ 
+ 	s = blobmsg_alloc_string_buffer(&b, "type", strlen(name) + 1);
+-	sprintf(s, "%s", name);
+-	blobmsg_add_string_buffer(&b);
++	if (s) {
++		sprintf(s, "%s", name);
++		blobmsg_add_string_buffer(&b);
++	}
+ 
+ 	v = blobmsg_open_table(&b, "data");
+ 	blobmsg_close_table(&b, v);
+@@ -339,8 +341,10 @@ hostapd_bss_get_clients(struct ubus_context *ctx, struct ubus_object *obj,
+ 		blobmsg_add_u32(&b, "aid", sta->aid);
+ #ifdef CONFIG_TAXONOMY
+ 		r = blobmsg_alloc_string_buffer(&b, "signature", 1024);
+-		if (retrieve_sta_taxonomy(hapd, sta, r, 1024) > 0)
+-			blobmsg_add_string_buffer(&b);
++		if (r) {
++			if (retrieve_sta_taxonomy(hapd, sta, r, 1024) > 0)
++				blobmsg_add_string_buffer(&b);
++		}
+ #endif
+ 
+ 		/* Driver information */
+@@ -587,8 +591,10 @@ blobmsg_add_macaddr(struct blob_buf *buf, const char *name, const u8 *addr)
+ 	char *s;
+ 
+ 	s = blobmsg_alloc_string_buffer(buf, name, 20);
+-	sprintf(s, MACSTR, MAC2STR(addr));
+-	blobmsg_add_string_buffer(buf);
++	if (s) {
++		sprintf(s, MACSTR, MAC2STR(addr));
++		blobmsg_add_string_buffer(buf);
++	}
+ }
+ 
+ static int
+@@ -995,14 +1001,18 @@ hostapd_rrm_print_nr(struct hostapd_neighbor_entry *nr)
+ 	blobmsg_printf(&b, "", MACSTR, MAC2STR(nr->bssid));
+ 
+ 	str = blobmsg_alloc_string_buffer(&b, "", nr->ssid.ssid_len + 1);
+-	memcpy(str, nr->ssid.ssid, nr->ssid.ssid_len);
+-	str[nr->ssid.ssid_len] = 0;
+-	blobmsg_add_string_buffer(&b);
++	if (str) {
++		memcpy(str, nr->ssid.ssid, nr->ssid.ssid_len);
++		str[nr->ssid.ssid_len] = 0;
++		blobmsg_add_string_buffer(&b);
++	}
+ 
+ 	len = wpabuf_len(nr->nr);
+ 	str = blobmsg_alloc_string_buffer(&b, "", 2 * len + 1);
+-	wpa_snprintf_hex(str, 2 * len + 1, wpabuf_head_u8(nr->nr), len);
+-	blobmsg_add_string_buffer(&b);
++	if (str) {
++		wpa_snprintf_hex(str, 2 * len + 1, wpabuf_head_u8(nr->nr), len);
++		blobmsg_add_string_buffer(&b);
++	}
+ }
+ 
+ enum {
+@@ -2053,9 +2063,11 @@ static void hostapd_ubus_notify_bss_transition_add_candidate_list(
+ 		return;
+ 
+ 	cl_str = blobmsg_alloc_string_buffer(&b, "candidate-list", candidate_list_len * 2 + 1);
+-	for (i = 0; i < candidate_list_len; i++)
+-		snprintf(&cl_str[i*2], 3, "%02X", candidate_list[i]);
+-	blobmsg_add_string_buffer(&b);
++	if (cl_str) {
++		for (i = 0; i < candidate_list_len; i++)
++			snprintf(&cl_str[i*2], 3, "%02X", candidate_list[i]);
++		blobmsg_add_string_buffer(&b);
++	}
+ 
+ }
+ #endif
+diff --git a/src/ap/wnm_ap.c b/src/ap/wnm_ap.c
+index e55140e..15575c1 100644
+--- a/src/ap/wnm_ap.c
++++ b/src/ap/wnm_ap.c
+@@ -24,6 +24,12 @@
+ 
+ #define MAX_TFS_IE_LEN  1024
+ 
++#ifndef MIN
++#define MIN(a, b) (((a) < (b)) ? (a) : (b))
++#endif
++#ifndef MAX
++#define MAX(a, b) (((a) > (b)) ? (a) : (b))
++#endif
+ 
+ /* get the TFS IE from driver */
+ static int ieee80211_11_get_tfs_ie(struct hostapd_data *hapd, const u8 *addr,
+@@ -561,7 +567,7 @@ static void ieee802_11_rx_bss_trans_mgmt_resp(struct hostapd_data *hapd,
+ 			return;
+ 		}
+ 		target_bssid = pos;
+-		pos += 6;
++		pos = MIN(pos + 6, end);
+ 		sta->agreed_to_steer = 1;
+ 		eloop_cancel_timeout(ap_sta_reset_steer_flag_timer, hapd, sta);
+ 		eloop_register_timeout(2, 0, ap_sta_reset_steer_flag_timer,
+@@ -582,7 +588,7 @@ static void ieee802_11_rx_bss_trans_mgmt_resp(struct hostapd_data *hapd,
+ 			MACSTR "%s%s",
+ 			MAC2STR(addr), dialog_token, status_code, bss_termination_delay,
+ 			MAC2STR(target_bssid), hex ? " neighbor=" : "", hex);
+-		pos += ETH_ALEN;
++		pos = MIN(pos + ETH_ALEN, end);
+ 	} else {
+ 		if (pos < end) {
+ 			hex_len = 2 * (end - pos) + 1;
+@@ -600,7 +606,8 @@ static void ieee802_11_rx_bss_trans_mgmt_resp(struct hostapd_data *hapd,
+ 			hex ? " neighbor=" : "", hex);
+ 	}
+ 	os_free(hex);
+-
++	
++	wpa_printf(MSG_DEBUG, "WNM: remain_len: %ld\n", (long int)(end-pos));
+ 	hostapd_ubus_notify_bss_transition_response(hapd, sta->addr, dialog_token,
+ 						    status_code, bss_termination_delay,
+ 						    target_bssid, pos, end - pos);

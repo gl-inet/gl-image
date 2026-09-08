@@ -1,0 +1,40 @@
+Index: linux-5.4.281/drivers/net/usb/ipheth.c
+===================================================================
+--- linux-5.4.281.orig/drivers/net/usb/ipheth.c
++++ linux-5.4.281/drivers/net/usb/ipheth.c
+@@ -226,18 +226,16 @@ static void ipheth_sndbulk_callback(stru
+ 	if (dev == NULL)
+ 		return;
+ 
+-	if (status != 0 &&
+-	    status != -ENOENT &&
+-	    status != -ECONNRESET &&
+-	    status != -ESHUTDOWN)
+-		dev_err(&dev->intf->dev, "%s: urb status: %d\n",
+-		__func__, status);
+-
+-	if (status == 0)
++	if (status == 0) {
+ 		netif_wake_queue(dev->net);
+-	else
+-		// on URB error, trigger immediate poll
+-		schedule_delayed_work(&dev->carrier_work, 0);
++		return;
++	}
++
++	if (status == -ENOENT || status == -ECONNRESET || status == -ESHUTDOWN)
++		return;
++
++	dev_err(&dev->intf->dev, "%s: urb status: %d\n", __func__, status);
++	schedule_delayed_work(&dev->carrier_work, 0);
+ }
+ 
+ static int ipheth_carrier_set(struct ipheth_device *dev)
+@@ -529,6 +527,7 @@ static void ipheth_disconnect(struct usb
+ 	if (dev != NULL) {
+ 		unregister_netdev(dev->net);
+ 		ipheth_kill_urbs(dev);
++		cancel_delayed_work_sync(&dev->carrier_work);
+ 		ipheth_free_urbs(dev);
+ 		kfree(dev->ctrl_buf);
+ 		free_netdev(dev->net);

@@ -1,0 +1,162 @@
+diff --git a/src/ap/wpa_auth_ft.c b/src/ap/wpa_auth_ft.c
+index 2989635..b6686c1 100644
+--- a/src/ap/wpa_auth_ft.c
++++ b/src/ap/wpa_auth_ft.c
+@@ -53,7 +53,11 @@ const unsigned int ftRRBmaxQueueLen = 100;
+ static int wpa_ft_send_rrb_auth_resp(struct wpa_state_machine *sm,
+ 				     const u8 *current_ap, const u8 *sta_addr,
+ 				     u16 status, const u8 *resp_ies,
+-				     size_t resp_ies_len);
++				     size_t resp_ies_len
++#ifdef CONFIG_MTK_IEEE80211BE
++				     , const u8 *mladdr
++#endif
++		);
+ static void ft_finish_pull(struct wpa_state_machine *sm);
+ static void wpa_ft_expire_pull(void *eloop_ctx, void *timeout_ctx);
+ static void wpa_ft_rrb_seq_timeout(void *eloop_ctx, void *timeout_ctx);
+@@ -1111,7 +1115,7 @@ static u8 * ml_ft_bigtk_subelem(struct wpa_state_machine *sm, struct wpa_ml_link
+ }
+ 
+ int wpa_write_mlie(struct wpa_auth_config *conf,
+-		u8 *mladdr, struct hostapd_data *hapd, size_t ml_link_num,
++		const u8 *mladdr, struct hostapd_data *hapd, size_t ml_link_num,
+ 		u8 *buf, size_t len, bool is_auth)
+ {
+ 	u8 *pos = buf;
+@@ -3591,7 +3595,7 @@ static int wpa_ft_process_auth_req(struct wpa_state_machine *sm,
+ 				   const u8 *ies, size_t ies_len,
+ 				   u8 **resp_ies, size_t *resp_ies_len
+ #ifdef CONFIG_MTK_IEEE80211BE
+-			 		, u8 *mladdr
++				, const u8 *mladdr
+ #endif
+ 	)
+ {
+@@ -4164,6 +4168,9 @@ int wpa_ft_action_rx(struct wpa_state_machine *sm, const u8 *data, size_t len)
+ 	size_t ies_len;
+ 	u8 action;
+ 	struct ft_rrb_frame *frame;
++#ifdef CONFIG_MTK_IEEE80211BE
++	struct ft_remote_r1kh *r1kh;
++#endif
+ 
+ 	if (sm == NULL)
+ 		return -1;
+@@ -4225,6 +4232,20 @@ int wpa_ft_action_rx(struct wpa_state_machine *sm, const u8 *data, size_t len)
+ 	os_memcpy(frame->ap_address, sm->wpa_auth->addr, ETH_ALEN);
+ 	os_memcpy(frame + 1, data, len);
+ 
++#ifdef CONFIG_MTK_IEEE80211BE
++	for (r1kh = *sm->wpa_auth->conf.r1kh_list; r1kh; r1kh = r1kh->next) {
++		if (is_zero_ether_addr(r1kh->addr) ||
++				is_zero_ether_addr(r1kh->id))
++			continue;
++		if (os_memcmp(target_ap, r1kh->addr, ETH_ALEN) != 0) {
++			target_ap = r1kh->addr;
++			wpa_printf(MSG_DEBUG, "FT: target_ap may be mldaddr for mlo"
++					" Target AP=" MACSTR ")", MAC2STR(target_ap));
++			break;
++		}
++	}
++#endif
++
+ 	wpa_ft_rrb_send(sm->wpa_auth, target_ap, (u8 *) frame,
+ 			sizeof(*frame) + len);
+ 	os_free(frame);
+@@ -4241,13 +4262,21 @@ static void wpa_ft_rrb_rx_request_cb(void *ctx, const u8 *dst, const u8 *bssid,
+ 	wpa_printf(MSG_DEBUG, "FT: Over-the-DS RX request cb for " MACSTR,
+ 		   MAC2STR(sm->addr));
+ 	wpa_ft_send_rrb_auth_resp(sm, sm->ft_pending_current_ap, sm->addr,
+-				  WLAN_STATUS_SUCCESS, ies, ies_len);
++				  WLAN_STATUS_SUCCESS, ies, ies_len
++#ifdef CONFIG_MTK_IEEE80211BE
++				  , NULL
++#endif
++				  );
+ }
+ 
+ 
+ static int wpa_ft_rrb_rx_request(struct wpa_authenticator *wpa_auth,
+ 				 const u8 *current_ap, const u8 *sta_addr,
+-				 const u8 *body, size_t len)
++				 const u8 *body, size_t len
++#ifdef CONFIG_MTK_IEEE80211BE
++				 , const u8 *mladdr
++#endif
++	)
+ {
+ 	struct wpa_state_machine *sm;
+ 	u16 status;
+@@ -4271,7 +4300,7 @@ static int wpa_ft_rrb_rx_request(struct wpa_authenticator *wpa_auth,
+ 	res = wpa_ft_process_auth_req(sm, body, len, &resp_ies,
+ 				      &resp_ies_len
+ #ifdef CONFIG_MTK_IEEE80211BE
+-					, wpa_auth->addr
++					, mladdr
+ #endif
+ 				);
+ 	if (res < 0) {
+@@ -4281,7 +4310,11 @@ static int wpa_ft_rrb_rx_request(struct wpa_authenticator *wpa_auth,
+ 	status = res;
+ 
+ 	res = wpa_ft_send_rrb_auth_resp(sm, current_ap, sta_addr, status,
+-					resp_ies, resp_ies_len);
++					resp_ies, resp_ies_len
++#ifdef CONFIG_MTK_IEEE80211BE
++					, mladdr
++#endif
++					);
+ 	os_free(resp_ies);
+ 	return res;
+ }
+@@ -4290,7 +4323,11 @@ static int wpa_ft_rrb_rx_request(struct wpa_authenticator *wpa_auth,
+ static int wpa_ft_send_rrb_auth_resp(struct wpa_state_machine *sm,
+ 				     const u8 *current_ap, const u8 *sta_addr,
+ 				     u16 status, const u8 *resp_ies,
+-				     size_t resp_ies_len)
++				     size_t resp_ies_len
++#ifdef CONFIG_MTK_IEEE80211BE
++				     , const u8 *mladdr
++#endif
++	)
+ {
+ 	struct wpa_authenticator *wpa_auth = sm->wpa_auth;
+ 	size_t rlen;
+@@ -4323,7 +4360,12 @@ static int wpa_ft_send_rrb_auth_resp(struct wpa_state_machine *sm,
+ 	*pos++ = 2; /* Action: Response */
+ 	os_memcpy(pos, sta_addr, ETH_ALEN);
+ 	pos += ETH_ALEN;
+-	os_memcpy(pos, wpa_auth->addr, ETH_ALEN);
++#ifdef CONFIG_MTK_IEEE80211BE
++	if (mladdr && sm->dot11MultiLinkActivated)
++		os_memcpy(pos, mladdr, ETH_ALEN);
++	else
++#endif
++		os_memcpy(pos, wpa_auth->addr, ETH_ALEN);
+ 	pos += ETH_ALEN;
+ 	WPA_PUT_LE16(pos, status);
+ 	pos += 2;
+@@ -5281,14 +5323,21 @@ int wpa_ft_rrb_rx(struct wpa_authenticator *wpa_auth, const u8 *src_addr,
+ 			return -1;
+ 		}
+ 
++#ifndef CONFIG_MTK_IEEE80211BE
+ 		if (os_memcmp(target_ap_addr, wpa_auth->addr, ETH_ALEN) != 0) {
+ 			wpa_printf(MSG_DEBUG, "FT: Target AP address in the "
+ 				   "RRB Request does not match with own "
+ 				   "address");
+ 			return -1;
+ 		}
++#endif
+ 		if (wpa_ft_rrb_rx_request(wpa_auth, frame->ap_address,
+-					  sta_addr, pos, end - pos) < 0)
++					  sta_addr, pos, end - pos
++
++#ifdef CONFIG_MTK_IEEE80211BE
++					, target_ap_addr
++#endif
++					) < 0)
+ 			return -1;
+ 	} else if (frame->packet_type == FT_PACKET_RESPONSE) {
+ 		u16 status_code;

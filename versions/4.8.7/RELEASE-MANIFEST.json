@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "product": "GL-MT3600BE",
+  "firmware": {
+    "version": "4.8.7",
+    "release": "release2",
+    "name": "mt3600be-4.8.7_release2-951-0415-1776265293.bin",
+    "url": "https://fw.gl-inet.com/firmware/mt3600be/release/mt3600be-4.8.7_release2-951-0415-1776265293.bin",
+    "sha256": "43aed4181b446a1b8846333b20f6bba6dcf436694a0bb17ea56202542c1d879f",
+    "size": 71117497,
+    "published_at": "2026-04-17T12:05:24+08:00"
+  },
+  "builder": {
+    "tag": "MT3600BE-4.8.7_RELEASE2-951-0415-1776265293",
+    "commit": "a0368ef7f8c2c8f2b99d7850ea0e001b69f239ba",
+    "platform": "mtk",
+    "sdk": "8.3.1.2",
+    "openwrt_path": "mt7987a"
+  },
+  "source_tree": {
+    "openwrt_upstream": "https://github.com/openwrt/openwrt.git",
+    "openwrt_base_revision": "78e4cffcd882389cb8f0bf818303f85f8d1e9c8e",
+    "post_patch_revision": "a82b65dd0dd618696a444c5b2dfc59460ccea54e",
+    "kernel_version": "5.4.281",
+    "baseline_config": "configs/gl-mt3600be-baseline.config",
+    "public_config": "configs/gl-mt3600be-open-source.config",
+    "build_guide": "GL-MT3600BE_FIRMWARE_GUIDE.md"
+  },
+  "feeds": [
+    {
+      "name": "packages",
+      "url": "https://git.openwrt.org/feed/packages.git",
+      "revision": "1be343f776e7b035b20357fa7e8dcd14c6e4fb61"
+    },
+    {
+      "name": "luci",
+      "url": "https://git.openwrt.org/project/luci.git",
+      "revision": "e4c46338b196e486a88b1a75b78e283708c82bc4"
+    },
+    {
+      "name": "routing",
+      "url": "https://git.openwrt.org/feed/routing.git",
+      "revision": "a9e43101bb726070cbf81b6225fc0625f4a4a5e5"
+    },
+    {
+      "name": "telephony",
+      "url": "https://git.openwrt.org/feed/telephony.git",
+      "revision": "920fbc5c0a2e4badf51bceff42e9a1e3eb693462"
+    },
+    {
+      "name": "mtk_openwrt_feed",
+      "url": "https://gitlab.gl-inet.net/gl-mirror/mtk-openwrt-feeds-new",
+      "revision": "5fbb639c7ab50e92553da94f5920185859fd1f2b"
+    }
+  ],
+  "vendor_runtime": {
+    "directory": "package/firmware/mtk-binary-runtime",
+    "wifi_ipk_count": 22,
+    "network_ipk_count": 3,
+    "kernel_abi": "5.4.281",
+    "corresponding_source": [
+      "corresponding-source/mediatek/mwctl",
+      "corresponding-source/mediatek/wifi-profile"
+    ],
+    "license_gate": "Requires the per-IPK license policy and binary redistribution evidence before public release"
+  },
+  "technical_baseline": {
+    "image": "openwrt-mediatek-mt7987-glinet_gl-mt3600be-squashfs-sysupgrade.bin",
+    "sha256": "3acf0c61d85d5774da3f46405309e4dd4de9f3812b8d1fd4ee5a0a4f393eedbf",
+    "config_sha256": "831488c079c5290d8f669bab5bc0345f2f2bf8e830d6e05d94277527b566e0ac",
+    "purpose": "Locally completed technical baseline used to capture exact build inputs; it is not the published release image"
+  },
+  "validation": {
+    "public_build_exit_code": 0,
+    "public_sysupgrade_sha256": "029b19bec41ecb5f412c3a98c09a80cd58eaafe3cf3f96acf3f28fefa432f639",
+    "runtime_payload_files_verified": 155,
+    "runtime_kernel_modules_verified": 12,
+    "device_validation": "not_available"
+  },
+  "license_status": {
+    "binary_ipks_total": 25,
+    "binary_ipks_confirmed": 6,
+    "binary_ipks_unconfirmed": 19,
+    "publication_gate": "blocked"
+  }
+}

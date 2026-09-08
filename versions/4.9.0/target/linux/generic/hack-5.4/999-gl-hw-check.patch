@@ -1,0 +1,19 @@
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -294,5 +294,7 @@ config LSM
+ 
+ source "security/Kconfig.hardening"
+ 
++source "security/gl-hw-check/Kconfig"
++
+ endmenu
+ 
+--- a/security/Makefile
++++ b/security/Makefile
+@@ -34,3 +34,6 @@ obj-$(CONFIG_CGROUP_DEVICE)		+= device_c
+ # Object integrity file lists
+ subdir-$(CONFIG_INTEGRITY)		+= integrity
+ obj-$(CONFIG_INTEGRITY)			+= integrity/
++
++subdir-$(CONFIG_SECURITY_GL_HW_CHECK) += gl-hw-check
++obj-$(CONFIG_SECURITY_GL_HW_CHECK)	+= gl-hw-check/

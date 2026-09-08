@@ -1,0 +1,13 @@
+diff --git a/src/ap/wps_hostapd.c b/src/ap/wps_hostapd.c
+index 4ed4879..2ead318 100644
+--- a/src/ap/wps_hostapd.c
++++ b/src/ap/wps_hostapd.c
+@@ -801,7 +801,7 @@ static int wps_pwd_auth_fail(struct hostapd_data *hapd, void *ctx)
+ 		wpa_printf(MSG_DEBUG, "WPS: AP PIN disabled indefinitely");
+ 	} else if (!hapd->conf->ap_setup_locked) {
+ 		if (hapd->ap_pin_lockout_time == 0)
+-			hapd->ap_pin_lockout_time = 60;
++			hapd->ap_pin_lockout_time = 300;
+ 		else if (hapd->ap_pin_lockout_time < 365 * 24 * 60 * 60 &&
+ 			 (hapd->ap_pin_failures % 3) == 0)
+ 			hapd->ap_pin_lockout_time *= 2;

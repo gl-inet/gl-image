@@ -1,0 +1,71 @@
+From ba8691eefb76051c865309a3484eacfb38479567 Mon Sep 17 00:00:00 2001
+From: Dongming Han <handongming@gl-inet.com>
+Date: Sun, 31 Aug 2025 21:05:25 +0800
+Subject: [PATCH] fix: prevent potential leak when failing to get ct mark
+
+1. Retrieve ct mark only after DNS payload is ready
+2. Skip upstream query if ct mark retrieval fails
+
+Signed-off-by: Dongming Han <handongming@gl-inet.com>
+---
+ src/forward.c | 37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)
+
+diff --git a/src/forward.c b/src/forward.c
+index edd3dc6..4110c62 100644
+--- a/src/forward.c
++++ b/src/forward.c
+@@ -1809,21 +1809,6 @@ unsigned char *tcp_request(int confd, time_t now,
+   if (getpeername(confd, (struct sockaddr *)&peer_addr, &peer_len) == -1)
+     return packet;
+ 
+-#ifdef HAVE_CONNTRACK
+-  /* Get connection mark of incoming query to set on outgoing connections. */
+-  if (option_bool(OPT_CONNTRACK))
+-    {
+-      union all_addr local;
+-		      
+-      if (local_addr->sa.sa_family == AF_INET6)
+-	local.addr6 = local_addr->in6.sin6_addr;
+-      else
+-	local.addr4 = local_addr->in.sin_addr;
+-      
+-      have_mark = get_incoming_mark(&peer_addr, &local, 1, &mark);
+-    }
+-#endif	
+-
+   /* We can be configured to only accept queries from at-most-one-hop-away addresses. */
+   if (option_bool(OPT_LOCAL_SERVICE))
+     {
+@@ -2017,6 +2002,28 @@ unsigned char *tcp_request(int confd, time_t now,
+ 			  
+ #ifdef HAVE_CONNTRACK
+ 			  /* Copy connection mark of incoming query to outgoing connection. */
++			  if (!have_mark && option_bool(OPT_CONNTRACK))
++			    {
++			      union all_addr local;
++			      if (local_addr->sa.sa_family == AF_INET6)
++				local.addr6 = local_addr->in6.sin6_addr;
++			      else
++				local.addr4 = local_addr->in.sin_addr;
++			      have_mark = get_incoming_mark(&peer_addr, &local, 1, &mark);
++			    }
++			  /* If still failed to retrieve CT mark, do not forward upstream: return local SERVFAIL. */
++			  if (option_bool(OPT_CONNTRACK) && !have_mark)
++			    {
++			      close(last_server->tcpfd);
++			      last_server->tcpfd = -1;
++			      m = setup_reply(header, (unsigned int)size, NULL, F_SERVFAIL, daemon->local_ttl);
++			      if (have_pseudoheader)
++				m = add_pseudoheader(header, m, ((unsigned char *) header) + 65536, daemon->edns_pktsz, 0, NULL, 0, do_bit, 0);
++			      check_log_writer(1);
++			      *length = htons(m);
++			      (void)read_write(confd, packet, m + sizeof(u16), 0);
++			      return packet;
++			    }
+ 			  if (have_mark)
+ 			    setsockopt(last_server->tcpfd, SOL_SOCKET, SO_MARK, &mark, sizeof(unsigned int));
+ #endif			  
+-- 
+2.34.1
+

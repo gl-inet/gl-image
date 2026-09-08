@@ -1,0 +1,55 @@
+From 56bfac753f8002c181bef95770d0271ff751da74 Mon Sep 17 00:00:00 2001
+From: zengyinbin <yinbin.zeng@gl-inet.com>
+Date: Fri, 19 Sep 2025 12:06:03 +0800
+Subject: [PATCH] fix read config well number
+
+---
+ src/utils/config.c | 25 ++-----------------------
+ 1 file changed, 2 insertions(+), 23 deletions(-)
+
+diff --git a/src/utils/config.c b/src/utils/config.c
+index ba26c2c..3133320 100644
+--- a/src/utils/config.c
++++ b/src/utils/config.c
+@@ -38,7 +38,7 @@ static void skip_line_end(FILE *stream)
+ char * wpa_config_get_line(char *s, int size, FILE *stream, int *line,
+ 			   char **_pos)
+ {
+-	char *pos, *end, *sstart;
++	char *pos, *end;
+ 
+ 	while (fgets(s, size, stream)) {
+ 		(*line)++;
+@@ -62,28 +62,7 @@ char * wpa_config_get_line(char *s, int size, FILE *stream, int *line,
+ 		if (*pos == '#' || *pos == '\n' || *pos == '\0')
+ 			continue;
+ 
+-		/*
+-		 * Remove # comments unless they are within a double quoted
+-		 * string.
+-		 */
+-		sstart = pos;
+-		end = os_strchr(sstart, '#');
+-		while (end) {
+-			sstart = os_strchr(sstart, '"');
+-			if (!sstart || sstart > end)
+-				break;
+-			sstart = os_strchr(sstart + 1, '"');
+-			if (!sstart)
+-				break;
+-			sstart++;
+-			if (sstart > end)
+-				end = os_strchr(sstart, '#');
+-		}
+-
+-		if (end)
+-			*end-- = '\0';
+-		else
+-			end = pos + os_strlen(pos) - 1;
++		end = pos + os_strlen(pos) - 1;
+ 
+ 		/* Remove trailing white space. */
+ 		while (end > pos &&
+-- 
+2.34.1
+

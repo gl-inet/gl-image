@@ -1,0 +1,27 @@
+Index: hostapd-2022-07-29-b704dc72/src/ap/pmksa_cache_auth.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/pmksa_cache_auth.c
++++ hostapd-2022-07-29-b704dc72/src/ap/pmksa_cache_auth.c
+@@ -115,12 +115,18 @@ void pmksa_cache_free_entry(struct rsn_p
+ 	/*wpa_auth = pmksa->ctx;
+ 	hapd = wpa_auth->cb_ctx;*/
+ 
+-	wpa_printf(MSG_ERROR, "remove PMKID in driver ");
++	wpa_printf(MSG_INFO, "remove PMKID in driver, sta mac (" MACSTR "), bssid (" MACSTR ")",
++		MAC2STR(entry->spa), MAC2STR(wpa_auth->addr));
++	/*pmksa->pmksa->spa is the same as entry->spa*/
+ 	pmkid_entry.AddRemove = 0;      /*remove entry*/
+-	os_memcpy(pmkid_entry.sta, entry->spa, ETH_ALEN);
+-	os_memcpy(pmkid_entry.bssid, wpa_auth->addr, ETH_ALEN);
+-	os_memcpy(pmkid_entry.link_addr, pmksa->pmksa->spa, ETH_ALEN);
++	os_memcpy(pmkid_entry.sta, entry->spa, ETH_ALEN); /* sta mld mac or legacy sta link addr*/
++	if (hapd->ml_group)
++		os_memcpy(pmkid_entry.bssid, hapd->ml_group->ml_addr, ETH_ALEN);
++	else
++		os_memcpy(pmkid_entry.bssid, wpa_auth->addr, ETH_ALEN);
++	os_memcpy(pmkid_entry.link_addr, wpa_auth->addr, ETH_ALEN); /*bssid (link addr of ap)*/
+ 	os_memcpy(pmkid_entry.pmkid, entry->pmkid, PMKID_LEN);
++
+ 	pmksa_update_sta_pmkid(hapd->drv_priv, &pmkid_entry);
+ #endif /*HOSTAPD_PMKID_IN_DRIVER_SUPPORT*/
+ 

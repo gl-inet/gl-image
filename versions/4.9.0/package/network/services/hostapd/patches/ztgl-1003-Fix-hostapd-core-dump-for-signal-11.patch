@@ -1,0 +1,49 @@
+From 4e7205d9b98f4b10165f51327ad458d02d26d899 Mon Sep 17 00:00:00 2001
+From: "yinbin.zeng" <yinbin.zeng@gl-inet.com>
+Date: Tue, 17 Mar 2026 17:38:38 +0800
+Subject: [PATCH] Fix hostapd core dump for signal 11.
+
+Signed-off-by: yinbin.zeng <yinbin.zeng@gl-inet.com>
+---
+ src/ap/drv_callbacks.c | 8 ++++++++
+ src/ap/wpa_auth.c      | 5 +++++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/src/ap/drv_callbacks.c b/src/ap/drv_callbacks.c
+index edc44f8..5ceeae2 100644
+--- a/src/ap/drv_callbacks.c
++++ b/src/ap/drv_callbacks.c
+@@ -367,6 +367,14 @@ int hostapd_notif_assoc(struct hostapd_data *hapd, const u8 *addr,
+ 		}
+ #endif
+ 
++		if (hapd->wpa_auth == NULL) {
++			wpa_printf(MSG_ERROR,
++				   "hapd->wpa_auth is NULL, cannot initialize WPA state machine");
++			reason = WLAN_REASON_UNSPECIFIED;
++			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
++			goto fail;
++		}
++
+ 		if (sta->wpa_sm == NULL)
+ 			sta->wpa_sm = wpa_auth_sta_init(hapd->wpa_auth,
+ 							sta->addr,
+diff --git a/src/ap/wpa_auth.c b/src/ap/wpa_auth.c
+index ea8836d..2dd8b3e 100644
+--- a/src/ap/wpa_auth.c
++++ b/src/ap/wpa_auth.c
+@@ -823,6 +823,11 @@ wpa_auth_sta_init(struct wpa_authenticator *wpa_auth, const u8 *addr,
+ {
+ 	struct wpa_state_machine *sm;
+ 
++	if (!wpa_auth || !wpa_auth->group) {
++		wpa_printf(MSG_ERROR, "wpa_auth_sta_init: wpa_auth or wpa_auth->group is NULL");
++		return NULL;
++	}
++
+ 	if (wpa_auth->group->wpa_group_state == WPA_GROUP_FATAL_FAILURE)
+ 		return NULL;
+ 
+-- 
+2.34.1
+

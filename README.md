@@ -1,4 +1,9 @@
-![OpenWrt logo](include/logo.png)
+![OpenWrt logo](versions/4.9.0/include/logo.png)
+
+GL-MT3600BE source releases:
+
+* [Firmware 4.9.0 build and upgrade guide](versions/4.9.0/GL-MT3600BE_FIRMWARE_GUIDE.md)
+* [Firmware 4.8.7 build and upgrade guide](versions/4.8.7/GL-MT3600BE_FIRMWARE_GUIDE.md)
 
 OpenWrt Project is a Linux operating system targeting embedded devices. Instead
 of trying to create a single, static firmware, OpenWrt provides a fully

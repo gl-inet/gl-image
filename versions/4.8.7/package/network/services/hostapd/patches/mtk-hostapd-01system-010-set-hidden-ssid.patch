@@ -1,0 +1,143 @@
+Index: hostapd-2022-07-29-b704dc72/src/ap/beacon.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/beacon.c
++++ hostapd-2022-07-29-b704dc72/src/ap/beacon.c
+@@ -1609,6 +1609,7 @@ int ieee802_11_build_ap_params(struct ho
+ 
+ 	/* SSID */
+ 	*pos++ = WLAN_EID_SSID;
++#if 0
+ 	if (hapd->conf->ignore_broadcast_ssid == 2) {
+ 		/* clear the data, but keep the correct length of the SSID */
+ 		*pos++ = hapd->conf->ssid.ssid_len;
+@@ -1617,11 +1618,14 @@ int ieee802_11_build_ap_params(struct ho
+ 	} else if (hapd->conf->ignore_broadcast_ssid) {
+ 		*pos++ = 0; /* empty SSID */
+ 	} else {
++#endif
+ 		*pos++ = hapd->conf->ssid.ssid_len;
+ 		os_memcpy(pos, hapd->conf->ssid.ssid,
+ 			  hapd->conf->ssid.ssid_len);
+ 		pos += hapd->conf->ssid.ssid_len;
++#if 0
+ 	}
++#endif
+ 
+ 	/* Supported rates */
+ 	pos = hostapd_eid_supp_rates(hapd, pos);
+@@ -1980,6 +1984,8 @@ static int __ieee802_11_set_beacon(struc
+ 		wpa_printf(MSG_ERROR, "Failed to set beacon parameters");
+ 	else
+ 		ret = 0;
++
++	hostapd_drv_set_hidden_ssid(hapd, params.hide_ssid);
+ fail:
+ 	ieee802_11_free_ap_params(&params);
+ 	return ret;
+Index: hostapd-2022-07-29-b704dc72/src/ap/ap_drv_ops.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/ap_drv_ops.h
++++ hostapd-2022-07-29-b704dc72/src/ap/ap_drv_ops.h
+@@ -231,6 +231,13 @@ static inline int hostapd_drv_set_ap(str
+ 	return hapd->driver->set_ap(hapd->drv_priv, params);
+ }
+ 
++static inline int hostapd_drv_set_hidden_ssid(struct hostapd_data *hapd, int hidden_ssid)
++{
++	if (hapd->driver == NULL || hapd->driver->set_hidden_ssid == NULL)
++		return 0;
++	return hapd->driver->set_hidden_ssid(hapd->drv_priv, hidden_ssid);
++}
++
+ static inline int hostapd_drv_set_radius_acl_auth(struct hostapd_data *hapd,
+ 						  const u8 *mac, int accepted,
+ 						  u32 session_timeout)
+Index: hostapd-2022-07-29-b704dc72/src/drivers/driver.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/driver.h
++++ hostapd-2022-07-29-b704dc72/src/drivers/driver.h
+@@ -3098,6 +3098,14 @@ struct wpa_driver_ops {
+ 	int (*set_ap)(void *priv, struct wpa_driver_ap_params *params);
+ 
+ 	/**
++	 * set_hidden_ssid - Set hidden_ssid
++	 * @priv: Private driver interface data
++	 * @enabled: 1 = enabled, 0 = disabled
++	 * Returns: 0 on success, -1 on failure
++	 */
++	int (*set_hidden_ssid)(void *priv, int hidden_ssid);
++
++	/**
+ 	 * set_acl - Set ACL in AP mode
+ 	 * @priv: Private driver interface data
+ 	 * @params: Parameters to configure ACL
+Index: hostapd-2022-07-29-b704dc72/src/drivers/driver_nl80211.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/driver_nl80211.c
++++ hostapd-2022-07-29-b704dc72/src/drivers/driver_nl80211.c
+@@ -4905,6 +4905,47 @@ fail:
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_DRIVER_NL80211_MTK
++#include "mtk_vendor_nl80211.h"
++static int wpa_driver_nl80211_mtk_set_hidden_ssid(void *priv, int hidden_ssid)
++{
++	int ret = -ENOBUFS;
++	struct nl_msg *msg;
++	struct i802_bss *bss = priv;
++	struct wpa_driver_nl80211_data *drv = bss->drv;
++	void* data;
++
++	if (!(msg = nl80211_bss_msg(bss, 0, NL80211_CMD_VENDOR)) ||
++	    nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, OUI_MTK) ||
++	    nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_SET_AP_BSS))
++                goto fail;
++
++	data = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA);
++	if (!data) {
++	    wpa_printf(MSG_ERROR, "nl start failed");
++	    goto fail;
++	}
++
++	if (nla_put_u8(msg, MTK_NL80211_VENDOR_ATTR_AP_HIDDEN_SSID, !!(u8)hidden_ssid)) {
++	    wpa_printf(MSG_ERROR, "nl put attribute failed");
++	    goto fail;
++	}
++
++	nla_nest_end(msg, data);
++
++	ret = send_and_recv_msgs_connect_handle(drv, msg, bss, 1);
++	if (ret)
++		wpa_printf(MSG_ERROR, "nl80211:set hidden ssid failed: ret=%d "
++			   "(%s)", ret, strerror(-ret));
++	else
++		wpa_printf(MSG_INFO,
++			   "nl80211: set %s hidden ssid:%d successfully", bss->ifname, !!hidden_ssid);
++	return ret;
++fail:
++	nlmsg_free(msg);
++	return ret;
++}
++#endif
+ 
+ static int nl80211_put_freq_params(struct nl_msg *msg,
+ 				   const struct hostapd_freq_params *freq)
+@@ -12378,6 +12419,7 @@ static int testing_nl80211_radio_disable
+ #endif /* CONFIG_TESTING_OPTIONS */
+ 
+ 
++
+ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+ 	.name = "nl80211",
+ 	.desc = "Linux nl80211/cfg80211",
+@@ -12402,6 +12444,9 @@ const struct wpa_driver_ops wpa_driver_n
+ 	.set_country = wpa_driver_nl80211_set_country,
+ 	.get_country = wpa_driver_nl80211_get_country,
+ 	.set_ap = wpa_driver_nl80211_set_ap,
++#ifdef CONFIG_DRIVER_NL80211_MTK
++	.set_hidden_ssid = wpa_driver_nl80211_mtk_set_hidden_ssid,
++#endif
+ 	.set_acl = wpa_driver_nl80211_set_acl,
+ 	.if_add = wpa_driver_nl80211_if_add,
+ 	.if_remove = driver_nl80211_if_remove,

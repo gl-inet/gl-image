@@ -30,3 +30,17 @@ git-src
 .cproject
 .ccache
 .vscode
+/versions/*/.ccache
+/versions/*/.config
+/versions/*/.config.old
+/versions/*/bin
+/versions/*/build_dir
+/versions/*/dl
+/versions/*/feeds
+/versions/*/key-build*
+/versions/*/package/feeds
+/versions/*/scripts/config/*.o
+/versions/*/staging_dir
+/versions/*/tmp
+/scripts/config/conf
+/versions/*/scripts/config/conf

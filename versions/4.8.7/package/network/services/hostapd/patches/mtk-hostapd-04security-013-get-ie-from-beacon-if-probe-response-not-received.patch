@@ -1,0 +1,16 @@
+diff --git a/wpa_supplicant/bss.c b/wpa_supplicant/bss.c
+index b55ebd0..ccf5eee 100644
+--- a/wpa_supplicant/bss.c
++++ b/wpa_supplicant/bss.c
+@@ -1163,7 +1163,10 @@ struct wpa_bss * wpa_bss_get_id_range(struct wpa_supplicant *wpa_s,
+  */
+ const u8 * wpa_bss_get_ie(const struct wpa_bss *bss, u8 ie)
+ {
+-	return get_ie(wpa_bss_ie_ptr(bss), bss->ie_len, ie);
++	if (bss->ie_len == 0)
++		return get_ie(wpa_bss_ie_ptr(bss), bss->beacon_ie_len, ie);
++	else
++		return get_ie(wpa_bss_ie_ptr(bss), bss->ie_len, ie);
+ }
+ 
+ 

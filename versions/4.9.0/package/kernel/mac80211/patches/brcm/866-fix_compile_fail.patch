@@ -1,0 +1,112 @@
+Index: backports-6.5/drivers/net/wireless/ath/ath10k/core.c
+===================================================================
+--- backports-6.5.orig/drivers/net/wireless/ath/ath10k/core.c
++++ backports-6.5/drivers/net/wireless/ath/ath10k/core.c
+@@ -3299,6 +3299,7 @@ static int ath10k_core_probe_fw(struct a
+ {
+ 	struct bmi_target_info target_info;
+ 	int ret = 0;
++	const u8 *mac_addr;
+ 
+ 	ret = ath10k_hif_power_up(ar, ATH10K_FIRMWARE_MODE_NORMAL);
+ 	if (ret) {
+@@ -3399,7 +3400,10 @@ static int ath10k_core_probe_fw(struct a
+ 
+ 	device_get_mac_address(ar->dev, ar->mac_addr);
+ 
+-	of_get_mac_address(ar->dev->of_node, ar->mac_addr);
++	mac_addr = of_get_mac_address(ar->dev->of_node);
++	if (!IS_ERR(mac_addr)) {
++		ether_addr_copy(ar->mac_addr, mac_addr);
++	}
+ 
+ 	ret = ath10k_core_init_firmware_features(ar);
+ 	if (ret) {
+Index: backports-6.5/drivers/net/wireless/ath/ath9k/init.c
+===================================================================
+--- backports-6.5.orig/drivers/net/wireless/ath/ath9k/init.c
++++ backports-6.5/drivers/net/wireless/ath/ath9k/init.c
+@@ -671,6 +671,7 @@ static int ath9k_of_init(struct ath_soft
+ 	enum ath_bus_type bus_type = common->bus_ops->ath_bus_type;
+ 	char eeprom_name[100];
+ 	int ret;
++	const u8 *mac_addr;
+ 
+ 	if (!of_device_is_available(np))
+ 		return 0;
+@@ -691,7 +692,10 @@ static int ath9k_of_init(struct ath_soft
+ 		ah->ah_flags |= AH_NO_EEP_SWAP;
+ 	}
+ 
+-	of_get_mac_address(np, common->macaddr);
++	mac_addr = of_get_mac_address(np);
++	if (!IS_ERR(mac_addr)) {
++		ether_addr_copy(common->macaddr, mac_addr);
++	}
+ 
+ 	return 0;
+ }
+Index: backports-6.5/drivers/net/wireless/broadcom/brcm80211/brcmfmac/of.c
+===================================================================
+--- backports-6.5.orig/drivers/net/wireless/broadcom/brcm80211/brcmfmac/of.c
++++ backports-6.5/drivers/net/wireless/broadcom/brcm80211/brcmfmac/of.c
+@@ -106,6 +106,7 @@ void brcmf_of_probe(struct device *dev,
+ 	int err;
+ 	u32 irqf;
+ 	u32 val;
++	const u8 *mac_addr;
+ 
+ 	/* Apple ARM64 platforms have their own idea of board type, passed in
+ 	 * via the device tree. They also have an antenna SKU parameter
+@@ -153,7 +154,10 @@ void brcmf_of_probe(struct device *dev,
+ 	if (err)
+ 		brcmf_err("failed to get OF country code map (err=%d)\n", err);
+ 
+-	of_get_mac_address(np, settings->mac);
++	mac_addr = of_get_mac_address(np);
++	if (!IS_ERR(mac_addr)) {
++		ether_addr_copy(settings->mac, mac_addr);
++	}
+ 
+ 	if (bus_type != BRCMF_BUSTYPE_SDIO)
+ 		return;
+Index: backports-6.5/drivers/net/wireless/mediatek/mt76/eeprom.c
+===================================================================
+--- backports-6.5.orig/drivers/net/wireless/mediatek/mt76/eeprom.c
++++ backports-6.5/drivers/net/wireless/mediatek/mt76/eeprom.c
+@@ -107,8 +107,12 @@ mt76_eeprom_override(struct mt76_phy *ph
+ {
+ 	struct mt76_dev *dev = phy->dev;
+ 	struct device_node *np = dev->dev->of_node;
++	const u8 *mac_addr;
+ 
+-	of_get_mac_address(np, phy->macaddr);
++	mac_addr = of_get_mac_address(np);
++	if (!IS_ERR(mac_addr)) {
++		ether_addr_copy(phy->macaddr, mac_addr);
++	}
+ 
+ 	if (!is_valid_ether_addr(phy->macaddr)) {
+ 		eth_random_addr(phy->macaddr);
+Index: backports-6.5/drivers/net/wireless/ralink/rt2x00/rt2x00dev.c
+===================================================================
+--- backports-6.5.orig/drivers/net/wireless/ralink/rt2x00/rt2x00dev.c
++++ backports-6.5/drivers/net/wireless/ralink/rt2x00/rt2x00dev.c
+@@ -991,12 +991,16 @@ static void rt2x00lib_rate(struct ieee80
+ void rt2x00lib_set_mac_address(struct rt2x00_dev *rt2x00dev, u8 *eeprom_mac_addr)
+ {
+ 	struct rt2x00_platform_data *pdata;
++	const u8 *mac_addr;
+ 
+ 	pdata = rt2x00dev->dev->platform_data;
+ 	if (pdata && pdata->mac_address)
+ 		ether_addr_copy(eeprom_mac_addr, pdata->mac_address);
+ 
+-	of_get_mac_address(rt2x00dev->dev->of_node, eeprom_mac_addr);
++	mac_addr = of_get_mac_address(rt2x00dev->dev->of_node);
++	if (!IS_ERR(mac_addr)) {
++		ether_addr_copy(eeprom_mac_addr, mac_addr);
++	}
+ 
+ 	if (!is_valid_ether_addr(eeprom_mac_addr)) {
+ 		eth_random_addr(eeprom_mac_addr);

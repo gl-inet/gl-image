@@ -1,0 +1,13 @@
+Index: backports-6.5/net/wireless/nl80211.c
+===================================================================
+--- backports-6.5.orig/net/wireless/nl80211.c
++++ backports-6.5/net/wireless/nl80211.c
+@@ -10318,7 +10318,7 @@ static int nl80211_send_bss(struct sk_bu
+ 	/* this pointer prefers to be pointed to probe response data
+ 	 * but is always valid
+ 	 */
+-	ies = rcu_dereference(res->ies);
++	ies = rcu_dereference(res->proberesp_ies);
+ 	if (ies) {
+ 		if (nla_put_u64_64bit(msg, NL80211_BSS_TSF, ies->tsf,
+ 				      NL80211_BSS_PAD))

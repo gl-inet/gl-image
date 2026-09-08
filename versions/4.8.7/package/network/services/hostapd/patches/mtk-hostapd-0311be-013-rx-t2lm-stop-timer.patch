@@ -1,0 +1,50 @@
+Index: hostapd-2022-07-29-b704dc72/src/drivers/mediatek_driver_cmd_nl80211.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/mediatek_driver_cmd_nl80211.c
++++ hostapd-2022-07-29-b704dc72/src/drivers/mediatek_driver_cmd_nl80211.c
+@@ -314,6 +314,33 @@ void mtk_nl80211_mlo_sta_profile_event(s
+ 	wpa_supplicant_event(drv->ctx, EVENT_UPDATE_STA_PROFILE_UPDATE, &event);
+ }
+ 
++void mtk_nl80211_rxt2lm_stop_disassoc_timer_event(struct wpa_driver_nl80211_data *drv,
++		u8 *data, size_t data_len)
++{
++	struct hostapd_data *hapd = drv->ctx;
++	struct sta_info *sta, *prev;
++	struct hostapd_iface *h_iface = NULL;
++	struct hostapd_data *h_hapd = NULL;
++	int i = 0;
++
++	for (i = 0; i < hapd->iface->interfaces->count; i++) {
++		h_iface = hapd->iface->interfaces->iface[i];
++		if (h_iface)
++			h_hapd = h_iface->bss[0];
++
++		if(h_hapd) {
++			sta = h_hapd->sta_list;
++			while (sta) {
++				prev = sta;
++				if (sta->flags & WLAN_STA_ASSOC) {
++					wpa_printf(MSG_DEBUG,"cancelling timer for STA" MACSTR, MAC2STR(sta->addr));
++					eloop_cancel_timeout(ap_handle_timer, h_hapd, sta);
++				}
++				sta = sta->next;
++			}
++		}
++	}
++}
+ 
+ void nl80211_vendor_event_mtk(struct wpa_driver_nl80211_data *drv, struct i802_bss *bss,
+                   u32 subcmd, u8 *data, size_t len)
+@@ -332,6 +359,11 @@ void nl80211_vendor_event_mtk(struct wpa
+ 	            "nl80211: MTK_NL80211_VENDOR_EVENT_STA_PROFILE_EVENT event %u", subcmd);
+ 	        mtk_nl80211_mlo_sta_profile_event(drv, data, len);
+ 	        break;
++	case MTK_NL80211_VENDOR_EVENT_RX_T2LM_STOP_DISASSOC_TIMER:
++		wpa_printf(MSG_DEBUG,
++		"nl80211: MTK_NL80211_VENDOR_EVENT_RX_T2LM_STOP_DISASSOC_TIMER event %u", subcmd);
++		mtk_nl80211_rxt2lm_stop_disassoc_timer_event(drv, data, len);
++		break;
+ 	    default:
+ 	        wpa_printf(MSG_DEBUG,
+ 	            "nl80211:Ignore unsupported mtk vendor event %u, MTK_NL80211_VENDOR_EVENT_MLO_EVENT(%u)",

@@ -1,0 +1,29 @@
+From f47f03ea9426ecbfb227bf9509c18f159d8697a5 Mon Sep 17 00:00:00 2001
+From: zengyinbin <yinbin.zeng@gl-inet.com>
+Date: Tue, 2 Dec 2025 17:57:27 +0800
+Subject: [PATCH] uci commit cli skip boot stage
+
+---
+ cli.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/cli.c b/cli.c
+index 2fce39d..3577f58 100644
+--- a/cli.c
++++ b/cli.c
+@@ -333,6 +333,12 @@ static int package_cmd(int cmd, char *tuple)
+ 			ret = 0;
+ 			goto out;
+ 		}
++
++		if (access("/tmp/uci_commit_lock", F_OK) == 0) {
++			ret = 0;
++			goto out;
++		}
++
+ 		if (uci_commit(ctx, &ptr.p, false) != UCI_OK) {
+ 			cli_perror();
+ 			goto out;
+-- 
+2.34.1
+

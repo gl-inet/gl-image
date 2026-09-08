@@ -1,0 +1,279 @@
+Index: hostapd-2022-07-29-b704dc72/hostapd/main.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/hostapd/main.c
++++ hostapd-2022-07-29-b704dc72/hostapd/main.c
+@@ -440,7 +440,17 @@ static int hostapd_global_run(struct hap
+ 		return -1;
+ 	}
+ #endif /* EAP_SERVER_TNC */
++	/* allow running in background mode if no configuration file provided */
++	if (ifaces->count == 0) {
++		if(!(ifaces->global_iface_name))
++			return -1;
+ 
++		if (daemonize && os_daemonize(pid_file)) {
++			perror("daemon");
++			return -1;
++		}
++		daemonize = 0;
++	}
+ 	eloop_run();
+ 
+ 	return 0;
+Index: hostapd-2022-07-29-b704dc72/src/ap/hostapd.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/hostapd.c
++++ hostapd-2022-07-29-b704dc72/src/ap/hostapd.c
+@@ -3342,29 +3342,47 @@ static int hostapd_remove_bss(struct hos
+ 
+ int hostapd_remove_iface(struct hapd_interfaces *interfaces, char *buf)
+ {
++	const struct wpa_driver_ops *driver;
+ 	struct hostapd_iface *hapd_iface;
+ 	size_t i, j, k = 0;
++	int ret;
+ 
+ 	for (i = 0; i < interfaces->count; i++) {
+ 		hapd_iface = interfaces->iface[i];
+ 		if (hapd_iface == NULL)
+ 			return -1;
+ 		if (!os_strcmp(hapd_iface->conf->bss[0]->iface, buf)) {
+-			wpa_printf(MSG_INFO, "Remove interface '%s'", buf);
+-			hapd_iface->driver_ap_teardown =
+-				!!(hapd_iface->drv_flags &
+-				   WPA_DRIVER_FLAGS_AP_TEARDOWN_SUPPORT);
++			wpa_printf(MSG_INFO, "Remove interface '%s',interfaces all count '%zu' ", buf, interfaces->count);
++			if (hapd_iface->conf->num_bss == 1) {
++				wpa_printf(MSG_INFO, "Remove interface '%s'",
++					   buf);
++				hapd_iface->driver_ap_teardown =
++					!!(hapd_iface->drv_flags &
++					   WPA_DRIVER_FLAGS_AP_TEARDOWN_SUPPORT);
+ 
+-			hostapd_interface_deinit_free(hapd_iface);
+-			k = i;
+-			while (k < (interfaces->count - 1)) {
+-				interfaces->iface[k] =
+-					interfaces->iface[k + 1];
+-				k++;
++				hostapd_interface_deinit_free(hapd_iface);
++				k = i;
++				while (k < (interfaces->count - 1)) {
++					interfaces->iface[k] =
++						interfaces->iface[k + 1];
++					k++;
++				}
++				interfaces->count--;
++				return 0;
++			} else {
++				wpa_printf(MSG_INFO, "Switch interface to %s",
++					   hapd_iface->bss[1]->conf->iface);
++
++				driver = hapd_iface->bss[0]->driver;
++				ret = driver->hapd_switch(hapd_iface->bss[1], 1);
++				if (ret < 0) {
++					wpa_printf(MSG_ERROR, "Interface switch"
++						   " error");
++					return ret;
++				}
+ 			}
+-			interfaces->count--;
+-			return 0;
+ 		}
++		wpa_printf(MSG_INFO, "Remove interface '%s'", buf);
+ 
+ 		for (j = 0; j < hapd_iface->conf->num_bss; j++) {
+ 			if (!os_strcmp(hapd_iface->conf->bss[j]->iface, buf)) {
+Index: hostapd-2022-07-29-b704dc72/src/drivers/driver.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/driver.h
++++ hostapd-2022-07-29-b704dc72/src/drivers/driver.h
+@@ -3132,6 +3132,7 @@ struct wpa_driver_ops {
+ 	 * @priv: Private driver interface data from hapd_init()
+ 	 */
+ 	void (*hapd_deinit)(void *priv);
++	int (*hapd_switch)(struct hostapd_data *hd, int idx);
+ 
+ 	/**
+ 	 * set_ieee8021x - Enable/disable IEEE 802.1X support (AP only)
+Index: hostapd-2022-07-29-b704dc72/src/drivers/driver_nl80211.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/driver_nl80211.c
++++ hostapd-2022-07-29-b704dc72/src/drivers/driver_nl80211.c
+@@ -152,6 +152,18 @@ static void nl80211_destroy_eloop_handle
+ 
+ static void nl80211_global_deinit(void *priv);
+ static void nl80211_check_global(struct nl80211_global *global);
++static int nl80211_create_iface_once(struct wpa_driver_nl80211_data *drv,
++				     const char *ifname,
++				     enum nl80211_iftype iftype,
++				     const u8 *addr, int wds,
++				     int (*handler)(struct nl_msg *, void *),
++				     void *arg);
++static int wpa_driver_nl80211_if_add(void *priv, enum wpa_driver_if_type type,
++				     const char *ifname, const u8 *addr,
++				     void *bss_ctx, void **drv_priv,
++				     char *force_ifname, u8 *if_addr,
++				     const char *bridge, int use_existing,
++				     int setup_ap);
+ 
+ static void wpa_driver_nl80211_deinit(struct i802_bss *bss);
+ static int wpa_driver_nl80211_set_mode_ibss(struct i802_bss *bss,
+@@ -195,7 +207,25 @@ static int nl80211_put_mesh_config(struc
+ #endif /* CONFIG_MESH */
+ static int i802_sta_disassoc(void *priv, const u8 *own_addr, const u8 *addr,
+ 			     u16 reason);
++static int phy_lookup(char *name)
++{
++	char buf[200];
++	int fd, pos;
+ 
++	wpa_printf(MSG_INFO, "%s: name: %s", __func__, name?name:"NULL");
++	snprintf(buf, sizeof(buf), "/sys/class/ieee80211/%s/index", name);
++	fd = open(buf, O_RDONLY);
++	if (fd < 0)
++		return -1;
++	pos = read(fd, buf, sizeof(buf) - 1);
++	if (pos < 0) {
++		close(fd);
++		return -1;
++	}
++	buf[pos] = '\0';
++	close(fd);
++	return atoi(buf);
++}
+ 
+ /* Converts nl80211_chan_width to a common format */
+ enum chan_width convert2width(int width)
+@@ -635,9 +665,17 @@ void * nl80211_cmd(struct wpa_driver_nl8
+ 
+ static int nl80211_set_iface_id(struct nl_msg *msg, struct i802_bss *bss)
+ {
++	struct hostapd_data *hapd;
++	int phy_idx;
+ 	if (bss->wdev_id_set)
+ 		return nla_put_u64(msg, NL80211_ATTR_WDEV, bss->wdev_id);
+-	return nla_put_u32(msg, NL80211_ATTR_IFINDEX, bss->ifindex);
++	else if (bss->ifindex > 0)
++		return nla_put_u32(msg, NL80211_ATTR_IFINDEX, bss->ifindex);
++	else {
++		hapd = bss->ctx;
++		phy_idx = phy_lookup(hapd->iface->phy);
++		return nla_put_u32(msg, NL80211_ATTR_WIPHY, phy_idx);
++	}
+ }
+ 
+ 
+@@ -2216,6 +2254,7 @@ static void * wpa_driver_nl80211_drv_ini
+ {
+ 	struct wpa_driver_nl80211_data *drv;
+ 	struct i802_bss *bss;
++	int ret;
+ 
+ 	if (global_priv == NULL)
+ 		return NULL;
+@@ -2255,6 +2294,17 @@ static void * wpa_driver_nl80211_drv_ini
+ 	if (nl80211_init_bss(bss))
+ 		goto failed;
+ 
++	if (!if_nametoindex(ifname)) {
++		wpa_printf(MSG_DEBUG, "Pre-build new interface: %s", ifname);
++		ret = nl80211_create_iface_once(drv, ifname,
++						  NL80211_IFTYPE_AP, NULL, 0,
++						  NULL, NULL);
++		if (ret < 0) {
++			wpa_printf(MSG_ERROR, "Cannot pre-build first interface!");
++			goto failed;
++		}
++	}
++
+ 	if (wpa_driver_nl80211_finish_drv_init(drv, set_addr, 1, driver_params))
+ 		goto failed;
+ 
+@@ -7925,6 +7975,78 @@ static void i802_deinit(void *priv)
+ 	wpa_driver_nl80211_deinit(bss);
+ }
+ 
++static int i802_switch(struct hostapd_data *hapd, int idx)
++{
++	struct i802_bss *i802bss, *i802targetbss, *prevbss;
++	struct i802_bss *nextbss1, *nextbss2;
++	struct wpa_driver_nl80211_data *drv;
++	struct hostapd_bss_config *bssconf;
++	struct hostapd_iface *hapd_iface;
++	struct hostapd_data *bssdata;
++	int tmp;
++
++	hapd_iface = hapd->iface;
++	i802bss = (struct i802_bss *)hapd_iface->bss[0]->drv_priv;
++	drv = i802bss->drv;
++
++	if (!os_strcmp(drv->first_bss->ifname, hapd->conf->iface)) {
++	    wpa_printf(MSG_ERROR, "Same interface, no need to switch!");
++	    return -1;
++	}
++
++	bssconf = hapd_iface->conf->bss[0];
++	bssdata = hapd_iface->bss[0];
++
++	hapd_iface->conf->bss[0] = hapd->conf;
++	hapd_iface->bss[0] = hapd;
++
++	prevbss = NULL;
++	for (i802targetbss = drv->first_bss; i802targetbss != NULL;) {
++		if (!os_strcmp(i802targetbss->ifname, hapd->conf->iface)) {
++			break;
++		} else {
++			prevbss = i802targetbss;
++			i802targetbss = i802targetbss->next;
++		}
++	}
++
++	if (!i802targetbss) {
++		wpa_printf(MSG_ERROR, "target is null!");
++		return -1;
++	}
++
++	nextbss1 = i802bss->next;
++	nextbss2 = i802targetbss->next;
++
++	drv->first_bss = i802targetbss;
++
++	if (nextbss1 == i802targetbss) {
++		drv->first_bss->next = i802bss;
++	} else {
++		drv->first_bss->next = nextbss1;
++		prevbss->next = i802bss;
++	}
++
++	i802bss->next = nextbss2;
++
++	/* All interface can be removed by cli */
++	//i802bss->added_if = 1;
++	//i802targetbss->added_if = 1;
++
++	memcpy(drv->perm_addr, hapd->own_addr, ETH_ALEN);
++	drv->ifindex = if_nametoindex(drv->first_bss->ifname);
++	drv->ctx = drv->first_bss->ctx;
++
++	tmp = bssdata->interface_added;
++	bssdata->interface_added = hapd->interface_added;
++	hapd->interface_added = tmp;
++
++	hapd_iface->bss[idx] = bssdata;
++	hapd_iface->bss[idx]->conf = bssconf;
++	hapd_iface->conf->bss[idx]  = bssconf;
++
++	return 0;
++}
+ 
+ static enum nl80211_iftype wpa_driver_nl80211_if_type(
+ 	enum wpa_driver_if_type type)
+@@ -12490,6 +12612,7 @@ const struct wpa_driver_ops wpa_driver_n
+ 	.sta_set_airtime_weight = driver_nl80211_sta_set_airtime_weight,
+ 	.hapd_init = i802_init,
+ 	.hapd_deinit = i802_deinit,
++	.hapd_switch = i802_switch,
+ 	.set_wds_sta = i802_set_wds_sta,
+ 	.get_seqnum = i802_get_seqnum,
+ 	.flush = i802_flush,

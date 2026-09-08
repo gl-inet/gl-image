@@ -1,0 +1,25 @@
+Index: linux-5.4.281/net/ipv6/route.c
+===================================================================
+--- linux-5.4.281.orig/net/ipv6/route.c
++++ linux-5.4.281/net/ipv6/route.c
+@@ -4776,6 +4776,7 @@ static int fib6_ifdown(struct fib6_info
+ 	const struct arg_netdev_event *arg = p_arg;
+ 	const struct net_device *dev = arg->dev;
+ 	struct net *net = dev_net(dev);
++	int daddr_type, saddr_type;
+ 
+ 	if (rt == net->ipv6.fib6_null_entry || rt->nh)
+ 		return 0;
+@@ -4813,6 +4814,12 @@ static int fib6_ifdown(struct fib6_info
+ 		if (rt->fib6_nh->fib_nh_dev != dev ||
+ 		    rt->fib6_flags & (RTF_LOCAL | RTF_ANYCAST))
+ 			break;
++		daddr_type = ipv6_addr_type(&rt->fib6_dst.addr);
++		saddr_type = ipv6_addr_type(&rt->fib6_src.addr);
++		if (daddr_type & (IPV6_ADDR_LINKLOCAL | IPV6_ADDR_MULTICAST) ||
++		    saddr_type & (IPV6_ADDR_LINKLOCAL | IPV6_ADDR_MULTICAST)) {
++			break;
++		}
+ 		rt->fib6_nh->fib_nh_flags |= RTNH_F_DEAD;
+ 		rt6_multipath_rebalance(rt);
+ 		break;

@@ -1,0 +1,37 @@
+diff -urN backports-5.15.81-1.original/net/wireless/core.c backports-5.15.81-1/net/wireless/core.c
+--- backports-5.15.81-1.original/net/wireless/core.c	2023-12-11 17:55:44.771076000 +0530
++++ backports-5.15.81-1/net/wireless/core.c	2023-12-12 14:01:41.374081000 +0530
+@@ -1395,9 +1395,13 @@
+ 		break;
+ 	case NETDEV_REGISTER:
+ 		if (!wdev->registered) {
+-			wiphy_lock(&rdev->wiphy);
+-			cfg80211_register_wdev(rdev, wdev);
+-			wiphy_unlock(&rdev->wiphy);
++			if (wdev->iftype == NL80211_IFTYPE_AP_VLAN ) {
++				cfg80211_register_wdev(rdev, wdev);
++			} else {
++				wiphy_lock(&rdev->wiphy);
++				cfg80211_register_wdev(rdev, wdev);
++				wiphy_unlock(&rdev->wiphy);
++			}
+ 		}
+ 		break;
+ 	case NETDEV_UNREGISTER:
+@@ -1406,9 +1410,13 @@
+ 		 * so check wdev->registered.
+ 		 */
+ 		if (wdev->registered && !wdev->registering) {
+-			wiphy_lock(&rdev->wiphy);
+-			_cfg80211_unregister_wdev(wdev, false);
+-			wiphy_unlock(&rdev->wiphy);
++			if (wdev->iftype == NL80211_IFTYPE_AP_VLAN) {
++				_cfg80211_unregister_wdev(wdev, false);
++			} else {
++				wiphy_lock(&rdev->wiphy);
++				_cfg80211_unregister_wdev(wdev, false);
++				wiphy_unlock(&rdev->wiphy);
++			}
+ 		}
+ 		break;
+ 	case NETDEV_GOING_DOWN:

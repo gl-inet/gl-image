@@ -1,0 +1,17 @@
+--- a/iwinfo.c
++++ b/iwinfo.c
+@@ -69,7 +69,13 @@ __rpc_iwinfo_open(struct blob_attr *devi
+ 	if (!device)
+ 		return UBUS_STATUS_INVALID_ARGUMENT;
+ 
+-	ifname = blobmsg_data(device);
++	const char *ifname_t = blobmsg_data(device);
++	if (!strcmp(ifname_t, "MT7993_1_1"))
++		ifname = "ra15";
++	else if (!strcmp(ifname_t, "MT7993_1_2"))
++		ifname = "rai15";
++	else
++		ifname = ifname_t;
+ 	iw = iwinfo_backend(ifname);
+ 
+ 	return iw ? UBUS_STATUS_OK : UBUS_STATUS_NOT_FOUND;

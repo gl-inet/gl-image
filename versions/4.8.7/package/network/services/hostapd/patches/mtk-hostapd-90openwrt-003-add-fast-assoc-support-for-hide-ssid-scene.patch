@@ -1,0 +1,38 @@
+Index: hostapd-2022-07-29-b704dc72/wpa_supplicant/events.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/wpa_supplicant/events.c
++++ hostapd-2022-07-29-b704dc72/wpa_supplicant/events.c
+@@ -1256,7 +1256,10 @@ static bool wpa_scan_res_ok(struct wpa_s
+ 	     os_memcmp(match_ssid, ssid->ssid, match_ssid_len) != 0)) {
+ 		if (debug_print)
+ 			wpa_dbg(wpa_s, MSG_DEBUG, "   skip - SSID mismatch");
+-		return false;
++		if (match_ssid_len != 0){
++			return false;
++		}
++		wpa_dbg(wpa_s, MSG_DEBUG, "	Check in SSID HiddenMode");
+ 	}
+
+ 	if (ssid->bssid_set &&
+@@ -1266,6 +1269,12 @@ static bool wpa_scan_res_ok(struct wpa_s
+ 		return false;
+ 	}
+
++	if (match_ssid_len == 0){
++		os_memcpy(bss->ssid, ssid->ssid, ssid->ssid_len);
++		bss->ssid_len = ssid->ssid_len;
++		wpa_dbg(wpa_s, MSG_DEBUG, "Bssid match, In hiddenmode,then cp ssid set");
++	}
++
+ 	/* check the list of BSSIDs to ignore */
+ 	if (ssid->num_bssid_ignore &&
+ 	    addr_in_list(bss->bssid, ssid->bssid_ignore,
+@@ -1587,7 +1596,7 @@ struct wpa_ssid * wpa_scan_res_match(str
+ 	if (match_ssid_len == 0) {
+ 		if (debug_print)
+ 			wpa_dbg(wpa_s, MSG_DEBUG, "   skip - SSID not known");
+-		return NULL;
++		//return NULL;
+ 	}
+
+ 	if (disallowed_bssid(wpa_s, bss->bssid)) {
