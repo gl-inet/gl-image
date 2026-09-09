@@ -5,7 +5,7 @@
 This tree preserves the OpenWrt build system and contains the GL-BE14000 board
 DTS, image definition, network mapping, upgrade support and GL.iNet hardware
 drivers as source code. MediaTek components that are not distributed as source
-are packaged under `package/firmware/mtk-binary-runtime/` as ABI-locked runtime
+are packaged under `package/firmware/mtk-be14000-binary-runtime/` as ABI-locked runtime
 files for Linux 5.4.281.
 
 | Area | Delivery form |

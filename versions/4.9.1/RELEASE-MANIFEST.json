@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "product": "GL-BE14000",
+  "firmware": {
+    "version": "4.9.1",
+    "release": "release2",
+    "name": "be14000-4.9.1_release2-1053-0722-1784729880.bin",
+    "url": "https://fw.gl-inet.com/firmware/be14000/release/be14000-4.9.1_release2-1053-0722-1784729880.bin",
+    "sha256": "77d314e7bbeaa92b0fc5272be18e630550b062e88b7f5a91a76af2fd1965e460",
+    "size": 104213954,
+    "published_at": "2026-08-08T16:34:24+08:00"
+  },
+  "source_tree": {
+    "branch": "gl-be14000",
+    "source_revision": "92034fe84de2a0e69d7b6c0ce60c12edbaf2c85c",
+    "target": "mediatek/mt7988",
+    "device": "gl-be14000",
+    "kernel_version": "5.4.281",
+    "public_config": "configs/gl-be14000-open-source.config",
+    "build_guide": "GL-BE14000_FIRMWARE_GUIDE.md"
+  },
+  "feeds": [
+    {"name": "packages", "url": "https://git.openwrt.org/feed/packages.git", "revision": "1be343f776e7b035b20357fa7e8dcd14c6e4fb61"},
+    {"name": "luci", "url": "https://git.openwrt.org/project/luci.git", "revision": "e4c46338b196e486a88b1a75b78e283708c82bc4"},
+    {"name": "routing", "url": "https://git.openwrt.org/feed/routing.git", "revision": "a9e43101bb726070cbf81b6225fc0625f4a4a5e5"},
+    {"name": "telephony", "url": "https://git.openwrt.org/feed/telephony.git", "revision": "920fbc5c0a2e4badf51bceff42e9a1e3eb693462"},
+    {"name": "mtk_openwrt_feed", "url": "https://github.com/mediatek/mtk-openwrt-feeds.git", "revision": "5fbb639c7ab50e92553da94f5920185859fd1f2b"}
+  ],
+  "vendor_runtime": {
+    "directory": "package/firmware/mtk-be14000-binary-runtime",
+    "wifi_ipk_count": 27,
+    "phy_ipk_count": 3,
+    "network_ipk_count": 3,
+    "kernel_abi": "5.4.281"
+  }
+}
