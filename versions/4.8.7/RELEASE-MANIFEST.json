@@ -49,7 +49,7 @@
     },
     {
       "name": "mtk_openwrt_feed",
-      "url": "https://gitlab.gl-inet.net/gl-mirror/mtk-openwrt-feeds-new",
+      "url": "https://github.com/mediatek/mtk-openwrt-feeds.git",
       "revision": "5fbb639c7ab50e92553da94f5920185859fd1f2b"
     }
   ],
