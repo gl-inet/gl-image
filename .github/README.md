@@ -1,0 +1,1 @@
+../versions/4.8.6/GL-BE10000_FIRMWARE_GUIDE.md
