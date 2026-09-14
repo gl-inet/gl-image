@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 use Getopt::Std;
+use JSON::PP qw(decode_json);
 use FindBin;
 use Cwd;
 use lib "$FindBin::Bin";
@@ -82,6 +83,19 @@ my %installed;
 my %installed_pkg;
 my %installed_targets;
 my %feed_cache;
+my $release_sources = {};
+my $release_sources_file = "$FindBin::Bin/../configs/feed-package-sources.json";
+if (-f $release_sources_file) {
+	open my $fh, '<', $release_sources_file or die "Cannot read $release_sources_file: $!\n";
+	local $/;
+	$release_sources = decode_json(<$fh>);
+	close $fh;
+	die "Invalid package source mapping\n" unless ref($release_sources) eq 'HASH';
+	for my $name (keys %$release_sources) {
+		die "Invalid package source entry: $name\n"
+			unless $name =~ /^[A-Za-z0-9_.+-]+$/ && $release_sources->{$name} =~ /^[A-Za-z0-9_.-]+$/;
+	}
+}
 
 my $feed_package = {};
 my $feed_src = {};
@@ -170,6 +184,16 @@ sub update_location($$)
 sub update_index($)
 {
 	my $name = shift;
+
+	# Keep release fixes alongside the pinned feed, and apply them before indexing.
+	for my $patch (sort glob("$FindBin::Bin/../feed-patches/$name/*.patch")) {
+		my @base = ("patch", "-d", "./feeds/$name", "-p1", "--batch", "-i", $patch);
+		if (system(@base, "--forward", "--dry-run") == 0) {
+			system(@base, "--forward") == 0 or die "Failed to apply $patch\\n";
+		} elsif (system(@base, "--reverse", "--dry-run") != 0) {
+			die "Feed $name does not match release patch $patch\\n";
+		}
+	}
 
 	-d "./feeds/$name.tmp" or mkdir "./feeds/$name.tmp" or return 1;
 	-d "./feeds/$name.tmp/info" or mkdir "./feeds/$name.tmp/info" or return 1;
@@ -585,6 +609,16 @@ sub lookup_src($$) {
 	my $feed = shift;
 	my $src = shift;
 
+	# Apply the release's source-package mapping unless the caller explicitly selects a feed.
+	if (!$feed && exists $release_sources->{$src}) {
+		foreach my $candidate (@feeds) {
+			next unless $candidate->[1] eq $release_sources->{$src};
+			next unless $feed_cache{$candidate->[1]};
+			return $candidate if $feed_cache{$candidate->[1]}->[1]->{$src};
+		}
+		die "Release source $src requires feed $release_sources->{$src}; update feeds first\n";
+	}
+
 	foreach my $feed ($feed, @feeds) {
 		next unless $feed->[1];
 		next unless $feed_cache{$feed->[1]};
@@ -649,6 +683,9 @@ sub install_src {
 	my $ret = 0;
 
 	my $select_feed = lookup_src($feed, $name);
+	my $release_selected = !$feed && exists $release_sources->{$name}
+		&& $select_feed && $select_feed->[1] eq $release_sources->{$name};
+	$force = 1 if $release_selected;
 	unless ($select_feed) {
 		$installed{$name} and return 0;
 		$feed_src->{$name} or warn "WARNING: No feed for source package '$name' found\n";
@@ -674,6 +711,16 @@ sub install_src {
 			return 0;
 		}
 		$override = 1;
+	}
+
+	# Migrate only generated feed links whose selected source differs from the release.
+	if ($release_selected && ref($installed{$name})
+		&& $installed{$name}->{makefile} ne "package/feeds/$select_feed->[1]/$name/Makefile") {
+		foreach my $link (glob("./package/feeds/*/$name")) {
+			next unless -l $link;
+			unlink($link) or return 1;
+		}
+		delete $installed{$name};
 	}
 
 	if ($installed{$name}) {

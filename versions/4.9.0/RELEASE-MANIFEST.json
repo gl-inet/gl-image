@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "product": "GL-MT3600BE",
+  "firmware": {
+    "version": "4.9.0",
+    "name": "mt3600be-4.9.0_release1-1046-0702-1783003143.bin",
+    "sha256": "4c32509876176a04ca32ed7288567be1d31603a7473f592552380c586b66df65"
+  },
+  "builder": {
+    "tag": "MT3600BE-4.9.0_RELEASE1-1046-0702-1783003143-GLINET",
+    "commit": "26197df09958448c65cbb0ed673ba09adb88c3f9"
+  },
+  "source_tree": {
+    "kernel_version": "5.4.281",
+    "public_config": "configs/gl-mt3600be-open-source.config",
+    "build_guide": "GL-MT3600BE_FIRMWARE_GUIDE.md",
+    "package_source_mapping": "configs/feed-package-sources.json"
+  },
+  "feeds": [
+    {
+      "name": "gl_feed_common",
+      "url": "https://github.com/gl-inet/gl-feeds.git",
+      "revision": "763868c2bb9dbc26f8d9911a86c103abd7a8f1b5"
+    },
+    {
+      "name": "gl_feed_21_02",
+      "url": "https://github.com/gl-inet/gl-feeds.git",
+      "revision": "de1f0ca04af05a4b0556cf11e7597da375c722ff"
+    },
+    {
+      "name": "gl_vpn_extra",
+      "url": "https://github.com/gl-inet/vpn-extra-feeds.git",
+      "revision": "ca1c315ca05d45e8ec3239815b2730944a3e0a2b"
+    },
+    {
+      "name": "gl_feed_smstools3",
+      "url": "https://github.com/gl-inet/gl-feeds.git",
+      "revision": "08b281fa2e953b88a467920a31095dc2d32ec919"
+    },
+    {
+      "name": "mptcp_feeds",
+      "url": "https://github.com/gl-inet/mptcp-feeds.git",
+      "revision": "74516cb3470ea1d09d53c5045f9bb4957513400d"
+    },
+    {
+      "name": "packages",
+      "url": "https://git.openwrt.org/feed/packages.git",
+      "revision": "1be343f776e7b035b20357fa7e8dcd14c6e4fb61"
+    },
+    {
+      "name": "luci",
+      "url": "https://git.openwrt.org/project/luci.git",
+      "revision": "e4c46338b196e486a88b1a75b78e283708c82bc4"
+    },
+    {
+      "name": "routing",
+      "url": "https://git.openwrt.org/feed/routing.git",
+      "revision": "a9e43101bb726070cbf81b6225fc0625f4a4a5e5"
+    },
+    {
+      "name": "telephony",
+      "url": "https://git.openwrt.org/feed/telephony.git",
+      "revision": "920fbc5c0a2e4badf51bceff42e9a1e3eb693462"
+    },
+    {
+      "name": "mtk_openwrt_feed",
+      "url": "https://github.com/mediatek/mtk-openwrt-feeds.git",
+      "revision": "5fbb639c7ab50e92553da94f5920185859fd1f2b"
+    }
+  ],
+  "feed_patches": [
+    {
+      "path": "feed-patches/gl_feed_common/100-dnsmasq-nftset-dependency.patch",
+      "sha256": "5c4dee450a736ae6ec93d2c7f4b6262ceceb16f353ee855bdd4f37496c1db82c"
+    }
+  ],
+  "validation": {
+    "public_build_exit_code": 0,
+    "public_sysupgrade_sha256": "6c74bd9c78f07149cf3168896b575b30318604414717dcfaef69e1370b446a92",
+    "ntfs_fallback": {
+      "patch": "package/system/fstools/patches/0105-ntfs-fallback-without-ufsd.patch",
+      "behavior": "Retry the detected filesystem only on UFSD ENODEV; retain existing helper flow through mount.ntfs linked to ntfs-3g.",
+      "simulated_mount_tests_passed": 11,
+      "final_image_block_and_helper_check": "passed",
+      "device_mount_validation": "not_performed"
+    },
+    "device_validation": "not_performed",
+    "package_provider_check": "passed",
+    "remaining_differences": "Private applications and retained GL modules are not enabled; see configuration and source mapping. SBOM is not a compliance certificate."
+  }
+}

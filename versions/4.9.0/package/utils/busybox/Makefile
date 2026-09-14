@@ -6,7 +6,8 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=busybox
 PKG_VERSION:=1.33.2
-PKG_RELEASE:=$(AUTORELEASE)
+# Match the shipped package release without depending on Git history.
+PKG_RELEASE:=4
 PKG_FLAGS:=essential
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2

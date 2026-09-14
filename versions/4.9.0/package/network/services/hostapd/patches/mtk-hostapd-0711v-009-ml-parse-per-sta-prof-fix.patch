@@ -1,0 +1,72 @@
+diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
+index fbd0a04..c61f15e 100644
+--- a/src/ap/ap_config.h
++++ b/src/ap/ap_config.h
+@@ -962,7 +962,6 @@ struct hostapd_bss_config {
+ #ifdef CONFIG_IEEE80211AX
+ 	u8 dot11vmbssid;
+ #endif /* CONFIG_IEEE80211AX */
+-	struct wpa_ml_ie_parse ml_ie_btm;
+ };
+ 
+ /**
+diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
+index 1e9a0f8..e4a0f21 100644
+--- a/src/ap/ctrl_iface_ap.c
++++ b/src/ap/ctrl_iface_ap.c
+@@ -1230,7 +1230,7 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+ 
+ 	nei_len = ieee802_11_parse_candidate_list(cmd, nei_rep,
+ 						  sizeof(nei_rep));
+-	nei_len = add_stapro_neighbor_rep(hapd, nei_rep, nei_len);
++	nei_len = add_stapro_neighbor_rep(hapd, nei_rep, nei_len, sta->wpa_sm);
+ 	wpa_hexdump(MSG_DEBUG, "nei_rep with per sta", nei_rep, nei_len);
+ 	if (nei_len < 0)
+ 		return -1;
+diff --git a/src/ap/neighbor_db.c b/src/ap/neighbor_db.c
+index 4ac14dd..413df79 100644
+--- a/src/ap/neighbor_db.c
++++ b/src/ap/neighbor_db.c
+@@ -14,7 +14,7 @@
+ #include "hostapd.h"
+ #include "ieee802_11.h"
+ #include "neighbor_db.h"
+-
++#include "wpa_auth_i.h"
+ 
+ struct hostapd_neighbor_entry *
+ hostapd_neighbor_get(struct hostapd_data *hapd, const u8 *bssid,
+@@ -401,16 +401,17 @@ int hostapd_neighbor_check_other_mac_presence(char *nei_buf, size_t buflen, u8 *
+ }
+ 
+ int add_stapro_neighbor_rep(struct hostapd_data *hapd, u8 *nei_rep,
+-		size_t nei_len)
++		size_t nei_len, struct wpa_state_machine *sm)
+ {
+ 	int len = 0, shift_len = 0, temp_len = 0, sta_pro_len = 0, i = 0, j = 0, ap_nei = 0;
+ 	u8 *pos = nei_rep;
+ 	u8 *start_pro, *next_nei_rep;
+ 	size_t ml_link_num = hapd->ml_group->ml_link_num;
+-	struct wpa_ml_ie_parse ml = hapd->conf->ml_ie_btm;
++	struct wpa_ml_ie_parse ml;
+ 
+-	if (!hapd)
++	if (!hapd || !sm)
+ 		return nei_len;
++	memcpy(&ml, sm->sta_ml_ie, sizeof(struct wpa_ml_ie_parse));
+ 	ml_link_num = (int)(nei_len / 29);   //gives total neighbours present in nei_rep
+ 	if (ml_link_num <= 1)
+ 		return nei_len;
+diff --git a/src/ap/neighbor_db.h b/src/ap/neighbor_db.h
+index 8f69c37..4394d56 100644
+--- a/src/ap/neighbor_db.h
++++ b/src/ap/neighbor_db.h
+@@ -27,7 +27,7 @@ void hostapd_free_neighbor_db(struct hostapd_data *hapd);
+ int hostapd_neighbor_count(struct hostapd_data *hapd);
+ int hostapd_neighbor_insert_buffer(struct hostapd_data *hapd, char *buf,
+         size_t buflen);
+-int add_stapro_neighbor_rep(struct hostapd_data *hapd, u8 *nei_rep, size_t nei_len);
++int add_stapro_neighbor_rep(struct hostapd_data *hapd, u8 *nei_rep, size_t nei_len, struct wpa_state_machine *sm);
+ void hostapd_neighbor_set_own_report_pref(struct hostapd_data *hapd, char *nei_buf,
+ 		                size_t buflen, const int pref);
+ #ifdef CONFIG_MBO

@@ -1,0 +1,14 @@
+Index: hostapd-2022-07-29-b704dc72/src/drivers/driver_nl80211_capa.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/driver_nl80211_capa.c
++++ hostapd-2022-07-29-b704dc72/src/drivers/driver_nl80211_capa.c
+@@ -1056,6 +1056,9 @@ static int wiphy_info_handler(struct nl_
+ 				case MTK_NL80211_VENDOR_SUBCMD_OFFLOAD_ACS:
+ 					drv->capa.flags |=
+ 						WPA_DRIVER_FLAGS_ACS_OFFLOAD;
++					/* hw mode select and offload acs must be enabled on together */
++					drv->capa.flags |=
++						WPA_DRIVER_FLAGS_SUPPORT_HW_MODE_ANY;
+ 					drv->mtk_do_acs = 1;
+ 					break;
+ 				}

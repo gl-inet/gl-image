@@ -1,3 +1,8 @@
+src-git-full gl_feed_common https://github.com/gl-inet/gl-feeds.git^763868c2bb9dbc26f8d9911a86c103abd7a8f1b5
+src-git-full gl_feed_21_02 https://github.com/gl-inet/gl-feeds.git^de1f0ca04af05a4b0556cf11e7597da375c722ff
+src-git-full gl_vpn_extra https://github.com/gl-inet/vpn-extra-feeds.git^ca1c315ca05d45e8ec3239815b2730944a3e0a2b
+src-git-full gl_feed_smstools3 https://github.com/gl-inet/gl-feeds.git^08b281fa2e953b88a467920a31095dc2d32ec919
+src-git-full mptcp_feeds https://github.com/gl-inet/mptcp-feeds.git^74516cb3470ea1d09d53c5045f9bb4957513400d
 src-git-full packages https://git.openwrt.org/feed/packages.git^1be343f7
 src-git-full luci https://git.openwrt.org/project/luci.git^e4c46338
 src-git-full routing https://git.openwrt.org/feed/routing.git^a9e43101

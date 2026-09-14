@@ -10,7 +10,8 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=uboot-envtools
 PKG_DISTNAME:=u-boot
 PKG_VERSION:=2021.01
-PKG_RELEASE:=$(AUTORELEASE)
+# Preserve the shipped package release after moving the source into versions/.
+PKG_RELEASE:=16
 
 PKG_SOURCE:=$(PKG_DISTNAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:= \

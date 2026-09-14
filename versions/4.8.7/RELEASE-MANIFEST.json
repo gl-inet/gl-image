@@ -24,9 +24,30 @@
     "kernel_version": "5.4.281",
     "baseline_config": "configs/gl-mt3600be-baseline.config",
     "public_config": "configs/gl-mt3600be-open-source.config",
-    "build_guide": "GL-MT3600BE_FIRMWARE_GUIDE.md"
+    "build_guide": "GL-MT3600BE_FIRMWARE_GUIDE.md",
+    "package_source_mapping": "configs/feed-package-sources.json"
   },
   "feeds": [
+    {
+      "name": "gl_feed_common",
+      "url": "https://github.com/gl-inet/gl-feeds.git",
+      "revision": "60d732dc597e0274f0acb32b190b001c2622c76a"
+    },
+    {
+      "name": "gl_feed_21_02",
+      "url": "https://github.com/gl-inet/gl-feeds.git",
+      "revision": "de1f0ca04af05a4b0556cf11e7597da375c722ff"
+    },
+    {
+      "name": "mptcp_feeds",
+      "url": "https://github.com/gl-inet/mptcp-feeds.git",
+      "revision": "457a896aa16ade75ade667a99997ae6932cbcfc4"
+    },
+    {
+      "name": "gl_vpn_extra",
+      "url": "https://github.com/gl-inet/vpn-extra-feeds.git",
+      "revision": "f60dabffd7d0cea6794c6e8e67c8fce3768ccf1a"
+    },
     {
       "name": "packages",
       "url": "https://git.openwrt.org/feed/packages.git",
@@ -72,15 +93,18 @@
   },
   "validation": {
     "public_build_exit_code": 0,
-    "public_sysupgrade_sha256": "029b19bec41ecb5f412c3a98c09a80cd58eaafe3cf3f96acf3f28fefa432f639",
+    "public_sysupgrade_sha256": "05baddffada605f522a3fda64c0fda0d8db277353f64b9b1fc912f8940ae8578",
     "runtime_payload_files_verified": 155,
     "runtime_kernel_modules_verified": 12,
-    "device_validation": "not_available"
+    "device_validation": "not_performed",
+    "package_provider_check": "passed",
+    "remaining_differences": "Private applications and retained GL modules are not enabled; see configuration and source mapping. SBOM is not a compliance certificate."
   },
   "license_status": {
     "binary_ipks_total": 25,
     "binary_ipks_confirmed": 6,
     "binary_ipks_unconfirmed": 19,
     "publication_gate": "blocked"
-  }
+  },
+  "feed_patches": []
 }

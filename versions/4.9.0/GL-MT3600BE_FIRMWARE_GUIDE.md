@@ -106,7 +106,25 @@ make prereq
 make -j"$(nproc)"
 ```
 
-No GL.iNet-specific feed preparation script is required.
+No GL.iNet-specific feed preparation script is required. The release-specific
+`configs/feed-package-sources.json` records the source feed for each audited
+source package. Standard `feeds install -a` selects these definitions and updates
+old feed links automatically. An explicit `feeds install -p` selection takes
+precedence. Keep this mapping and the pinned feed revisions together.
+
+The default configuration selects public components from the shipped package
+inventory, including VPN tools, Samba, nginx, storage support and network
+utilities. Library package names with ABI suffixes are matched through their
+provided names. The proprietary GL applications and UI are omitted; retained
+GL kernel-module enablement and vendor runtime packaging remain separate.
+
+OpenVPN, WireGuard, AmneziaWG and their userspace tools are selected. VPN
+connections and file shares still require configuration. The wifidog-ng kernel
+module is selected without its userspace portal. Restoring package selections
+does not restore the proprietary GL management interface.
+
+The vendor runtime contains prebuilt drivers. Verify module loading, wireless,
+network access and application services on the device before deployment.
 
 After a successful build, use this firmware image:
 
@@ -157,3 +175,15 @@ firmware provides LAN and SSH access at `192.168.8.1`.
 The current default configuration does not include LuCI or the proprietary
 GL.iNet web interface. The GL.iNet web upgrade method is therefore available
 only while the device is still running standard GL.iNet firmware.
+
+## NTFS mounting
+
+This tree preserves the vendor UFSD mount attempt. If it fails with `ENODEV`
+(filesystem driver unavailable), `block` retries the detected filesystem type.
+If that type is also unavailable in the kernel, the existing helper flow uses
+`/sbin/mount.ntfs`, a compatibility link to the included `ntfs-3g` executable.
+Other UFSD errors, including permission and I/O errors, do not trigger this
+fallback. No UFSD binary is added by this change.
+
+Compilation and simulated mount/error tests validate this fallback, but actual
+disk mounting and read/write behavior still require device testing.

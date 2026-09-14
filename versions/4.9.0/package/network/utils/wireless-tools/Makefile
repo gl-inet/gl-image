@@ -81,7 +81,7 @@ define Package/wireless-tools/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/iwconfig $(1)/usr/sbin/
 	$(LN) iwconfig $(1)/usr/sbin/iwlist
-	$(LN) iwconfig $(1)/usr/sbin/iwpriv
+	$(LN) mwctl $(1)/usr/sbin/iwpriv
 endef
 
 define Package/libiw/install

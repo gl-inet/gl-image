@@ -1,4 +1,5 @@
 source_group	package	commit
+glinet/gl-sdk4-firewall/src	gl-sdk4-port-forward	3313014667356ea01c1e177f2e888c9a71e0a358
 gl_feed_common	gl-sdk4-fan	763868c2bb9dbc26f8d9911a86c103abd7a8f1b5
 gl_feed_common	gl-sdk4-hw-info	763868c2bb9dbc26f8d9911a86c103abd7a8f1b5
 glinet	gl-sdk4-black_white_list	1feaf4afd4b88290ff36b44d4678b11992f31458

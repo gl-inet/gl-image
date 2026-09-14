@@ -5,7 +5,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=hostapd
-PKG_RELEASE:=$(AUTORELEASE).1
+PKG_RELEASE:=123.1
 
 PKG_SOURCE_URL:=http://w1.fi/hostap.git
 PKG_SOURCE_PROTO:=git
@@ -458,7 +458,8 @@ define Package/wpa-cli
   SECTION:=net
   CATEGORY:=Network
   SUBMENU:=WirelessAPD
-  DEPENDS:=@$(subst $(space),||,$(foreach pkg,$(SUPPLICANT_PROVIDERS),PACKAGE_$(pkg)))
+  VARIANT:=wpad-full-openssl
+  DEPENDS:=@$(subst $(space),||,$(foreach pkg,$(SUPPLICANT_PROVIDERS),PACKAGE_$(pkg)))||PACKAGE_mtk-wifi-runtime
   TITLE:=WPA Supplicant command line control utility
 endef
 

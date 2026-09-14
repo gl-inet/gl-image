@@ -1,0 +1,90 @@
+Index: hostapd-2022-07-29-b704dc72/src/ap/wps_hostapd.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wps_hostapd.c
++++ hostapd-2022-07-29-b704dc72/src/ap/wps_hostapd.c
+@@ -637,6 +637,7 @@ static int hapd_wps_cred_cb(struct hosta
+ 
+ 	if (wpa) {
+ 		char *prefix;
++		int wpa_psk = 0;
+ 		int sae = 0;
+ 		int sae_only = 0;
+ 
+@@ -651,21 +652,36 @@ static int hapd_wps_cred_cb(struct hosta
+ 		if (cred->auth_type & (WPS_AUTH_WPA2PSK | WPS_AUTH_WPAPSK)) {
+ 			fprintf(nconf, "%sWPA-PSK", prefix);
+ 			prefix = " ";
++			wpa_psk = 1;
+ 		}
++#if defined(CONFIG_MTK_MAP_AKM24) || defined(CONFIG_MTK_MAP_SAE_EXT_KEY)
++		if (cred->auth_type & WPS_AUTH_SAE_SAE_EXT_MIXED &&
++			cred->key_len != 2 * PMK_LEN) {
++			fprintf(nconf, "%sSAE SAE-EXT-KEY\n", prefix);
++			if (wpa_psk)
++				sae = 1;
++			else
++				sae_only = 1;
++		} else
++#else
+ 		if (cred->auth_type & WPS_AUTH_WPA3PSK &&
+ 			cred->key_len != 2 * PMK_LEN) {
+-			fprintf(nconf, "%sSAE", prefix);
+-			sae_only = 1;
++			fprintf(nconf, "%sSAE\n", prefix);
++			if (wpa_psk)
++				sae = 1;
++			else
++				sae_only = 1;
+ 		}
+-		fprintf(nconf, "\n");
++#endif
++		if (!sae && !sae_only)
++			fprintf(nconf, "\n");
+ 
+-		if (sae && hapd->conf->ieee80211w == NO_MGMT_FRAME_PROTECTION) {
++		if (sae) {
+ 			fprintf(nconf, "ieee80211w=%d\n",
+ 				MGMT_FRAME_PROTECTION_OPTIONAL);
++			fprintf(nconf, "sae_require_mfp=1\n");
+ 			pmf_changed = 1;
+ 		}
+-		if (sae)
+-			fprintf(nconf, "sae_require_mfp=1\n");
+ 
+ 		if (sae_only) {
+ 			fprintf(nconf, "ieee80211w=%d\n",
+@@ -678,8 +694,13 @@ static int hapd_wps_cred_cb(struct hosta
+ 		if (cred->encr_type & WPS_ENCR_AES) {
+ 			if (hapd->iconf->hw_mode == HOSTAPD_MODE_IEEE80211AD)
+ 				fprintf(nconf, "GCMP");
+-			else
++			else {
++#if defined(CONFIG_MTK_MAP_AKM24) || defined(CONFIG_MTK_MAP_SAE_EXT_KEY)
++				fprintf(nconf, "CCMP GCMP-256");
++#else
+ 				fprintf(nconf, "CCMP");
++#endif
++			}
+ 
+ 			prefix = " ";
+ 		}
+Index: hostapd-2022-07-29-b704dc72/src/wps/wps_registrar.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/wps/wps_registrar.c
++++ hostapd-2022-07-29-b704dc72/src/wps/wps_registrar.c
+@@ -3741,9 +3741,15 @@ int wps_registrar_config_ap(struct wps_r
+ 	}
+ 
+ 	if (cred->auth_type & WPS_AUTH_WPA3PSK) {
++#if defined(CONFIG_MTK_MAP_AKM24) || defined(CONFIG_MTK_MAP_SAE_EXT_KEY)
++		wpa_printf(MSG_DEBUG, "WPS: Upgrade auth_type WPAPSK -> "
++				"WPA3PSK+SAE_EXT_KEY");
++		cred->auth_type |= WPS_AUTH_SAE_SAE_EXT_MIXED;
++#else
+ 		wpa_printf(MSG_DEBUG, "WPS: Upgrade auth_type WPAPSK -> "
+ 				"WPA3PSK");
+ 		cred->auth_type |= WPS_AUTH_WPA3PSK;
++#endif
+ 	}
+ 
+ 	if (reg->wps->cred_cb)

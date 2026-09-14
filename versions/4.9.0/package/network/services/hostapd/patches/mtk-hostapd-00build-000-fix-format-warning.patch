@@ -1,0 +1,13 @@
+Index: hostapd-2022-07-29-b704dc72/src/drivers/driver_nl80211_event.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/driver_nl80211_event.c
++++ hostapd-2022-07-29-b704dc72/src/drivers/driver_nl80211_event.c
+@@ -2947,7 +2947,7 @@ static void nl80211_obss_color_collision
+ 	data.bss_color_collision.bitmap =
+ 		nla_get_u64(tb[NL80211_ATTR_OBSS_COLOR_BITMAP]);
+ 
+-	wpa_printf(MSG_DEBUG, "nl80211: BSS color collision - bitmap %08lx",
++	wpa_printf(MSG_DEBUG, "nl80211: BSS color collision - bitmap %08"PRIx64,
+ 		   data.bss_color_collision.bitmap);
+ 	wpa_supplicant_event(drv->ctx, EVENT_BSS_COLOR_COLLISION, &data);
+ }

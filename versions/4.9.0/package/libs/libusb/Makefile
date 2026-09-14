@@ -9,7 +9,8 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=libusb
 PKG_VERSION:=1.0.24
-PKG_RELEASE:=$(AUTORELEASE)
+# Preserve the shipped package release after moving the source into versions/.
+PKG_RELEASE:=4
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:=\

@@ -124,7 +124,25 @@ make prereq
 make -j"$(nproc)"
 ```
 
-No GL.iNet-specific feed preparation script is required.
+No GL.iNet-specific feed preparation script is required. The release-specific
+`configs/feed-package-sources.json` records the source feed for each audited
+source package. Standard `feeds install -a` selects these definitions and updates
+old feed links automatically. An explicit `feeds install -p` selection takes
+precedence. Keep this mapping and the pinned feed revisions together.
+
+The default configuration selects public components from the shipped package
+inventory, including VPN tools, Samba, nginx, storage support and network
+utilities. Library package names with ABI suffixes are matched through their
+provided names. The proprietary GL applications and UI are omitted; retained
+GL kernel-module enablement and vendor runtime packaging remain separate.
+
+OpenVPN, WireGuard, AmneziaWG and their userspace tools are selected. VPN
+connections and file shares still require configuration. The wifidog-ng kernel
+module is selected without its userspace portal. Restoring package selections
+does not restore the proprietary GL management interface.
+
+The vendor runtime contains prebuilt drivers. Verify module loading, wireless,
+network access and application services on the device before deployment.
 
 The MediaTek Wi-Fi and network runtime is supplied as version-pinned binary
 IPKs under `package/firmware/mtk-binary-runtime`. GPL-covered MediaTek helper
