@@ -360,6 +360,12 @@ int entry_delete_by_mac(u8 *mac)
 	int index, i, ret = 0;
 	int cnt;
 
+	if (!mac) {
+		if (debug_level >= 2)
+			pr_warn("%s: invalid mac address\n", __func__);
+		return 0;
+	}
+
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		entry = hnat_priv->foe_table_cpu[i];
 		cnt = 0;
@@ -391,6 +397,12 @@ int entry_delete_by_ip(bool is_ipv4, void *addr)
 	struct foe_entry *entry = NULL;
 	int index, i, ret = 0;
 	int cnt;
+
+	if (!addr) {
+		if (debug_level >= 2)
+			pr_warn("%s: invalid ip address\n", __func__);
+		return 0;
+	}
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		entry = hnat_priv->foe_table_cpu[i];
@@ -1127,6 +1139,8 @@ static int hnat_hw_init(u32 ppe_id)
 			     SB_MED_FULL_DRP_EN, 1);
 		cr_set_bits(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG,
 			    NEW_IPV4_ID_INC_EN | TSID_EN);
+		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG,
+			    IS_SP_TAG_EN, 1);
 		if (ppe_id == 0)
 			cr_set_field(hnat_priv->fe_base + MTK_FE_INT_ENABLE2,
 				     MTK_FE_INT2_PPE0_FLOW_CHK, 1);

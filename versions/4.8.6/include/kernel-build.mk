@@ -180,4 +180,10 @@ define BuildKernel
 
   prereq: image-prereq
 
+  install-image:
+	@echo Only install image........
+	+$(MAKE) -C image compile install TARGET_BUILD=
+
+  clean-linux: FORCE
+	rm -rf $(LINUX_DIR)
 endef

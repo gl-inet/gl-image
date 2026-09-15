@@ -1,0 +1,1522 @@
+--- a/etc/hotplug.d/block/10-mount
++++ b/etc/hotplug.d/block/10-mount
+@@ -1 +1,108 @@
+-[ "$ACTION" = "add" -o "$ACTION" = "remove" ] && /sbin/block hotplug
++#!/bin/sh
++
++blkdev=`dirname $DEVPATH`
++device=`basename $DEVPATH`
++hdorsd=`echo "$device" | grep -E '[sh]d*|mmcblk0*' `
++
++. /lib/functions.sh
++. /lib/functions/system.sh
++
++
++[ -n "$hdorsd" ] && {
++    case "$ACTION" in
++        add)
++
++	    #if have gl nas ipk, give gl nas mount disk
++	    if [ -e /usr/bin/gl_nas_sys ]
++	    then
++		exit 1
++	    fi
++
++            #when boot, the devices may not be ready, strange
++            sleep 5
++            #first time, wait unit the jffs is built
++            if [ -z  "$(mount |grep 'overlayfs:/overlay')" ]
++            then
++				echo "$DEVPATH" >/tmp/mount.tmp
++				echo "$ACTION" >>/tmp/mount.tmp
++				exit 1
++                #sleep 40 #this caused the wireless configure cannot be built correctly, we disable this and should be fixed later
++            fi
++            sync=sync
++            mmcblk0=`echo "$device" |grep 'mmcblk0'`
++            if [ -n "$mmcblk0" ]; then
++                sync=async
++            fi
++            s=`/usr/sbin/blkid /dev/$device|sed -n 's/.* TYPE="\([^"]*\)".*/\1/p'`
++            label=$device
++
++
++            if [ "$s" != 'vfat' -a "$s" != 'ntfs' -a "$s" != 'ext2' -a "$s" != "ext3" -a "$s" != "ext4" -a "$s" != "exfat" ];then
++                  return;
++            fi
++
++            mkdir -p "/mnt/$label"
++			
++            if [ "$s" = 'vfat' -o "$s" = 'exfat' ];then
++                mount -t $s -o utf8,rw,$sync,fmask=0000,dmask=0000 /dev/$device "/mnt/$label"
++            fi
++
++            if [ "$s" = 'ntfs' ];then
++                mount -t ntfs-3g -o utf8 /dev/$device "/mnt/$label"
++            fi
++
++            if [ "$s" = 'ext2' -o "$s" = 'ext3' -o "$s" = 'ext4' ];then
++                mount -t ext4 -o rw,$sync /dev/$device "/mnt/$label"
++                chmod 777 "/mnt/$label"
++                chown root:root "/mnt/$label"
++            fi
++
++            #if [ "$s" = "exfat" ]; then
++            #    mount -t exfat -o utf8,rw,$sync /dev/$device "/mnt/$label"
++            #fi
++
++            sleep 5
++
++            download_root=$(uci get glconfig.download.root)
++            if [ -z "$download_root" ]; then
++                uci set glconfig.download.root="/mnt/$label"
++                uci commit glconfig
++            fi
++
++            samba=`opkg list-installed | grep samba36-server`
++            if [ -n "$samba" ];then
++                    path=`uci -q get samba.@sambashare[0].path`
++                    if [ -z "$path" ];then
++                            uci -q set samba.@sambashare[0].path="/mnt/$label"
++                            uci commit samba
++                            /etc/init.d/samba restart
++                    fi
++            fi
++
++            ;;
++
++        remove)
++			echo "----mount: remove $device" > /dev/console
++            folder="$(grep /dev/$device /etc/mtab |awk '{print $2}')"
++            procs=$(fuser -m "/mnt/$folder")
++
++            samba=`opkg list-installed | grep samba36-server`
++            if [ -n "$samba" ];then
++                    path=`uci -q get samba.@sambashare[0].path`
++                    if [ -n "$path" -a "$path" = "$folder" ];then
++                            uci -q del samba.@sambashare[0].path
++                            uci commit samba
++                            /etc/init.d/samba restart
++                    fi
++            fi
++
++            if [ "${#procs}" -lt 10 ]; then
++                echo "$procs" | xargs kill -9
++            fi
++            umount -l "$folder"
++            rmdir "$folder"
++            ;;
++    esac
++    #restart lighttpd for fastcgi reset
++    #/etc/init.d/lighttpd restart
++}
+--- a/etc/init.d/boot
++++ b/etc/init.d/boot
+@@ -41,8 +41,7 @@
+ 	grep -q pstore /proc/filesystems && /bin/mount -o noatime -t pstore pstore /sys/fs/pstore
+ 	[ "$FAILSAFE" = "true" ] && touch /tmp/.failsafe
+ 
+-	#先检查mtkwifi的默认配置是否正常
+-	/sbin/wifi check
++	sync
+ 	/sbin/kmodloader
+ 
+ 	[ ! -f /etc/config/wireless ] && {
+--- a/etc/rc.button/reset
++++ b/etc/rc.button/reset
+@@ -1,6 +1,7 @@
+ #!/bin/sh
+ 
+ . /lib/functions.sh
++. /lib/functions/gl_util.sh
+ 
+ OVERLAY="$( grep ' /overlay ' /proc/mounts )"
+ 
+@@ -8,22 +9,26 @@
+ pressed)
+ 	[ -z "$OVERLAY" ] && return 0
+ 
+-	return 5
++	reset_btn_pressed
+ ;;
+ timeout)
+ 	. /etc/diag.sh
+ 	set_state failsafe
+ ;;
+ released)
+-	if [ "$SEEN" -lt 1 ]
++	[ -z "$OVERLAY" ] && return 0
++
++	reset_btn_released
++
++	if [ "$SEEN" -ge 20 ]
+ 	then
+-		echo "REBOOT" > /dev/console
+-		sync
+-		reboot
+-	elif [ "$SEEN" -ge 5 -a -n "$OVERLAY" ]
++		return 0
++	elif [ "$SEEN" -ge 8 ]
+ 	then
+-		echo "FACTORY RESET" > /dev/console
+-		jffs2reset -y && reboot &
++		factory_reset
++	elif [ "$SEEN" -ge 3 ]
++	then
++		reset_network &
+ 	fi
+ ;;
+ esac
+--- a/etc/uci-defaults/99-firewall
++++ b/etc/uci-defaults/99-firewall
+@@ -1,3 +1,44 @@
+-echo "iptables -I OUTPUT -t raw -p tcp --dport 1723 -j CT  --helper pptp" >> /etc/firewall.user
++. /lib/functions.sh
+ 
+-exit 0
++delete_ipv4_ping() {
++    config_get name "$1" name
++
++    [ "$name" = "Allow-Ping" ] && {
++        uci delete firewall.$1
++    }
++}
++
++delete_ipv6_ping() {
++    config_get name "$1" name
++
++    [ "$name" = "Allow-ICMPv6-Input" ] && {
++        config_get icmp_types "$1" icmp_type
++
++        [ "$icmp_types" != "" ] && uci delete firewall.$1.icmp_type
++        for type in $icmp_types; do
++            [ "$type" != "echo-request" ] && [ "$type" != "echo-reply" ] && uci add_list firewall.$1.icmp_type="$type"
++        done
++    }
++}
++
++delete_specific_character() {
++    config_get name "$1" name
++    if echo "$name" | grep -q '["%]'; then
++        name=$(echo "$name" | tr -d '"%')
++        uci set firewall.$1.name=$name
++    fi
++}
++
++config_load firewall
++config_foreach delete_ipv4_ping rule
++
++config_load firewall
++config_foreach delete_ipv6_ping rule
++
++config_load firewall
++config_foreach delete_specific_character rule
++
++config_load firewall
++config_foreach delete_specific_character redirect
++
++uci commit
+--- a/lib/netifd/proto/3g.sh
++++ b/lib/netifd/proto/3g.sh
+@@ -1,12 +1,37 @@
+ #!/bin/sh
+-
+ [ -n "$INCLUDE_ONLY" ] || {
+ 	NOT_INCLUDED=1
+ 	INCLUDE_ONLY=1
+ 
+ 	. ../netifd-proto.sh
++	. /lib/functions/modem.sh
+ 	. ./ppp.sh
+ 	init_proto "$@"
++}
++
++set_log_level "$(get_modem_log_level)"
++
++handle_2G_mode() {
++	local count=0
++	local dev=$(echo $1|cut -d '/' -f 3)
++	local dir=modem.$(find /sys/devices/platform/  -name $dev |tail -n 1|cut -d '/' -f 8|cut -d ':' -f 1)
++	local mode=$(cat /tmp/$dir/signal 2>/dev/null |cut -d '"' -f 4)
++	[ -f /tmp/$dir/fail_count ] && {
++		count=$(cat /tmp/$dir/fail_count 2>/dev/null)
++	}
++	[ "$mode" = "gsm" -o "$mode" = "cdma" -o "$mode" = "tdma" ] && {
++		let count=count+1
++		#((count=count+1))
++		echo $count >/tmp/$dir/fail_count
++		[ $count -gt 10 ] && {
++			log_info $LINENO "modem" "modem delay dial,120s"
++			sleep 120
++		}
++		return
++	}
++	[ -f /tmp/$dir/fail_count ] && {
++		rm /tmp/$dir/fail_count 2>/dev/null
++	}
+ }
+ 
+ proto_3g_init_config() {
+@@ -17,8 +42,14 @@
+ 	proto_config_add_string "apn"
+ 	proto_config_add_string "service"
+ 	proto_config_add_string "pincode"
+-	proto_config_add_string "delay"
++	proto_config_add_string "iccid"
+ 	proto_config_add_string "dialnumber"
++	proto_config_add_int "apn_use"
++	proto_config_add_int "mtu"
++	proto_config_add_string "ip_type"
++	proto_config_add_string "bus"
++	proto_config_add_string "date"
++	proto_config_add_int "slot"
+ }
+ 
+ proto_3g_setup() {
+@@ -26,28 +57,84 @@
+ 	local chat
+ 
+ 	json_get_var device device
++	json_get_var iccid iccid
++	json_get_var service service
++	json_get_var apn_use apn_use
++	json_get_var dialnumber dialnumber
++	json_get_var ip_type ip_type
++	json_get_var bus bus
++	json_get_var slot slot
+ 	json_get_var apn apn
+-	json_get_var service service
+-	json_get_var pincode pincode
+-	json_get_var dialnumber dialnumber
+-	json_get_var delay delay
+-
++	json_get_var mtu mtu
++	
++    if ! bus_exists_in_modem "$bus"; then
++        log_debug $LINENO "modem" "bus[$bus] not ready, exit dial!" 
++        proto_block_restart "$interface"
++		proto_notify_error "$interface" NO_DEVICE
++	    set_interface_dial_progress "$interface" "2"
++	    return 0
++    fi
++
++    log_info $LINENO "modem" "start dialing for bus[$bus] slot[$slot]"
++	local manual dial_status
++	dial_status="$(get_dial_status_retry "$bus" "$slot" 3)" || {
++    	log_debug $LINENO "modem" "Dial status unavailable, defer dialing"
++    	return 1
++	}
++
++    log_debug $LINENO "modem" "Current dialing status $dial_status"
++	if [ "$dial_status" != "7" ];then
++		log_info $LINENO "modem" "Current dial_status $dial_status does not meet dialing requirements, exiting execution."
++		proto_block_restart "$interface"
++		set_interface_dial_progress "$interface" "2"
++		return 1
++	fi
++	
++	manual=$(get_sim_map_field "$iccid" manual)
++	if [ "$manual" = "true" ];then
++		ip_type=$(get_sim_map_field "$iccid" ip_type)
++		apn=$(get_sim_map_field "$iccid" apn)
++		mtu=$(get_sim_map_field "$iccid" mtu)
++		auth=$(get_sim_map_field "$iccid" auth)
++		username=$(get_sim_map_field "$iccid" username)
++		password=$(get_sim_map_field "$iccid" password)
++	fi
++
++    log_info $LINENO "modem" "manual:$manual ip_type:$ip_type apn:$apn auth:$auth username:$username password:$password mtu:$mtu"
+ 	[ -n "$dat_device" ] && device=$dat_device
++
++	[ -n "$mtu" ] || mtu=1500
+ 
+ 	device="$(readlink -f $device)"
+ 	[ -e "$device" ] || {
+ 		proto_set_available "$interface" 0
++		set_interface_dial_progress "$interface" "2"
+ 		return 1
+ 	}
+-
+-	[ -n "$delay" ] && sleep "$delay"
++  
++        if [ "$manual" = "true" ];then
++    	    ip_type=$(convert_ip_type $ip_type)
++	fi
++
++
++        log_info $LINENO "modem" "Set ip type:$ip_type"
++	#ipv6_enabled=`uci get glipv6.globals.enabled 2>/dev/null`
++	[ "$ip_type" = "IPV4V6" -o "$ip_type" = "IPV6" ] && ipv6_enabled=1
+ 
+ 	case "$service" in
+ 		cdma|evdo)
+-			chat="/etc/chatscripts/evdo.chat"
++			if [ "$ipv6_enabled" = "1" ];then
++				chat="/etc/chatscripts/evdoipv6.chat"
++			else
++				chat="/etc/chatscripts/evdo.chat"
++			fi
+ 		;;
+ 		*)
+-			chat="/etc/chatscripts/3g.chat"
++			if [ "$ipv6_enabled" = "1" ];then
++				chat="/etc/chatscripts/3gipv6.chat"
++			else
++				chat="/etc/chatscripts/3g.chat"
++			fi
+ 			cardinfo=$(gcom -d "$device" -s /etc/gcom/getcardinfo.gcom)
+ 			if echo "$cardinfo" | grep -q Novatel; then
+ 				case "$service" in
+@@ -74,13 +161,6 @@
+ 				export MODE="AT^SYSCFG=${CODE},3FFFFFFF,2,4"
+ 			fi
+ 
+-			if [ -n "$pincode" ]; then
+-				PINCODE="$pincode" gcom -d "$device" -s /etc/gcom/setpin.gcom || {
+-					proto_notify_error "$interface" PIN_FAILED
+-					proto_block_restart "$interface"
+-					return 1
+-				}
+-			fi
+ 			[ -n "$MODE" ] && gcom -d "$device" -s /etc/gcom/setmode.gcom
+ 
+ 			# wait for carrier to avoid firmware stability bugs
+@@ -90,22 +170,27 @@
+ 
+ 			if [ -z "$dialnumber" ]; then
+ 				dialnumber="*99***1#"
++				[ "$apn_use" = "3" ] && dialnumber="*99***3#"
+ 			fi
+ 
+ 		;;
+ 	esac
+-
+-	connect="${apn:+USE_APN=$apn }DIALNUMBER=$dialnumber /usr/sbin/chat -t5 -v -E -f $chat"
++	handle_2G_mode $device
++
++	connect="${apn:+USE_APN=$apn }${ip_type:+PDP_TYPE=$ip_type }DIALNUMBER=$dialnumber /usr/sbin/chat -t5 -v -E -f $chat"
++
+ 	ppp_generic_setup "$interface" \
+ 		noaccomp \
+ 		nopcomp \
+ 		novj \
+ 		nobsdcomp \
+ 		noauth \
++		maxfail 1 \
+ 		set EXTENDPREFIX=1 \
+ 		lock \
+ 		crtscts \
+ 		115200 "$device"
++	
+ 	return 0
+ }
+ 
+--- a/lib/netifd/proto/ncm.sh
++++ b/lib/netifd/proto/ncm.sh
+@@ -3,6 +3,7 @@
+ [ -n "$INCLUDE_ONLY" ] || {
+ 	. /lib/functions.sh
+ 	. ../netifd-proto.sh
++	. /lib/functions/modem.sh
+ 	init_proto "$@"
+ }
+ 
+@@ -15,41 +16,159 @@
+ 	proto_config_add_string username
+ 	proto_config_add_string password
+ 	proto_config_add_string pincode
++	proto_config_add_string iccid
+ 	proto_config_add_string delay
+ 	proto_config_add_string mode
+-	proto_config_add_string pdptype
++	proto_config_add_string ip_type
++	proto_config_add_string bus
++	proto_config_add_int slot
++	proto_config_add_string date
+ 	proto_config_add_int profile
+ 	proto_config_add_defaults
+ }
+ 
++
++unlock_special_model_sim_pin(){
++
++    local modem_bus="$1"
++    local iccid="$2"
++    local pincode="$3"
++    local interface="$4"
++    local device="$5"
++ 
++    local sim_status=$(check_sim_and_pin_status $modem_bus)
++    local curr_iccid=$(get_sim_iccid $modem_bus)
++
++    if [ -z "$pincode" ] ;then                                                                                                                                                                
++        pincode=`uci -q get glmodem.$iccid.pincode 2>/dev/null`                                                                                                                              
++    fi
++
++    [ -z "$sim_status" ] && {
++        log_error $LINENO "modem" "(unlock_special_model_sim_pin)Failed to get simcard status, please check!"
++        return 1
++    }
++
++    if [ "$sim_status" = "ERROR" -o "$sim_status" = "SIMPUK" ];then
++        log_error $LINENO "modem" "(unlock_special_model_sim_pin)The current simcard status $sim_status, please check!"
++        return 1
++    fi
++
++    log_info $LINENO "modem" "(unlock_special_model_sim_pin)sim_status:$sim_status modem_bus:$modem_bus interface:$interface device:$device pincode:$pincode iccid:$iccid"
++
++    if [ "$sim_status" = "SIMPIN" ];then
++
++        log_info $LINENO "modem" "(unlock_special_model_sim_pin)iccid:$iccid pincode:$pincode"
++        
++        if [ -z "$pincode" ];then
++           log_error $LINENO "modem" "(unlock_special_model_sim_pin)The PIN does not exist or the PIN code does not match."
++           return 1
++        fi
++        
++        if [ -n "$curr_iccid" ] && [ -n "$iccid" ] && [ "$curr_iccid" = "$iccid" ];then
++            PINCODE="$pincode" gcom -d "$device" -s /etc/gcom/setpin.gcom || {
++			    log_error $LINENO "modem" "(unlock_special_model_sim_pin)The PIN code is incorrect, please check it!"
++			    proto_notify_error "$interface" PIN_FAILED
++			    proto_block_restart "$interface"
++			    return 1
++			}
++        else
++           log_error $LINENO "modem" "(unlock_special_model_sim_pin)The PIN does not exist or the PIN code does not match."
++           return 1
++        fi
++
++    fi
++
++    return 0
++}
++
+ proto_ncm_setup() {
+ 	local interface="$1"
+ 
+-	local manufacturer initialize setmode connect finalize ifname devname devpath
+-
+-	local device apn auth username password pincode delay mode pdptype profile $PROTO_DEFAULT_OPTIONS
+-	json_get_vars device apn auth username password pincode delay mode pdptype profile $PROTO_DEFAULT_OPTIONS
++	local manufacturer initialize setmode connect finalize ifname devname devpath manual pdptype
++
++	local device bus slot username password pincode iccid delay mode ip_type profile $PROTO_DEFAULT_OPTIONS apn apn_use 
++	json_get_vars device iccid bus slot delay mode ip_type $PROTO_DEFAULT_OPTIONS apn apn_use
++
++    if ! bus_exists_in_modem "$bus"; then
++        log_debug $LINENO "modem" "bus[$bus] not ready, exit dial!"
++        proto_block_restart "$interface"
++		proto_notify_error "$interface" NO_DEVICE
++	    set_interface_dial_progress "$interface" "2"
++	    return 0
++    fi
++
++    log_info $LINENO "modem" "start dialing for bus[$bus] slot[$slot]"
++    local dial_status
++	dial_status="$(get_dial_status_retry "$bus" "$slot" 3)" || {
++    	    log_debug $LINENO "modem" "Dial status unavailable, defer dialing"
++    	    return 1
++	}
++
++        log_debug $LINENO "modem" "Current dialing status $dial_status"
++	if [ "$dial_status" != "7" ];then
++		log_info $LINENO "modem" "Current status $dial_status does not meet dialing requirements, exiting execution."
++		proto_block_restart "$interface"
++		set_interface_dial_progress "$interface" "2"
++		return 1
++	fi
++
++    profile=$(get_sim_map_field "$iccid" cid)
++    manual=$(get_sim_map_field "$iccid" manual)
++    if [ "$manual" = "true" ];then
++		ip_type=$(get_sim_map_field "$iccid" ip_type)
++		apn=$(get_sim_map_field "$iccid" apn)
++		mtu=$(get_sim_map_field "$iccid" mtu)
++		auth=$(get_sim_map_field "$iccid" auth)
++		username=$(get_sim_map_field "$iccid" username)
++		password=$(get_sim_map_field "$iccid" password)
++	fi
++
++	[ -z "$apn" ] && {
++		username=""
++		password=""
++		auth=""
++	}
++
++	[ -z "$username" ] && {
++		password=""
++		auth=""
++	}
++
++	[ -z "$auth" ] && {
++		username=""
++		password=""
++	}
++
++    if [ "$manual" = "true" ];then
++    	    pdptype=$(convert_ip_type $ip_type)
++	else
++	    pdptype=$ip_type
++	fi
++    
++        log_info $LINENO "modem" "Set ip type:$pdptype"
++        [ -n "$mtu" ] || mtu=1500 
+ 
+ 	[ "$metric" = "" ] && metric="0"
+ 
+ 	[ -n "$profile" ] || profile=1
+ 
+-	pdptype=$(echo "$pdptype" | awk '{print toupper($0)}')
+ 	[ "$pdptype" = "IP" -o "$pdptype" = "IPV6" -o "$pdptype" = "IPV4V6" ] || pdptype="IP"
+ 
+ 	[ -n "$ctl_device" ] && device=$ctl_device
+ 
+ 	[ -n "$device" ] || {
+-		echo "No control device specified"
++		log_error $LINENO "modem" "No control device specified"
+ 		proto_notify_error "$interface" NO_DEVICE
+ 		proto_set_available "$interface" 0
++		set_interface_dial_progress "$interface" "2"
+ 		return 1
+ 	}
+ 
+ 	device="$(readlink -f $device)"
+ 	[ -e "$device" ] || {
+-		echo "Control device not valid"
+-		proto_set_available "$interface" 0
++		log_error $LINENO "modem" "Control device not valid"
++		proto_set_available "$interface" 0
++		set_interface_dial_progress "$interface" "2"
+ 		return 1
+ 	}
+ 
+@@ -65,9 +184,10 @@
+ 		;;
+ 	esac
+ 	[ -n "$ifname" ] || {
+-		echo "The interface could not be found."
++		log_error $LINENO "modem" "The interface could not be found."
+ 		proto_notify_error "$interface" NO_IFACE
+ 		proto_set_available "$interface" 0
++		set_interface_dial_progress "$interface" "2"
+ 		return 1
+ 	}
+ 
+@@ -75,44 +195,42 @@
+ 
+ 	manufacturer=$(gcom -d "$device" -s /etc/gcom/getcardinfo.gcom | awk 'NF && $0 !~ /AT\+CGMI/ { sub(/\+CGMI: /,""); print tolower($1); exit; }')
+ 	[ $? -ne 0 -o -z "$manufacturer" ] && {
+-		echo "Failed to get modem information"
++		log_error $LINENO "modem" "Failed to get modem information"
+ 		proto_notify_error "$interface" GETINFO_FAILED
+-		return 1
+-	}
++		set_interface_dial_progress "$interface" "3"
++		return 1
++	}
++
++    log_info $LINENO "modem" "manufacturer:$manufacturer"
+ 
+ 	json_load "$(cat /etc/gcom/ncm.json)"
+ 	json_select "$manufacturer"
+ 	[ $? -ne 0 ] && {
+-		echo "Unsupported modem"
++		log_error $LINENO "modem" "Unsupported modem"
+ 		proto_notify_error "$interface" UNSUPPORTED_MODEM
+ 		proto_set_available "$interface" 0
++		set_interface_dial_progress "$interface" "2"
+ 		return 1
+ 	}
+ 
+ 	json_get_values initialize initialize
+ 	for i in $initialize; do
+ 		eval COMMAND="$i" gcom -d "$device" -s /etc/gcom/runcommand.gcom || {
+-			echo "Failed to initialize modem"
++			log_error $LINENO "modem" "Failed to initialize modem"
+ 			proto_notify_error "$interface" INITIALIZE_FAILED
++			set_interface_dial_progress "$interface" "3"
+ 			return 1
+ 		}
+ 	done
+ 
+-	[ -n "$pincode" ] && {
+-		PINCODE="$pincode" gcom -d "$device" -s /etc/gcom/setpin.gcom || {
+-			echo "Unable to verify PIN"
+-			proto_notify_error "$interface" PIN_FAILED
+-			proto_block_restart "$interface"
+-			return 1
+-		}
+-	}
+-
++   
+ 	json_get_values configure configure
+-	echo "Configuring modem"
++	log_info $LINENO "modem" "Configuring modem"
+ 	for i in $configure; do
+ 		eval COMMAND="$i" gcom -d "$device" -s /etc/gcom/runcommand.gcom || {
+-			echo "Failed to configure modem"
++			log_error $LINENO "modem" "Failed to configure modem"
+ 			proto_notify_error "$interface" CONFIGURE_FAILED
++			set_interface_dial_progress "$interface" "3"
+ 			return 1
+ 		}
+ 	done
+@@ -121,30 +239,35 @@
+ 		json_select modes
+ 		json_get_var setmode "$mode"
+ 		[ -n "$setmode" ] && {
+-			echo "Setting mode"
++			log_info $LINENO "modem" "Setting mode"
+ 			eval COMMAND="$setmode" gcom -d "$device" -s /etc/gcom/runcommand.gcom || {
+-				echo "Failed to set operating mode"
++				log_error $LINENO "modem" "Failed to set operating mode"
+ 				proto_notify_error "$interface" SETMODE_FAILED
++				set_interface_dial_progress "$interface" "3"
+ 				return 1
+ 			}
+ 		}
+ 		json_select ..
+ 	}
+ 
+-	echo "Starting network $interface"
++	log_info $LINENO "modem" "Starting network $interface"
++	
+ 	json_get_vars connect
+ 	[ -n "$connect" ] && {
+-		echo "Connecting modem"
+-		eval COMMAND="$connect" gcom -d "$device" -s /etc/gcom/runcommand.gcom || {
+-			echo "Failed to connect"
++		log_info $LINENO "modem" "Connecting modem profile:$profile,apn:$apn"
++		out="$(eval COMMAND=\"${connect}\" gcom -d \"$device\" -s /etc/gcom/runcommand.gcom 2>&1)"
++		ret=$?
++		[ $ret -ne 0 ] && {
++			log_error $LINENO "modem" "Failed to connect (ret=$ret): ${out}"
+ 			proto_notify_error "$interface" CONNECT_FAILED
++			set_interface_dial_progress "$interface" "3"
+ 			return 1
+ 		}
+ 	}
+ 
+ 	json_get_vars finalize
+ 
+-	echo "Setting up $ifname"
++	log_info $LINENO "modem" "Setting up $ifname"
+ 	proto_init_update "$ifname" 1
+ 	proto_add_data
+ 	json_add_string "manufacturer" "$manufacturer"
+@@ -182,11 +305,13 @@
+ 
+ 	[ -n "$finalize" ] && {
+ 		eval COMMAND="$finalize" gcom -d "$device" -s /etc/gcom/runcommand.gcom || {
+-			echo "Failed to configure modem"
++			log_error $LINENO "modem" "Failed to configure modem"
+ 			proto_notify_error "$interface" FINALIZE_FAILED
+-			return 1
+-		}
+-	}
++			set_interface_dial_progress "$interface" "3"
++			return 1
++		}
++	}
++
+ }
+ 
+ proto_ncm_teardown() {
+@@ -200,7 +325,7 @@
+ 	[ -n "$ctl_device" ] && device=$ctl_device
+ 
+ 	[ -n "$device" ] || {
+-		echo "No control device specified"
++		log_error $LINENO "modem" "No control device specified"
+ 		proto_notify_error "$interface" NO_DEVICE
+ 		proto_set_available "$interface" 0
+ 		return 1
+@@ -208,14 +333,15 @@
+ 
+ 	device="$(readlink -f $device)"
+ 	[ -e "$device" ] || {
+-		echo "Control device not valid"
+-		proto_set_available "$interface" 0
+-		return 1
+-	}
+-
++		log_error $LINENO "modem" "Control device not valid"
++		proto_set_available "$interface" 0
++		return 1
++	}
++
++	[ -n "$profile" ] || profile=$(get_sim_map_field "$iccid" cid)
+ 	[ -n "$profile" ] || profile=1
+ 
+-	echo "Stopping network $interface"
++	log_error $LINENO "modem" "Stopping network $interface"
+ 
+ 	json_load "$(ubus call network.interface.$interface status)"
+ 	json_select data
+@@ -224,7 +350,7 @@
+ 		# Fallback to direct detect, for proper handle device replug.
+ 		manufacturer=$(gcom -d "$device" -s /etc/gcom/getcardinfo.gcom | awk 'NF && $0 !~ /AT\+CGMI/ { sub(/\+CGMI: /,""); print tolower($1); exit; }')
+ 		[ $? -ne 0 -o -z "$manufacturer" ] && {
+-			echo "Failed to get modem information"
++			log_error $LINENO "modem" "Failed to get modem information"
+ 			proto_notify_error "$interface" GETINFO_FAILED
+ 			return 1
+ 		}
+@@ -233,7 +359,7 @@
+ 
+ 	json_load "$(cat /etc/gcom/ncm.json)"
+ 	json_select "$manufacturer" || {
+-		echo "Unsupported modem"
++		log_error $LINENO "modem" "Unsupported modem"
+ 		proto_notify_error "$interface" UNSUPPORTED_MODEM
+ 		return 1
+ 	}
+@@ -241,7 +367,7 @@
+ 	json_get_vars disconnect
+ 	[ -n "$disconnect" ] && {
+ 		eval COMMAND="$disconnect" gcom -d "$device" -s /etc/gcom/runcommand.gcom || {
+-			echo "Failed to disconnect"
++			log_error $LINENO "modem" "Failed to disconnect"
+ 			proto_notify_error "$interface" DISCONNECT_FAILED
+ 			return 1
+ 		}
+--- a/lib/netifd/proto/qmi.sh
++++ b/lib/netifd/proto/qmi.sh
+@@ -1,56 +1,109 @@
+ #!/bin/sh
+ 
++UQMI="uqmi -t 3000"
+ [ -n "$INCLUDE_ONLY" ] || {
+ 	. /lib/functions.sh
++	. /lib/functions/modem.sh
+ 	. ../netifd-proto.sh
+ 	init_proto "$@"
+ }
++
++set_log_level "$(get_modem_log_level)"
+ 
+ proto_qmi_init_config() {
+ 	available=1
+ 	no_device=1
+ 	proto_config_add_string "device:device"
+-	proto_config_add_string apn
+-	proto_config_add_string auth
+-	proto_config_add_string username
+-	proto_config_add_string password
+-	proto_config_add_string pincode
+-	proto_config_add_int delay
+-	proto_config_add_string modes
+-	proto_config_add_string pdptype
+-	proto_config_add_int profile
+-	proto_config_add_boolean dhcp
++	proto_config_add_string iccid
++	proto_config_add_string ip_type
++	proto_config_add_string node
+ 	proto_config_add_boolean dhcpv6
+ 	proto_config_add_boolean autoconnect
+-	proto_config_add_int plmn
+-	proto_config_add_int timeout
+ 	proto_config_add_int mtu
++	proto_config_add_int apn_use
++	proto_config_add_string bus
++	proto_config_add_string date
++	proto_config_add_int slot
+ 	proto_config_add_defaults
+ }
+ 
+ proto_qmi_setup() {
+ 	local interface="$1"
+-	local dataformat connstat plmn_mode mcc mnc
+-	local device apn auth username password pincode delay modes pdptype
+-	local profile dhcp dhcpv6 autoconnect plmn timeout mtu $PROTO_DEFAULT_OPTIONS
++	local devname=""
++	local dataformat connstat
++	local device apn auth username password iccid delay modes ip_type node
++	local profile dhcpv6 autoconnect plmn timeout mtu $PROTO_DEFAULT_OPTIONS
+ 	local ip4table ip6table
+ 	local cid_4 pdh_4 cid_6 pdh_6
+ 	local ip_6 ip_prefix_length gateway_6 dns1_6 dns2_6
+-
+-	json_get_vars device apn auth username password pincode delay modes
+-	json_get_vars pdptype profile dhcp dhcpv6 autoconnect plmn ip4table
++	local bus slot apn_use manual 
++
++	json_get_vars device iccid bus slot apn_use apn
++	json_get_vars ip_type dhcpv6 autoconnect ip4table node
+ 	json_get_vars ip6table timeout mtu $PROTO_DEFAULT_OPTIONS
+ 
++    if ! bus_exists_in_modem "$bus"; then
++        log_debug $LINENO "modem" "bus[$bus] not ready, exit dial!"
++        proto_block_restart "$interface"
++		proto_notify_error "$interface" NO_DEVICE
++	    set_interface_dial_progress "$interface" "2"
++	    return 0
++    fi
++
++    log_info $LINENO "modem" "start dialing for bus[$bus] slot[$slot]"
++	local dial_status
++	dial_status="$(get_dial_status_retry "$bus" "$slot" 3)" || {
++    	    log_debug $LINENO "modem" "Dial status unavailable, defer dialing"
++    	    return 1
++	}
++
++        log_debug $LINENO "modem" "Current dialing status $dial_status"
++	if [ "$dial_status" != "7" ];then
++		log_info $LINENO "modem" "Current status $dial_status does not meet dialing requirements, exiting execution."
++		proto_block_restart "$interface"
++		set_interface_dial_progress "$interface" "2"
++		return 1
++	fi
++	
++	manual=$(get_sim_map_field "$iccid" manual)
++	if [ "$manual" = "true" ];then
++		ip_type=$(get_sim_map_field "$iccid" ip_type)
++		apn=$(get_sim_map_field "$iccid" apn)
++		mtu=$(get_sim_map_field "$iccid" mtu)
++		auth=$(get_sim_map_field "$iccid" auth)
++		username=$(get_sim_map_field "$iccid" username)
++		password=$(get_sim_map_field "$iccid" password)
++	fi
++
++	#profile=$(get_sim_map_field "$iccid" cid)
++	profile=$apn_use
++
++    log_info $LINENO "modem" "manual:$manual ip_type:$ip_type apn:$apn auth:$auth username:$username password:$password mtu:$mtu profile:$profile"
+ 	[ "$timeout" = "" ] && timeout="10"
+ 
+ 	[ "$metric" = "" ] && metric="0"
+ 
+ 	[ -n "$ctl_device" ] && device=$ctl_device
+ 
++	[ -n "$node" ] && {
++		devpath="$(find  /sys/devices/ -name "$node")"
++		devname="$(find "$devpath" -name  "cdc-wdm*"|head -n 1)"
++		[ -n "$devname" ] && {
++			devname=/dev/"$(basename "$devname")"
++			#fix config
++			[ "$devname" = "$device" ] || {
++					uci set network."$interface".device="${devname}"
++					uci commit
++					device="$devname"
++			}
++		}
++	}
++
+ 	[ -n "$device" ] || {
+-		echo "No control device specified"
++		log_error $LINENO "modem" "No control device specified."
+ 		proto_notify_error "$interface" NO_DEVICE
+ 		proto_set_available "$interface" 0
++		set_interface_dial_progress "$interface" "2"
+ 		return 1
+ 	}
+ 
+@@ -58,9 +111,10 @@
+ 
+ 	device="$(readlink -f $device)"
+ 	[ -c "$device" ] || {
+-		echo "The specified control device does not exist"
++		log_error $LINENO "modem" "The specified control device does not exist."
+ 		proto_notify_error "$interface" NO_DEVICE
+ 		proto_set_available "$interface" 0
++		set_interface_dial_progress "$interface" "2"
+ 		return 1
+ 	}
+ 
+@@ -68,204 +122,134 @@
+ 	devpath="$(readlink -f /sys/class/usbmisc/$devname/device/)"
+ 	ifname="$( ls "$devpath"/net )"
+ 	[ -n "$ifname" ] || {
+-		echo "The interface could not be found."
++		log_error $LINENO "modem" "The interface could not be found."
+ 		proto_notify_error "$interface" NO_IFACE
+-		proto_set_available "$interface" 0
+-		return 1
+-	}
+-
+-	[ -n "$mtu" ] && {
+-		echo "Setting MTU to $mtu"
++		#proto_set_available "$interface" 0 #Ifup-failed is triggered when the configuration is wrong, which is consistent with 3g and qcm
++		set_interface_dial_progress "$interface" "2"
++		return 1
++	}
++
++    if [ -n "$mtu" ];then
++		log_info $LINENO "modem" "Setting ifname $ifname MTU to $mtu"
+ 		/sbin/ip link set dev $ifname mtu $mtu
+-	}
+-
+-	echo "Waiting for SIM initialization"
+-	local uninitialized_timeout=0
+-	while uqmi -s -d "$device" --get-pin-status | grep '"UIM uninitialized"' > /dev/null; do
++	else
++        log_info $LINENO "modem" "Setting ifname $ifname MTU to default 1500"
++		/sbin/ip link set dev $ifname mtu 1500
++	fi
++
++	log_info $LINENO "modem" "Waiting for SIM initialization..."
++	local init_res
++
++	for i in $(seq 3); do 
++		 init_res=$(uqmi -s -t 3000 -d $device --get-pin-status)
++		 if [ "$init_res" != '"Failed to connect to service"' ]; then
++			break
++		 fi
++	done
++
++	if [ "$init_res" = '"Failed to connect to service"' ]; then
++		log_error $LINENO "modem" "Connect to service Failed."
++		set_interface_dial_progress "$interface" "3"
++		return 1
++	fi
++
++	if [ -n "$(echo $init_res | grep '"UIM uninitialized"' > /dev/null)" ]; then
+ 		[ -e "$device" ] || return 1
+-		if [ "$uninitialized_timeout" -lt "$timeout" -o "$timeout" = "0" ]; then
+-			let uninitialized_timeout++
+-			sleep 1;
+-		else
+-			echo "SIM not initialized"
+-			proto_notify_error "$interface" SIM_NOT_INITIALIZED
+-			proto_block_restart "$interface"
+-			return 1
+-		fi
+-	done
+-
+-	if uqmi -s -d "$device" --get-pin-status | grep '"Not supported"\|"Invalid QMI command"' > /dev/null; then
+-		[ -n "$pincode" ] && {
+-			uqmi -s -d "$device" --verify-pin1 "$pincode" > /dev/null || uqmi -s -d "$device" --uim-verify-pin1 "$pincode" > /dev/null || {
+-				echo "Unable to verify PIN"
+-				proto_notify_error "$interface" PIN_FAILED
+-				proto_block_restart "$interface"
+-				return 1
+-			}
+-		}
+-	else
+-		. /usr/share/libubox/jshn.sh
+-		json_load "$(uqmi -s -d "$device" --get-pin-status)"
+-		json_get_var pin1_status pin1_status
+-		json_get_var pin1_verify_tries pin1_verify_tries
+-
+-		case "$pin1_status" in
+-			disabled)
+-				echo "PIN verification is disabled"
+-				;;
+-			blocked)
+-				echo "SIM locked PUK required"
+-				proto_notify_error "$interface" PUK_NEEDED
+-				proto_block_restart "$interface"
+-				return 1
+-				;;
+-			not_verified)
+-				[ "$pin1_verify_tries" -lt "3" ] && {
+-					echo "PIN verify count value is $pin1_verify_tries this is below the limit of 3"
+-					proto_notify_error "$interface" PIN_TRIES_BELOW_LIMIT
+-					proto_block_restart "$interface"
+-					return 1
+-				}
+-				if [ -n "$pincode" ]; then
+-					uqmi -s -d "$device" --verify-pin1 "$pincode" > /dev/null 2>&1 || uqmi -s -d "$device" --uim-verify-pin1 "$pincode" > /dev/null 2>&1 || {
+-						echo "Unable to verify PIN"
+-						proto_notify_error "$interface" PIN_FAILED
+-						proto_block_restart "$interface"
+-						return 1
+-					}
+-				else
+-					echo "PIN not specified but required"
+-					proto_notify_error "$interface" PIN_NOT_SPECIFIED
+-					proto_block_restart "$interface"
+-					return 1
+-				fi
+-				;;
+-			verified)
+-				echo "PIN already verified"
+-				;;
+-			*)
+-				echo "PIN status failed ($pin1_status)"
+-				proto_notify_error "$interface" PIN_STATUS_FAILED
+-				proto_block_restart "$interface"
+-				return 1
+-			;;
+-		esac
+-	fi
+-
+-	if [ -n "$plmn" ]; then
+-		json_load "$(uqmi -s -d "$device" --get-plmn)"
+-		json_get_var plmn_mode mode
+-		json_get_vars mcc mnc || {
++		log_error $LINENO "modem" "SIM not initialized."
++		proto_notify_error "$interface" SIM_NOT_INITIALIZED
++		proto_block_restart "$interface"
++		set_interface_dial_progress "$interface" "3"
++		return 1
++	fi
++
++	[ -n "$plmn" ] && {
++		local mcc mnc
++		if [ "$plmn" = 0 ]; then
+ 			mcc=0
+ 			mnc=0
+-		}
+-
+-		if [ "$plmn" = "0" ]; then
+-			if [ "$plmn_mode" != "automatic" ]; then
+-				mcc=0
+-				mnc=0
+-				echo "Setting PLMN to auto"
++			log_info $LINENO "modem" "Setting PLMN to auto"
++		else
++			#mcc=${plmn:0:3}
++			mcc=$(echo $plmn | cut -c1-3)
++			#mnc=${plmn:3}
++			if [ ${#plmn} -eq 5 ];then
++			    mnc=$(echo $plmn | cut -c4-5)
++			else
++			    mnc=$(echo $plmn | cut -c4-6)
+ 			fi
+-		elif [ "$mcc" -ne "${plmn:0:3}" -o "$mnc" -ne "${plmn:3}" ]; then
+-			mcc=${plmn:0:3}
+-			mnc=${plmn:3}
+-			echo "Setting PLMN to $plmn"
+-		else
+-			mcc=""
+-			mnc=""
+-		fi
+-	fi
+-
+-	if [ -n "$mcc" -a -n "$mnc" ]; then
+-		uqmi -s -d "$device" --set-plmn --mcc "$mcc" --mnc "$mnc" > /dev/null 2>&1 || {
+-			echo "Unable to set PLMN"
++			log_info $LINENO "modem" "Setting PLMN to $plmn"
++		fi
++		$UQMI -s -d "$device" --set-plmn --mcc "$mcc" --mnc "$mnc" > /dev/null 2>&1 || {
++			log_error $LINENO "modem" "Unable to set PLMN."
+ 			proto_notify_error "$interface" PLMN_FAILED
+ 			proto_block_restart "$interface"
++			set_interface_dial_progress "$interface" "3"
+ 			return 1
+ 		}
+-	fi
++	}
+ 
+ 	# Cleanup current state if any
+-	uqmi -s -d "$device" --stop-network 0xffffffff --autoconnect > /dev/null 2>&1
+-
+-	# Go online
+-	uqmi -s -d "$device" --set-device-operating-mode online > /dev/null 2>&1
++	$UQMI -s -d "$device" --stop-network 0xffffffff --autoconnect > /dev/null 2>&1
+ 
+ 	# Set IP format
+-	uqmi -s -d "$device" --set-data-format 802.3 > /dev/null 2>&1
+-	uqmi -s -d "$device" --wda-set-data-format 802.3 > /dev/null 2>&1
+-	dataformat="$(uqmi -s -d "$device" --wda-get-data-format)"
++	$UQMI -s -d "$device" --set-data-format 802.3 > /dev/null 2>&1
++	$UQMI -s -d "$device" --wda-set-data-format 802.3 > /dev/null 2>&1
++	dataformat="$($UQMI -s -d "$device" --wda-get-data-format)"
+ 
+ 	if [ "$dataformat" = '"raw-ip"' ]; then
+-
+-		[ -f /sys/class/net/$ifname/qmi/raw_ip ] || {
+-			echo "Device only supports raw-ip mode but is missing this required driver attribute: /sys/class/net/$ifname/qmi/raw_ip"
+-			return 1
+-		}
+-
+-		echo "Device does not support 802.3 mode. Informing driver of raw-ip only for $ifname .."
+-		echo "Y" > /sys/class/net/$ifname/qmi/raw_ip
+-	fi
+-
+-	uqmi -s -d "$device" --sync > /dev/null 2>&1
+-
+-	uqmi -s -d "$device" --network-register > /dev/null 2>&1
+-
+-	echo "Waiting for network registration"
+-	sleep 1
+-	local registration_timeout=0
+-	local registration_state=""
+-	while true; do
+-		registration_state=$(uqmi -s -d "$device" --get-serving-system 2>/dev/null | jsonfilter -e "@.registration" 2>/dev/null)
+-
+-		[ "$registration_state" = "registered" ] && break
+-
+-		if [ "$registration_state" = "searching" ] || [ "$registration_state" = "not_registered" ]; then
+-			if [ "$registration_timeout" -lt "$timeout" ] || [ "$timeout" = "0" ]; then
+-				[ "$registration_state" = "searching" ] || {
+-					echo "Device stopped network registration. Restart network registration"
+-					uqmi -s -d "$device" --network-register > /dev/null 2>&1
+-				}
+-				let registration_timeout++
+-				sleep 1
+-				continue
+-			fi
+-			echo "Network registration failed, registration timeout reached"
++		if [ -f /sys/class/net/$ifname/qmi/raw_ip ];then
++			echo "Y" > /sys/class/net/$ifname/qmi/raw_ip
+ 		else
+-			# registration_state is 'registration_denied' or 'unknown' or ''
+-			echo "Network registration failed (reason: '$registration_state')"
+-		fi
+-
+-		proto_notify_error "$interface" NETWORK_REGISTRATION_FAILED
+-		proto_block_restart "$interface"
+-		return 1
+-	done
+-
+-	[ -n "$modes" ] && uqmi -s -d "$device" --set-network-modes "$modes" > /dev/null 2>&1
+-
+-	echo "Starting network $interface"
+-
+-	pdptype=$(echo "$pdptype" | awk '{print tolower($0)}')
+-	[ "$pdptype" = "ip" -o "$pdptype" = "ipv6" -o "$pdptype" = "ipv4v6" ] || pdptype="ip"
+-
+-	if [ "$pdptype" = "ip" ]; then
++			log_info $LINENO "modem" "Device only supports raw-ip mode but is missing this required driver attribute: /sys/class/net/$ifname/qmi/raw_ip."
++		fi
++	elif [ -n "`echo "$dataformat" | grep Failed`" ];then
++		log_error $LINENO "modem" "Failed to connect to service."
++		set_interface_dial_progress "$interface" "3"
++		return 1
++	else
++		if [ -f /sys/class/net/$ifname/qmi/raw_ip ];then
++			echo "N" > /sys/class/net/$ifname/qmi/raw_ip
++		else
++			log_info $LINENO "modem" "Device only supports 802.3 mode but is missing this required driver attribute: /sys/class/net/$ifname/qmi/raw_ip."
++		fi		
++	fi
++
++	$UQMI -s -d "$device" --sync > /dev/null 2>&1
++
++	[ -n "$modes" ] && $UQMI -s -d "$device" --set-network-modes "$modes" > /dev/null 2>&1
++
++	log_info $LINENO "modem" "Starting network $interface ..."
++	
++	if [ "$manual" = "true" ];then
++		pdptype=$(convert_ip_type $ip_type)
++	else
++		pdptype=$ip_type
++	fi
++
++        log_info $LINENO "modem" "Set ip type:$pdptype"
++	if [ "$pdptype" = "IP" ]; then
+ 		[ -z "$autoconnect" ] && autoconnect=1
+ 		[ "$autoconnect" = 0 ] && autoconnect=""
+ 	else
+ 		[ "$autoconnect" = 1 ] || autoconnect=""
+ 	fi
+ 
+-	[ "$pdptype" = "ip" -o "$pdptype" = "ipv4v6" ] && {
+-		cid_4=$(uqmi -s -d "$device" --get-client-id wds)
++    [ "$auth" = "PAP/CHAP" ] && auth="both"
++	
++	[ "$profile" = "" ] && profile=$(check_apn $bus $slot)
++    
++	[ "$pdptype" = "IP" -o "$pdptype" = "IPV4V6" ] && {
++		cid_4=$($UQMI -s -d "$device" --get-client-id wds)
+ 		if ! [ "$cid_4" -eq "$cid_4" ] 2> /dev/null; then
+-			echo "Unable to obtain client ID"
++			log_error $LINENO "modem" "Unable to obtain client ID"
+ 			proto_notify_error "$interface" NO_CID
+-			return 1
+-		fi
+-
+-		uqmi -s -d "$device" --set-client-id wds,"$cid_4" --set-ip-family ipv4 > /dev/null 2>&1
+-
+-		pdh_4=$(uqmi -s -d "$device" --set-client-id wds,"$cid_4" \
++			set_interface_dial_progress "$interface" "3"
++			return 1
++		fi
++
++		$UQMI -s -d "$device" --set-client-id wds,"$cid_4" --set-ip-family ipv4 > /dev/null 2>&1
++
++		pdh_4=$($UQMI -s -d "$device" --set-client-id wds,"$cid_4" \
+ 			--start-network \
+ 			${apn:+--apn $apn} \
+ 			${profile:+--profile $profile} \
+@@ -276,33 +260,37 @@
+ 
+ 		# pdh_4 is a numeric value on success
+ 		if ! [ "$pdh_4" -eq "$pdh_4" ] 2> /dev/null; then
+-			echo "Unable to connect IPv4"
+-			uqmi -s -d "$device" --set-client-id wds,"$cid_4" --release-client-id wds > /dev/null 2>&1
++			log_error $LINENO "modem" "Unable to connect IPv4"
++			
++			$UQMI -s -d "$device" --set-client-id wds,"$cid_4" --release-client-id wds > /dev/null 2>&1
+ 			proto_notify_error "$interface" CALL_FAILED
++			set_interface_dial_progress "$interface" "3"
+ 			return 1
+ 		fi
+ 
+ 		# Check data connection state
+-		connstat=$(uqmi -s -d "$device" --get-data-status)
+-		[ "$connstat" == '"connected"' ] || {
+-			echo "No data link!"
+-			uqmi -s -d "$device" --set-client-id wds,"$cid_4" --release-client-id wds > /dev/null 2>&1
++		connstat=$($UQMI -s -d "$device" --get-data-status)
++		[ "$connstat" = '"connected"' ] || {
++			log_error $LINENO "modem" "No data link!"
++			$UQMI -s -d "$device" --set-client-id wds,"$cid_4" --release-client-id wds > /dev/null 2>&1
+ 			proto_notify_error "$interface" CALL_FAILED
++			set_interface_dial_progress "$interface" "3"
+ 			return 1
+ 		}
+ 	}
+ 
+-	[ "$pdptype" = "ipv6" -o "$pdptype" = "ipv4v6" ] && {
+-		cid_6=$(uqmi -s -d "$device" --get-client-id wds)
++	[ "$pdptype" = "IPV6" -o "$pdptype" = "IPV4V6" ] && {
++		cid_6=$($UQMI -s -d "$device" --get-client-id wds)
+ 		if ! [ "$cid_6" -eq "$cid_6" ] 2> /dev/null; then
+-			echo "Unable to obtain client ID"
++			log_error $LINENO "modem" "Unable to obtain client ID"
+ 			proto_notify_error "$interface" NO_CID
+-			return 1
+-		fi
+-
+-		uqmi -s -d "$device" --set-client-id wds,"$cid_6" --set-ip-family ipv6 > /dev/null 2>&1
+-
+-		pdh_6=$(uqmi -s -d "$device" --set-client-id wds,"$cid_6" \
++			set_interface_dial_progress "$interface" "3"
++			return 1
++		fi
++
++		$UQMI -s -d "$device" --set-client-id wds,"$cid_6" --set-ip-family ipv6 > /dev/null 2>&1
++
++		pdh_6=$($UQMI -s -d "$device" --set-client-id wds,"$cid_6" \
+ 			--start-network \
+ 			${apn:+--apn $apn} \
+ 			${profile:+--profile $profile} \
+@@ -313,23 +301,28 @@
+ 
+ 		# pdh_6 is a numeric value on success
+ 		if ! [ "$pdh_6" -eq "$pdh_6" ] 2> /dev/null; then
+-			echo "Unable to connect IPv6"
+-			uqmi -s -d "$device" --set-client-id wds,"$cid_6" --release-client-id wds > /dev/null 2>&1
++			log_error $LINENO "modem" "Unable to connect IPv6"
++			$UQMI -s -d "$device" --set-client-id wds,"$cid_6" --release-client-id wds > /dev/null 2>&1
+ 			proto_notify_error "$interface" CALL_FAILED
+-			return 1
++			set_interface_dial_progress "$interface" "3"
++			[ "$pdptype" = "IPV6" ] && {
++				return 1
++			}
+ 		fi
+ 
+ 		# Check data connection state
+-		connstat=$(uqmi -s -d "$device" --get-data-status)
+-		[ "$connstat" == '"connected"' ] || {
+-			echo "No data link!"
+-			uqmi -s -d "$device" --set-client-id wds,"$cid_6" --release-client-id wds > /dev/null 2>&1
++		connstat=$($UQMI -s -d "$device" --get-data-status)
++		[ "$connstat" = '"connected"' ] || {
++			log_error $LINENO "modem" "No data link!"
++			$UQMI -s -d "$device" --set-client-id wds,"$cid_6" --release-client-id wds > /dev/null 2>&1
+ 			proto_notify_error "$interface" CALL_FAILED
++			set_interface_dial_progress "$interface" "3"
+ 			return 1
+ 		}
+ 	}
+ 
+-	echo "Setting up $ifname"
++	log_info $LINENO "modem" "Setting up $ifname"
++	
+ 	proto_init_update "$ifname" 1
+ 	proto_set_keep 1
+ 	proto_add_data
+@@ -347,8 +340,9 @@
+ 	local zone="$(fw3 -q network "$interface" 2>/dev/null)"
+ 
+ 	[ -n "$pdh_6" ] && {
++		dhcpv6="1"
+ 		if [ -z "$dhcpv6" -o "$dhcpv6" = 0 ]; then
+-			json_load "$(uqmi -s -d $device --set-client-id wds,$cid_6 --get-current-settings)"
++			json_load "$($UQMI -s -d $device --set-client-id wds,$cid_6 --get-current-settings)"
+ 			json_select ipv6
+ 			json_get_var ip_6 ip
+ 			json_get_var gateway_6 gateway
+@@ -373,57 +367,31 @@
+ 			}
+ 			proto_send_update "$interface"
+ 		else
+-			json_init
+-			json_add_string name "${interface}_6"
+-			json_add_string ifname "@$interface"
+-			json_add_string proto "dhcpv6"
+-			[ -n "$ip6table" ] && json_add_string ip6table "$ip6table"
+-			proto_add_dynamic_defaults
+-			# RFC 7278: Extend an IPv6 /64 Prefix to LAN
+-			json_add_string extendprefix 1
+-			[ -n "$zone" ] && json_add_string zone "$zone"
+-			json_close_object
+-			ubus call network add_dynamic "$(json_dump)"
++			if [ "$(uci get glipv6.lan.mode)" = "relay" ] && [ "$(uci get dhcp.${interface}_6)" != "dhcp" ];then
++				uci set dhcp.${interface}_6='dhcp'
++				uci set dhcp.${interface}_6.interface="${interface}_6"
++				uci set dhcp.${interface}_6.dhcpv6="relay"
++				uci set dhcp.${interface}_6.ra="relay"
++				uci set dhcp.${interface}_6.ndp="relay"
++				uci set dhcp.${interface}_6.master="1"
++				uci commit dhcp
++				/etc/init.d/dnsmasq restart &
++			fi
+ 		fi
+ 	}
+ 
+ 	[ -n "$pdh_4" ] && {
+-		if [ "$dhcp" = 0 ]; then
+-			json_load "$(uqmi -s -d $device --set-client-id wds,$cid_4 --get-current-settings)"
+-			json_select ipv4
+-			json_get_var ip_4 ip
+-			json_get_var gateway_4 gateway
+-			json_get_var dns1_4 dns1
+-			json_get_var dns2_4 dns2
+-			json_get_var subnet_4 subnet
+-
+-			proto_init_update "$ifname" 1
+-			proto_set_keep 1
+-			proto_add_ipv4_address "$ip_4" "$subnet_4"
+-			proto_add_ipv4_route "$gateway_4" "128"
+-			[ "$defaultroute" = 0 ] || proto_add_ipv4_route "0.0.0.0" 0 "$gateway_4"
+-			[ "$peerdns" = 0 ] || {
+-				proto_add_dns_server "$dns1_4"
+-				proto_add_dns_server "$dns2_4"
+-			}
+-			[ -n "$zone" ] && {
+-				proto_add_data
+-				json_add_string zone "$zone"
+-				proto_close_data
+-			}
+-			proto_send_update "$interface"
+-		else
+-			json_init
+-			json_add_string name "${interface}_4"
+-			json_add_string ifname "@$interface"
+-			json_add_string proto "dhcp"
+-			[ -n "$ip4table" ] && json_add_string ip4table "$ip4table"
+-			proto_add_dynamic_defaults
+-			[ -n "$zone" ] && json_add_string zone "$zone"
+-			json_close_object
+-			ubus call network add_dynamic "$(json_dump)"
+-		fi
+-	}
++		json_init
++		json_add_string name "${interface}_4"
++		json_add_string ifname "@$interface"
++		json_add_string proto "dhcp"
++		[ -n "$ip4table" ] && json_add_string ip4table "$ip4table"
++		proto_add_dynamic_defaults
++		[ -n "$zone" ] && json_add_string zone "$zone"
++		json_close_object
++		ubus call network add_dynamic "$(json_dump)"
++	}
++
+ }
+ 
+ qmi_wds_stop() {
+@@ -432,16 +400,16 @@
+ 
+ 	[ -n "$cid" ] || return
+ 
+-	uqmi -s -d "$device" --set-client-id wds,"$cid" \
++	$UQMI -s -d "$device" --set-client-id wds,"$cid" \
+ 		--stop-network 0xffffffff \
+ 		--autoconnect > /dev/null 2>&1
+ 
+ 	[ -n "$pdh" ] && {
+-		uqmi -s -d "$device" --set-client-id wds,"$cid" \
++		$UQMI -s -d "$device" --set-client-id wds,"$cid" \
+ 			--stop-network "$pdh" > /dev/null 2>&1
+ 	}
+ 
+-	uqmi -s -d "$device" --set-client-id wds,"$cid" \
++	$UQMI -s -d "$device" --set-client-id wds,"$cid" \
+ 		--release-client-id wds > /dev/null 2>&1
+ }
+ 
+@@ -453,7 +421,7 @@
+ 
+ 	[ -n "$ctl_device" ] && device=$ctl_device
+ 
+-	echo "Stopping network $interface"
++	log_info $LINENO "modem" "Stopping network $interface"
+ 
+ 	json_load "$(ubus call network.interface.$interface status)"
+ 	json_select data
+--- a/lib/upgrade/stage2
++++ b/lib/upgrade/stage2
+@@ -36,7 +36,7 @@
+ 	for binary in \
+ 		/bin/busybox /bin/ash /bin/sh /bin/mount /bin/umount	\
+ 		pivot_root mount_root reboot sync kill sleep		\
+-		md5sum hexdump cat zcat bzcat dd tar			\
++		md5sum hexdump cat zcat bzcat dd tar pidof xargs	\
+ 		ls basename find cp mv rm mkdir rmdir mknod touch chmod \
+ 		'[' printf wc grep awk sed cut				\
+ 		mtd partx losetup mkfs.ext4 nandwrite flash_erase	\
+@@ -73,6 +73,7 @@
+ 	local loop="${2:-0}"
+ 	local run=true
+ 	local stat
++	local check_screen
+ 	local proc_ppid=$(cut -d' ' -f4  /proc/$$/stat)
+ 
+ 	vn "Sending $sig to remaining processes ..."
+@@ -94,6 +95,8 @@
+ 
+ 			# Skip kernel threads
+ 			[ -n "$cmdline" ] || continue
++			check_screen=$(echo "$cmdline" | grep "/usr/bin/gl_screen")
++			[ "$check_screen" != "" ] && continue
+ 
+ 			_vn " $name"
+ 			kill -$sig $pid 2>/dev/null
+--- a/sbin/sysupgrade
++++ b/sbin/sysupgrade
+@@ -1,8 +1,12 @@
+ #!/bin/sh
++
++# shellcheck disable=SC3043
++# shellcheck disable=SC2164
+ 
+ . /lib/functions.sh
+ . /lib/functions/system.sh
+ . /usr/share/libubox/jshn.sh
++. /lib/functions/gl_util.sh
+ 
+ # initialize defaults
+ export MTD_ARGS=""
+@@ -248,7 +252,7 @@
+ 			\( -exec test -f /rom/{} \; -exec echo {} rom \; \) -o \
+ 			\( -exec test -f /overlay/upper/{} \; -exec echo {} overlay \; \) -o \
+ 			\( -exec echo {} unknown \; \) \
+-			\) | sed -e 's,.*/,,;s/\.control /\t/' > ${INSTALLED_PACKAGES}
++			\) | sed -e 's,.*/,,;s/\.control /\t/' | grep -v "rom$" | cut -f1 |tr "\n" " " > ${INSTALLED_PACKAGES}
+ 	fi
+ 
+ 	v "Saving config files..."
+@@ -357,10 +361,16 @@
+ 	exit 0
+ fi
+ 
++fw_printenv > /dev/null
++
+ install_bin /sbin/upgraded
+ v "Commencing upgrade. Closing all shell sessions."
+ 
+-COMMAND='/lib/upgrade/do_stage2'
++if [ -e /lib/upgrade/do_stage2 ];then
++	COMMAND='/lib/upgrade/do_stage2'
++else
++	COMMAND='. /lib/functions.sh; include /lib/upgrade; do_upgrade_stage2'
++fi
+ 
+ if [ -n "$FAILSAFE" ]; then
+ 	printf '%s\x00%s\x00%s' "$RAM_ROOT" "$IMAGE" "$COMMAND" >/tmp/sysupgrade
+@@ -376,5 +386,9 @@
+ 	json_add_int save_partitions "$SAVE_PARTITIONS"
+ 	json_close_object
+ 
++	sysupgrade_mcu_screen_display
++
++	sysupgrade_led_display
++	for i in $(ps | grep eco | grep -v grep | awk '{print $1}'); do  kill -9 $i; done
+ 	ubus call system sysupgrade "$(json_dump)"
+ fi

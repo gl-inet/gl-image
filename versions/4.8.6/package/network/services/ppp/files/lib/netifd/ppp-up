@@ -12,6 +12,12 @@ proto_set_keep 1
 }
 proto_send_update "$PPP_IPPARAM"
 
+reset_fail_count() {
+    echo "0" > /tmp/pppoe_fail_count
+}
+
+reset_fail_count
+
 [ -d /etc/ppp/ip-up.d ] && {
 	for SCRIPT in /etc/ppp/ip-up.d/*
 	do

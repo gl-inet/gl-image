@@ -26,14 +26,32 @@ dependencies. Then run:
 ```sh
 ./scripts/feeds update -a
 ./scripts/feeds install -a
-cp configs/gl-be10000-open-source.config .config
 make defconfig
-make -j1
+make prereq
+make -j"$(nproc)"
 ```
 
+The included `.config` defaults to the CCS-validation configuration, so no
+configuration copy is needed. Update and install feeds successfully before
+running `make defconfig`, which otherwise may remove unavailable feed packages.
 The sysupgrade image is generated under `bin/targets/mediatek/mt7987/`.
 Do not change the kernel version or ABI-relevant kernel configuration unless
 matching MediaTek runtime modules are supplied for the new ABI.
+
+For the complete release-specific build, CCS validation, source mapping and
+installation instructions, read `GL-BE10000_FIRMWARE_GUIDE.md`. The generic
+OpenWrt Quickstart below is for development and does not reproduce the shipping
+firmware by itself.
+
+## Build Configuration Files
+
+The release includes a ready-to-use default and reference configurations:
+
+- `configs/gl-be10000-baseline.config`: captured from the internal shipping build for audit and comparison only; it is not a standalone customer-buildable configuration.
+- `.config`: default CCS-validation build configuration. Retained public GPL/copyleft components are enabled; independent proprietary applications and Web UI are excluded.
+- `configs/gl-be10000-ccs-validation.config`: release template for restoring the default configuration after customization or cleanup.
+- `configs/gl-be10000-open-source.config`: compatibility template with the same configuration options as the CCS-validation template in this release.
+- `configs/gl-be10000-shipping-kernel.config`: shipping kernel configuration retained for kernel correspondence and ABI review, not a top-level OpenWrt build configuration.
 
 ## OpenWrt
 

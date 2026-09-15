@@ -35,18 +35,31 @@ subversion libz-dev libc-dev rsync which
 
 ### Quickstart
 
-1. Run `./scripts/feeds update -a` to obtain all the latest package definitions
-   defined in feeds.conf / feeds.conf.default
+For GL-BE10000, enter the required release directory under `versions/` and
+run these commands in order:
 
-2. Run `./scripts/feeds install -a` to install symlinks for all obtained
-   packages into package/feeds/
+```sh
+./scripts/feeds update -a
+./scripts/feeds install -a
+make defconfig
+make prereq
+make -j"$(nproc)"
+```
 
-3. Run `make menuconfig` to select your preferred configuration for the
-   toolchain, target system & firmware packages.
+Each release directory includes a default `.config` matching its CCS-validation
+configuration. No configuration copy is needed for the default build.
 
-4. Run `make` to build your firmware. This will download all sources, build the
-   cross-compile toolchain and then cross-compile the GNU/Linux kernel & all chosen
-   applications for your target system.
+Ensure feed updates and installation complete successfully before running
+`make defconfig`. Otherwise, package selections from
+unavailable feeds, such as `kmod-amneziawg`, can be removed from `.config`.
+The feeds are pinned to release revisions; keep those revisions unchanged.
+
+The default build includes the retained public GPL/copyleft components and
+excludes independent GL.iNet proprietary applications and Web UI. The named
+CCS-validation template is retained for restoring defaults; the open-source
+template currently selects the same options. The baseline configuration is for
+audit and comparison only. See the release guide linked above for restoring
+defaults, build environment requirements and installation instructions.
 
 ### Related Repositories
 

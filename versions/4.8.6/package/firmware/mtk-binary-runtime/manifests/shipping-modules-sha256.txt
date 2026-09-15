@@ -1,0 +1,6 @@
+1941b720b2f01253a25d70e22900ea68c3a6624ca982a6fd62722c0d1e29963d  lib/modules/5.4.281/mapfilter.ko
+40e0588dc2dc1a27860468a164efc5af7ef3292385ebe65c06c7b978abddd27f  lib/modules/5.4.281/mt_wifi.ko
+8846feb1f4e9b02512012f1d69c13bbf31a0cb26315f1bc9eae8fd4cace95abe  lib/modules/5.4.281/mt_wifi_osal.ko
+bc755fd84d6226f2b15504f569a59199e073e7b8f0e57aa745b636de3f6f208a  lib/modules/5.4.281/mtfwd.ko
+034170c2209f9ff78043de57ca6ad60dc4d1a71c3738ec6d36948c0fad5319ee  lib/modules/5.4.281/mtk_hwifi.ko
+f9e1cf065658db48bcc54339555bbdeb6771168582d75e99f836e14bd7fe57e9  lib/modules/5.4.281/mtqos.ko

@@ -1,0 +1,28 @@
+From a84791c6651285c51b791c620913bcd31f50f7ea Mon Sep 17 00:00:00 2001
+From: "jiajun.wang" <jiajun.wang@gl-inet.com>
+Date: Tue, 11 Nov 2025 17:44:06 +0800
+Subject: [PATCH] feat: add support iwinfo to get stainfo for be10000.
+ #SDK-18903
+
+add support iwinfo to get stainfo for be10000.
+
+Signed-off-by: jiajun.wang <jiajun.wang@gl-inet.com>
+---
+ net/wireless/chan.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/net/wireless/chan.c b/net/wireless/chan.c
+index f8348bc..9656fcc 100644
+--- a/net/wireless/chan.c
++++ b/net/wireless/chan.c
+@@ -1499,6 +1499,7 @@ struct cfg80211_chan_def *wdev_chandef(struct wireless_dev *wdev,
+ 	case NL80211_IFTYPE_OCB:
+ 		return &wdev->u.ocb.chandef;
+ 	case NL80211_IFTYPE_AP:
++	case NL80211_IFTYPE_STATION:
+ 	case NL80211_IFTYPE_P2P_GO:
+ 		return &wdev->links[link_id].ap.chandef;
+ 	default:
+-- 
+2.34.1
+

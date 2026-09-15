@@ -9,15 +9,22 @@
  		goto resume;
  
  	do {
-@@ -570,12 +570,10 @@ int xfrm_output(struct sock *sk, struct
+@@ -570,12 +570,20 @@ int xfrm_output(struct sock *sk, struct
  
  	if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET) {
  		if (!xfrm_dev_offload_ok(skb, x)) {
--			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
--			kfree_skb(skb);
--			return -EHOSTUNREACH;
 +			secpath_reset(skb);
 +			goto sw_path;
++		}
++
++		/*
++		 * This is just a workaround to mark the packet
++		 * which needs to be free with packet offload
++		 */
++		if (skb->inner_protocol == IPPROTO_RSVP) {
+ 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
+ 			kfree_skb(skb);
+ 			return -EHOSTUNREACH;
  		}
 -
 -		return xfrm_output_resume(skb, 0);
@@ -25,7 +32,7 @@
  	}
  
  	secpath_reset(skb);
-@@ -606,6 +604,7 @@ int xfrm_output(struct sock *sk, struct
+@@ -606,6 +614,7 @@ int xfrm_output(struct sock *sk, struct
  		if (x->xso.dev && x->xso.dev->features & NETIF_F_HW_ESP_TX_CSUM)
  			goto out;
  	} else {
@@ -35,18 +42,20 @@
  	}
 --- a/net/xfrm/xfrm_policy.c
 +++ b/net/xfrm/xfrm_policy.c
-@@ -3701,6 +3701,10 @@ int __xfrm_policy_check(struct sock *sk,
+@@ -3701,6 +3701,12 @@ int __xfrm_policy_check(struct sock *sk,
  		}
  	}
  #endif
 +	/* Inbound HW offload packets, pass the check directly */
 +	if (pol->xdo.type == XFRM_DEV_OFFLOAD_PACKET &&
-+	    (pol->xdo.dir == XFRM_DEV_OFFLOAD_IN || pol->xdo.dir == XFRM_DEV_OFFLOAD_FWD))
++	    (pol->xdo.dir == XFRM_DEV_OFFLOAD_IN || pol->xdo.dir == XFRM_DEV_OFFLOAD_FWD)) {
++		xfrm_pols_put(pols, npols);
 +		return 1;
++	}
  
  	if (pol->action == XFRM_POLICY_ALLOW) {
  		static struct sec_path dummy;
-@@ -3710,6 +3714,14 @@ int __xfrm_policy_check(struct sock *sk,
+@@ -3710,6 +3716,16 @@ int __xfrm_policy_check(struct sock *sk,
  		int ti = 0;
  		int i, k;
  
@@ -55,8 +64,10 @@
 +		 * state here and will be drop. So, we bypass following
 +		 * check for FWD policy with acction allow.
 +		 */
-+		if (dir == XFRM_POLICY_FWD)
++		if (dir == XFRM_POLICY_FWD) {
++			xfrm_pols_put(pols, npols);
 +			return 1;
++		}
 +
  		sp = skb_sec_path(skb);
  		if (!sp)

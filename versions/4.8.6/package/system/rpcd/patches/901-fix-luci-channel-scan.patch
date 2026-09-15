@@ -1,8 +1,22 @@
---- a/iwinfo.c
-+++ b/iwinfo.c
-@@ -97,4 +97,4 @@
- static void
- rpc_iwinfo_call_int(const char *name, int (*func)(const char *, int *),
--                    const char **map)
-+                    const char * const *map)
- {
+Index: rpcd-2022-02-19-8d26a1ba/iwinfo.c
+===================================================================
+--- rpcd-2022-02-19-8d26a1ba.orig/iwinfo.c
++++ rpcd-2022-02-19-8d26a1ba/iwinfo.c
+@@ -69,7 +69,16 @@ __rpc_iwinfo_open(struct blob_attr *devi
+ 	if (!device)
+ 		return UBUS_STATUS_INVALID_ARGUMENT;
+ 
+-	ifname = blobmsg_data(device);
++	const char *ifname_t = blobmsg_data(device);
++	if (!strcmp(ifname_t, "MT7990_1_1"))
++		ifname = "ra15";
++	else if (!strcmp(ifname_t, "MT7990_1_2"))
++		ifname = "rai15";
++	else if (!strcmp(ifname_t, "MT7990_1_3"))
++		ifname = "rax15";
++	else
++		ifname = ifname_t;
++
+ 	iw = iwinfo_backend(ifname);
+ 
+ 	return iw ? UBUS_STATUS_OK : UBUS_STATUS_NOT_FOUND;

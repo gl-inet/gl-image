@@ -1,0 +1,79 @@
+{
+  "status": "source-patch-verified; default-build-hook-not-enabled",
+  "shipping_firmware": "be10000-4.8.6_release1-1001-0723-1784782120.bin",
+  "shipping_firmware_sha256": "ea53fc7dc71c80df659792005dffbc60bc095fa062486ff98c031afb66fa3892",
+  "public_firmware_sha256": "d8b36811fe133d943a35adf54ceb5ad64165b29e440a12dfad8c8dfbdf622057",
+  "patch_sha256": "e10ae6bc2d15869926974be50a816a72319de90f747c2d569e331698dd609cf4",
+  "files": [
+    {
+      "image_path": "/etc/hotplug.d/block/10-mount",
+      "shipping_source_path": "feeds/glinet/gl-sdk4-base-files/files/etc/hotplug.d/block/10-mount",
+      "public_sha256": "813b089ab1c966c724c9508236e302b81d9e4bcfd6c5572484e1d135db2f2499",
+      "shipping_sha256": "50e249b12651e6d09c82c4ed9d15bda58c5a2ae1721182a6de98e3d761c08b2e"
+    },
+    {
+      "image_path": "/etc/init.d/boot",
+      "shipping_source_path": "package/base-files/files/etc/init.d/boot",
+      "public_sha256": "0ee86e3166c3a119592876824f7cab6e38a756c5b1e886e777709bafda2aa2b3",
+      "shipping_sha256": "b12fe4613f3bbafaa248807758c4db0991f51568935fbbe7dfbfd0d275616a71"
+    },
+    {
+      "image_path": "/etc/rc.button/reset",
+      "shipping_source_path": "feeds/glinet/gl-sdk4-base-files/files/etc/rc.button/reset",
+      "public_sha256": "f58a639fd649767572f345b628960d5694ff51cd4dc829474d2651ad63a51adb",
+      "shipping_sha256": "831750efb5623de0594cd25bbdc6651ec1417fed6b4d75ddd700b58ab00859e6"
+    },
+    {
+      "image_path": "/etc/uci-defaults/99-firewall",
+      "shipping_source_path": "feeds/glinet/gl-sdk4-base-files/files/etc/uci-defaults/99-firewall",
+      "public_sha256": "1dfc767611d2c5a3f19effc32caf02b9c507758b28f3ae7e800441d8739d03fa",
+      "shipping_sha256": "a029e8519b91d6eb33aa0f5e14c6ded5f688f777d7c92d70326ec2b065f0f019"
+    },
+    {
+      "image_path": "/lib/netifd/proto/3g.sh",
+      "shipping_source_path": "feeds/glinet/gl-sdk4-cellular/cellular/platform/OpenWRT/files/lib/netifd/proto/3g.sh",
+      "public_sha256": "6e0f47992fec74cf8deab29ae30cc3b1ce0dd367ed46b3bbce525dd512f49c9b",
+      "shipping_sha256": "609a0adefddf159d9c0019e3dd7fb86dd3d162594846b1091c0a2f6328884532"
+    },
+    {
+      "image_path": "/lib/netifd/proto/ncm.sh",
+      "shipping_source_path": "feeds/glinet/gl-sdk4-cellular/cellular/platform/OpenWRT/files/lib/netifd/proto/ncm.sh",
+      "public_sha256": "1705a3d6caa4e022d20850e48dfd07aa42bde7112e4e9ca116389ffe13b4d1c6",
+      "shipping_sha256": "2198b3c4106fcc3816743297fd225f9c09a42245101f4f8a265928370745509f"
+    },
+    {
+      "image_path": "/lib/netifd/proto/qmi.sh",
+      "shipping_source_path": "feeds/glinet/gl-sdk4-cellular/cellular/platform/OpenWRT/files/lib/netifd/proto/qmi.sh",
+      "public_sha256": "03507c294c2a414ff7fbcc9ac5fc9e43447d3b16432d8f4530cdbc4b84b37822",
+      "shipping_sha256": "4ffb8287f8f0cc87d3213044d47c1a72b94237063eb261b3b7e245c2329c1af6"
+    },
+    {
+      "image_path": "/lib/upgrade/stage2",
+      "shipping_source_path": "package/base-files/files/lib/upgrade/stage2",
+      "public_sha256": "5a380e22e36e7bf3bebe835acc800b9ab447255943b63258031b4b85ad9e4000",
+      "shipping_sha256": "5c46952d259425973bc9f9e36e3327d20bfab6b3a235b0c09ef98b08a7581e07"
+    },
+    {
+      "image_path": "/sbin/sysupgrade",
+      "shipping_source_path": "feeds/glinet/gl-sdk4-base-files/files/sbin/sysupgrade",
+      "public_sha256": "639edd69a987c7b3d5604c67a174196e5c2c0e47cbb7a7bfd4027fcf08c24aa0",
+      "shipping_sha256": "c3af162e78ccfee75fe6da04addd08d48241761e07f498ba54629f9200928083"
+    }
+  ],
+  "verification": [
+    "forward dry-run without fuzz",
+    "all nine outputs match shipping bytes",
+    "reverse dry-run",
+    "bash -n passed for all 9 scripts; not an ash or runtime test"
+  ],
+  "runtime_blockers": [
+    "reset and sysupgrade source /lib/functions/gl_util.sh, absent in public rootfs",
+    "3g/ncm/qmi source modem.sh, which additionally sources gl_log.sh; both absent",
+    "modem.sh requires cellular.modem and cellular.cm for dial readiness, not just a shell library",
+    "GL reset functions also call gl_screen, gl-session and GL LED services"
+  ],
+  "excluded": [
+    "mptun: Lua source-path-only difference",
+    "private service binaries and C sources"
+  ]
+}

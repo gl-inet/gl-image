@@ -3,7 +3,8 @@
 .*.swp
 /env
 /dl
-/.config
+# Include the release default configuration; keep generated backups ignored.
+!/.config
 /.config.old
 /bin
 /build_dir

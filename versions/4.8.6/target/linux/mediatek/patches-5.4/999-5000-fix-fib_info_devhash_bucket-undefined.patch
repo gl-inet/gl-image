@@ -1,0 +1,12 @@
+Index: linux-5.4.281/include/net/ip_fib.h
+===================================================================
+--- linux-5.4.281.orig/include/net/ip_fib.h
++++ linux-5.4.281/include/net/ip_fib.h
+@@ -433,6 +433,7 @@ const struct net_device *dev)
+ }
+ 
+ /* Exported by fib_semantics.c */
++struct hlist_head *fib_info_devhash_bucket(const struct net_device *dev);
+ int ip_fib_check_default(__be32 gw, struct net_device *dev);
+ int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force);
+ int fib_sync_down_addr(struct net_device *dev, __be32 local);

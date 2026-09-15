@@ -1,0 +1,42 @@
+From 0be87a7f24767349b3f551d0f8daa2b39b208ce9 Mon Sep 17 00:00:00 2001
+From: Fang Zhao <fang.zhao@mediatek.com>
+Date: Mon, 7 Jul 2025 15:58:56 +0800
+Subject: [PATCH] add aid support in station info for hostapd WDS.
+
+---
+ include/net/cfg80211.h | 1 +
+ net/wireless/nl80211.c | 6 ++++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
+index d6898f6..9389400 100644
+--- a/include/net/cfg80211.h
++++ b/include/net/cfg80211.h
+@@ -2103,6 +2103,7 @@ struct station_info {
+ 	u8 mld_addr[ETH_ALEN] __aligned(2);
+ 	const u8 *assoc_resp_ies;
+ 	size_t assoc_resp_ies_len;
++	u16 aid;
+ };
+ 
+ /**
+diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
+index 71d87d0..add25eb 100644
+--- a/net/wireless/nl80211.c
++++ b/net/wireless/nl80211.c
+@@ -6722,6 +6722,12 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
+ 			goto nla_put_failure;
+ 	}
+ 
++	if (sinfo->aid) {
++		if (nla_put_u16(msg, NL80211_ATTR_STA_AID,
++		    	sinfo->aid))
++			goto nla_put_failure;
++	}
++
+ 	cfg80211_sinfo_release_content(sinfo);
+ 	genlmsg_end(msg, hdr);
+ 	return 0;
+-- 
+2.45.2
+

@@ -1,0 +1,13 @@
+Index: linux-5.4.281/net/ipv4/fib_semantics.c
+===================================================================
+--- linux-5.4.281.orig/net/ipv4/fib_semantics.c
++++ linux-5.4.281/net/ipv4/fib_semantics.c
+@@ -329,7 +329,7 @@ static inline unsigned int fib_devindex_
+ 	return hash_32(val, DEVINDEX_HASHBITS);
+ }
+ 
+-static struct hlist_head *
++struct hlist_head *
+ fib_info_devhash_bucket(const struct net_device *dev)
+ {
+ 	u32 val = net_hash_mix(dev_net(dev)) ^ dev->ifindex;

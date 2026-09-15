@@ -14,12 +14,6 @@ mediatek_setup_interfaces()
 		ucidef_add_switch "switch0" \
 			"0:lan" "1:lan" "2:lan" "3:lan" "4:wan" "6u@eth0" "5u@eth1"
 		;;
-	*be10000*)
-		ucidef_set_interfaces_lan_wan eth1 eth0
-		;;
-	*mt3600be*)
-		ucidef_set_interfaces_lan_wan eth1 eth0
-		;;
 	*gsw*|*cob*)
 		ucidef_set_interfaces_lan_wan "eth0 eth2" eth1
 		;;
@@ -29,12 +23,11 @@ mediatek_setup_interfaces()
 	*1g-wan*)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 eth1 eth2" wan
 		;;
-	*mt5000*)
-		ucidef_set_interfaces_lan_wan "eth0.1" eth1
-		ucidef_add_switch "switch0"
-		ucidef_add_switch_attr "switch0" "enable" true
-		ucidef_add_switch "switch0" "0:lan" "1:lan" "17@eth0"
-		ucidef_add_switch_attr "switch0" "reset" false
+	*be10000*)
+		ucidef_set_interfaces_lan_wan eth1 eth0
+		;;
+	*be5100*)
+		ucidef_set_interfaces_lan_wan eth1 eth0
 		;;
 	*)
 		ucidef_set_interfaces_lan_wan "lan0 lan1 lan2 lan3 eth2" eth1
@@ -42,9 +35,10 @@ mediatek_setup_interfaces()
 	esac
 }
 
+
 find_factory_partition() {
 	for device in /sys/class/block/mmcblk0p*; do
-		if grep -qi 'factory' "$device/uevent"; then
+		if grep -qi 'Factory' "$device/uevent"; then
 			# Extract the partition number
 			part=$(echo "$device" | grep -o 'mmcblk0p[0-9]*')
 			echo "$part"
@@ -67,10 +61,7 @@ mediatek_setup_macs()
 	*be10000*)
 		wan_mac_offset="0x4000"
 		;;
-	*mt3600be*)
-		wan_mac_offset="0x4000"
-		;;
-	*mt5000*)
+	*be5100*)
 		wan_mac_offset="0x4000"
 		;;
 	*)
@@ -84,9 +75,9 @@ mediatek_setup_macs()
 	local factory_part=$(find_factory_partition)
 	if [ -n "$factory_part" ]; then
 		# For eMMC/SD
-		lan2_mac=$(get_mac_binary /dev/$factory_part $lan2_mac_offset)
-		lan_mac=$(get_mac_binary /dev/$factory_part $lan_mac_offset)
-		wan_mac=$(get_mac_binary /dev/$factory_part $wan_mac_offset)
+		lan2_mac=$(get_mac_binary "/dev/$factory_part" $lan2_mac_offset)
+		lan_mac=$(get_mac_binary "/dev/$factory_part" $lan_mac_offset)
+		wan_mac=$(get_mac_binary "/dev/$factory_part" $wan_mac_offset)
 	else
 		# For NAND/NOR
 		lan2_mac=$(mtd_get_mac_binary $part_name $lan2_mac_offset)
@@ -95,15 +86,11 @@ mediatek_setup_macs()
 	fi
 
 	case $board in
-	glinet,gl-be10000)
+	*be10000*)
 		lan2_mac=""
 		lan_mac=$(macaddr_add "$wan_mac" 1)
 		;;
-	glinet,gl-mt3600be)
-		lan2_mac=""
-		lan_mac=$(macaddr_add "$wan_mac" 1)
-		;;
-	glinet,gl-mt5000)
+	glinet,gl-be5100)
 		lan2_mac=""
 		lan_mac=$(macaddr_add "$wan_mac" 2)
 		;;

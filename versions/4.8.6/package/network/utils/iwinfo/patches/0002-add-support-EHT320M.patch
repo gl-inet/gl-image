@@ -1,0 +1,45 @@
+From 0192da8362089b461d11f04351b89f2a001ef75f Mon Sep 17 00:00:00 2001
+From: "jiajun.wang" <jiajun.wang@gl-inet.com>
+Date: Wed, 12 Nov 2025 09:15:36 +0800
+Subject: [PATCH] feat: add support EHT320M. #SDK-18903
+
+add support EHT320M
+
+Signed-off-by: jiajun.wang <jiajun.wang@gl-inet.com>
+---
+ api/nl80211.h    | 1 +
+ iwinfo_nl80211.c | 6 ++++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/api/nl80211.h b/api/nl80211.h
+index c2efea9..fc6420d 100644
+--- a/api/nl80211.h
++++ b/api/nl80211.h
+@@ -4615,6 +4615,7 @@ enum nl80211_chan_width {
+ 	NL80211_CHAN_WIDTH_4,
+ 	NL80211_CHAN_WIDTH_8,
+ 	NL80211_CHAN_WIDTH_16,
++	NL80211_CHAN_WIDTH_320,
+ };
+ 
+ /**
+diff --git a/iwinfo_nl80211.c b/iwinfo_nl80211.c
+index 92e745c..b0a5dc7 100644
+--- a/iwinfo_nl80211.c
++++ b/iwinfo_nl80211.c
+@@ -3390,6 +3390,12 @@ static int nl80211_get_htmode(const char *ifname, int *buf)
+ 		else
+ 			*buf = IWINFO_HTMODE_VHT160;
+ 		break;
++	case NL80211_CHAN_WIDTH_320:
++		if (be)
++			*buf = IWINFO_HTMODE_EHT320;
++		else
++			return -1;
++		break;
+ 	case NL80211_CHAN_WIDTH_5:
+ 	case NL80211_CHAN_WIDTH_10:
+ 	case NL80211_CHAN_WIDTH_20_NOHT:
+-- 
+2.34.1
+
