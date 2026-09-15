@@ -1,0 +1,16 @@
+diff --git a/src/ap/neighbor_db.c b/src/ap/neighbor_db.c
+index ccb3e3c..be48d18 100644
+--- a/src/ap/neighbor_db.c
++++ b/src/ap/neighbor_db.c
+@@ -492,8 +492,10 @@ int add_stapro_neighbor_rep(struct hostapd_data *hapd, u8 *nei_rep,
+ 						if (other_id1 >= 0) {
+ 							sta_ctrl |= other_id1 & 0x0f;
+ 							other_id1 = -1;
+-						} else
++						} else {
++							sta_ctrl = 0;
+ 							sta_ctrl |= other_id2 & 0x0f;
++						}
+ 						sta_ctrl |= 0 << 4;  //ml.profiles[i].complete_profile << 4;
+ 						sta_ctrl |= 0 << 5;  //ml.profiles[i].mac_addr_present << 5;
+ 						sta_ctrl |= 0 << 6;  //ml.profiles[i].bcn_intvl_present << 6;

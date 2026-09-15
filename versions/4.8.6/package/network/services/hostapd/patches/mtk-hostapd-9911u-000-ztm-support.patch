@@ -1,0 +1,452 @@
+diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
+index b4336e6..2a87007 100644
+--- a/hostapd/ctrl_iface.c
++++ b/hostapd/ctrl_iface.c
+@@ -3465,6 +3465,11 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+ 	} else if (os_strncmp(buf, "BSS_TM_REQ ", 11) == 0) {
+ 		if (hostapd_ctrl_iface_bss_tm_req(hapd, buf + 11))
+ 			reply_len = -1;
++/*CCN67_ANQP*/
++	} else if (os_strncmp(buf, "RKS_RESP ", 9) == 0) {
++		if (hostapd_ctrl_iface_rks_resp(hapd, buf + 9))
++			reply_len = -1;
++/*CCN67_ANQP*/
+ 	} else if (os_strncmp(buf, "COLOC_INTF_REQ ", 15) == 0) {
+ 		if (hostapd_ctrl_iface_coloc_intf_req(hapd, buf + 15))
+ 			reply_len = -1;
+diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
+index d99e39c..d29a1b8 100644
+--- a/hostapd/hostapd_cli.c
++++ b/hostapd/hostapd_cli.c
+@@ -683,6 +683,33 @@ static int hostapd_cli_cmd_ess_disassoc(struct wpa_ctrl *ctrl, int argc,
+ 	return wpa_ctrl_command(ctrl, buf);
+ }
+ 
++/*CCN67_ANQP*/
++static int hostapd_cli_cmd_rks_resp(struct wpa_ctrl *ctrl, int argc,
++				      char *argv[])
++{
++	char buf[2000], *tmp;
++	int res, i, total;
++
++	if (argc < 1) {
++		printf("Invalid 'rks_resp' command - at least one argument (STA addr) is needed\n");
++		return -1;
++	}
++
++	res = os_snprintf(buf, sizeof(buf), "RKS_RESP %s", argv[0]);
++	if (os_snprintf_error(sizeof(buf), res))
++		return -1;
++
++	total = res;
++	for (i = 1; i < argc; i++) {
++		tmp = &buf[total];
++		res = os_snprintf(tmp, sizeof(buf) - total, " %s", argv[i]);
++		if (os_snprintf_error(sizeof(buf) - total, res))
++			return -1;
++		total += res;
++	}
++	return wpa_ctrl_command(ctrl, buf);
++}
++/*CCN67_ANQP*/
+ 
+ static int hostapd_cli_cmd_bss_tm_req(struct wpa_ctrl *ctrl, int argc,
+ 				      char *argv[])
+@@ -1654,6 +1681,10 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
+ 	  "= show this usage help" },
+ 	{ "interface", hostapd_cli_cmd_interface, hostapd_complete_interface,
+ 	  "[ifname] = show interfaces/select interface" },
++/*CCN67_ANQP*/
++	{ "rks_resp", hostapd_cli_cmd_rks_resp, NULL,
++	  "= send RKS response" },
++/*CCN67_ANQP*/
+ #ifdef CONFIG_FST
+ 	{ "fst", hostapd_cli_cmd_fst, NULL,
+ 	  "<params...> = send FST-MANAGER control interface command" },
+diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
+index 451c4eb..8330c7e 100644
+--- a/src/ap/ctrl_iface_ap.c
++++ b/src/ap/ctrl_iface_ap.c
+@@ -26,6 +26,10 @@
+ #include "taxonomy.h"
+ #include "wnm_ap.h"
+ #include "neighbor_db.h"
++/*CCN67_ANQP*/
++#include "gas_serv.h"
++#include "common/gas.h"
++/*CCN67_ANQP*/
+ 
+ #ifdef CONFIG_CTRL_IFACE_MIB
+ 
+@@ -1139,6 +1143,95 @@ int hostapd_ctrl_iface_ess_disassoc(struct hostapd_data *hapd,
+ 	return wnm_send_ess_disassoc_imminent(hapd, sta, url, disassoc_timer);
+ }
+ 
++/*CCN67_ANQP*/
++int hostapd_ctrl_iface_rks_resp(struct hostapd_data *hapd,
++				  const char *cmd)
++{
++	u8 addr[ETH_ALEN];
++	char *delim;
++	size_t len;
++	struct wpabuf *payload, *buf;
++	int ret = 0;
++	const char *pos;
++	int dialog_token = 0;
++	struct gas_dialog_info *dialog;
++	struct sta_info *sta;
++	u8 *cert_resp_len;
++	int cert_resp, join_resp = 0;
++
++	if (hwaddr_aton(cmd, addr)) {
++		wpa_printf(MSG_DEBUG, "Invalid STA MAC address");
++		return -1;
++	}
++
++	pos = os_strstr(cmd, " token=");
++	if (pos) {
++		pos += 7;
++		dialog_token = atoi(pos);
++	}
++
++	if ((delim = os_strstr(cmd, " ZTM_NTF_CERT_RESP=")) > 0) {
++		cert_resp = 1;
++		join_resp = 0;
++		wpa_printf(MSG_ERROR, "cert_resp received");
++	} else if((delim = os_strstr(cmd, " ZTM_NTF_JOIN_RESP=")) > 0) {
++		join_resp = 1;
++		cert_resp = 0;
++		wpa_printf(MSG_ERROR, "join_resp received");
++	}
++	if(delim) {
++		delim += 19;
++	} else
++		return -1;
++
++	len = os_strlen(delim);
++	if (len & 1)
++		return -1;
++	len /= 2;
++	payload = wpabuf_alloc(len);
++	if (!payload)
++		return -1;
++	if (hexstr2bin(delim, wpabuf_put(payload, len), len) < 0) {
++		wpabuf_free(payload);
++		return -1;
++	}
++	wpa_printf(MSG_ERROR, "STA MAC address " MACSTR ", Token = %d", MAC2STR(addr),dialog_token);
++	wpa_hexdump_buf(MSG_ERROR, "payload is", payload);
++	dialog = gas_serv_dialog_find(hapd, addr, dialog_token);
++	if(!dialog)
++		wpa_printf(MSG_ERROR, "Dialog not found");
++	else {
++		if(dialog->sd_resp)
++			wpa_hexdump_buf(MSG_ERROR, "Stored RKS buf is", dialog->sd_resp);
++		else
++			wpa_printf(MSG_ERROR, "Dialog found but it is zero");
++	}
++	buf = wpabuf_alloc(15 + len);
++	if (buf == NULL)
++		return -1;
++	if (cert_resp) {
++		cert_resp_len = gas_anqp_add_element(buf, ANQP_VENDOR_SPECIFIC);
++		wpabuf_put_be24(buf, OUI_RUCKUS);
++		wpabuf_put_u8(buf, RKS_ANQP_OUI_TYPE);
++		wpabuf_put_u8(buf, RKS_ANQP_STYPE_CERT_RESP);
++		wpabuf_put_u8(buf, 0); /* Reserved */
++		wpabuf_put_buf(buf, payload); /*cert response payload*/
++		gas_anqp_set_element_len(buf, cert_resp_len);
++		wpa_printf(MSG_ERROR, "Send RKS ANQP ZTM Cert Resp");
++		gas_serv_req_rks_anqp_processing(hapd, addr, dialog_token, 0, buf);
++	} else if (join_resp) {
++		wpa_printf(MSG_ERROR, "Join response received");
++		if (dialog) {
++			wpa_printf(MSG_ERROR, "Copy ZTM Join Resp Payload");
++			dialog->sd_resp = payload ;
++		}
++	} else {
++		wpa_printf(MSG_ERROR, "No response received");
++		return -1;
++	}
++	return ret;
++}
++/*CCN67_ANQP*/
+ 
+ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+ 				  const char *cmd)
+diff --git a/src/ap/ctrl_iface_ap.h b/src/ap/ctrl_iface_ap.h
+index 614f042..bb62047 100644
+--- a/src/ap/ctrl_iface_ap.h
++++ b/src/ap/ctrl_iface_ap.h
+@@ -53,5 +53,9 @@ int hostapd_ctrl_iface_acl_show_mac(struct mac_acl_entry *acl, int num,
+ 				    char *buf, size_t buflen);
+ int hostapd_disassoc_accept_mac(struct hostapd_data *hapd);
+ int hostapd_disassoc_deny_mac(struct hostapd_data *hapd);
++/*CCN67_ANQP*/
++int hostapd_ctrl_iface_rks_resp(struct hostapd_data *hapd,
++				  const char *cmd);
++/*CCN67_ANQP*/
+ 
+ #endif /* CTRL_IFACE_AP_H */
+diff --git a/src/ap/gas_serv.c b/src/ap/gas_serv.c
+index 11b5ff7..64e3758 100644
+--- a/src/ap/gas_serv.c
++++ b/src/ap/gas_serv.c
+@@ -1483,7 +1483,174 @@ static void rx_anqp_vendor_specific(struct hostapd_data *hapd,
+ 		break;
+ 	}
+ }
++/*CCN67_ANQP*/
++void rx_anqp_rks_cert_req(struct hostapd_data *hapd,
++                                    u8 payload,	const u8 *sa, u8 dialog_token,
++									struct wpabuf *buf)
++{
++	u8 prep_cert;
++	char addr[100];
++
++	if ((payload == RKS_CERT_REQ_AP_TYPE_SOLO) ||
++			(payload == RKS_CERT_REQ_AP_TYPE_ZD) ||
++			(payload == RKS_CERT_REQ_AP_TYPE_UNLEASHED) ||
++			(payload == RKS_CERT_REQ_AP_TYPE_SZ))  {
++				prep_cert = 1;
++				hapd->conf->gas_comeback_delay = 0;
++	} else {
++			wpa_printf(MSG_DEBUG, "RKS ANQP ZTM: Unsupported %u subtype in Cert Req",
++					payload);
++			   prep_cert = 0;
++			   return;
++	}
++	if(prep_cert) {
++		struct gas_dialog_info *di;
++		/*Send request data to ZTMD*/
++		os_snprintf(addr, sizeof(addr), MACSTR, MAC2STR(sa));
++		wpa_msg(hapd->msg_ctx, MSG_ERROR, RKS_ANQP_CERT_REQ  " %s %u %u",  addr, dialog_token, payload);
++
++		di = gas_dialog_create(hapd, sa, dialog_token);
++		if (!di) {
++			wpa_printf(MSG_INFO, "RKS ANQP ZTM CERT REQ: Could not create dialog "
++				   "for " MACSTR " (dialog token %u)",
++				   MAC2STR(sa), dialog_token);
++		} else {
++			wpa_printf(MSG_DEBUG, "RKS ANQP ZTM CERT REQ: Waiting for ZTMD response");
++		}
++	}
++}
++
++void rx_anqp_rks_join_req(struct hostapd_data *hapd,
++                                    u8 payload, const u8 *sa, u8 dialog_token,
++									struct wpabuf *buf)
++{
++	u8 *join_resp_len;
++	char addr[100];
++	struct gas_dialog_info *di;
++
++	/*set GAS come back delay
++	Send GAS Initial Response with
++	gas_comeback_delay 300*/
++
++	hapd->conf->gas_comeback_delay = 300;
++	/*Send request data to ZTMD*/
++	os_snprintf(addr, sizeof(addr), MACSTR, MAC2STR(sa));
++	wpa_msg(hapd->msg_ctx, MSG_ERROR, RKS_ANQP_JOIN_REQ  " %s %u %u",  addr, dialog_token, payload);
++
++	wpa_printf(MSG_ERROR, "RKS ANQP ZTM: Preparing ZTM Join response with delay");
++	join_resp_len = gas_anqp_add_element(buf, ANQP_VENDOR_SPECIFIC);
++	wpabuf_put_be24(buf, OUI_RUCKUS);
++	wpabuf_put_u8(buf, RKS_ANQP_OUI_TYPE);
++	wpabuf_put_u8(buf, RKS_ANQP_STYPE_JOIN_RESP);
++	wpabuf_put_u8(buf, 0); /* Reserved */
++	gas_anqp_set_element_len(buf, join_resp_len);
++
++	di = gas_dialog_create(hapd, sa, dialog_token);
++	if (!di) {
++		wpa_printf(MSG_INFO, "RKS ANQP ZTM JOIN REQ: Could not create dialog "
++				"for " MACSTR " (dialog token %u)",
++				MAC2STR(sa), dialog_token);
++	} else {
++		wpa_printf(MSG_DEBUG, "RKS ANQP ZTM JOIN RESP: Sent Resposne with 300 delay");
++	}
++}
++
++struct wpabuf * rx_anqp_vendor_specific_rks(struct hostapd_data *hapd,
++					const u8 *sa, const u8 *query, size_t query_len,
++					const u8 *data, size_t data_len, u8 dialog_token)
++{
++    struct wpabuf *msg;
++    const u8 *pos = query, *end = query + data_len;
++	u8 type, subtype;
++
++	msg = wpabuf_alloc(100);
++	if (msg == NULL)
++		return NULL;
++
++	if (end - pos <= 1)
++		return NULL;
++
++	pos += 3;
++	if (*pos != RKS_ANQP_OUI_TYPE)
++		return NULL;
++
++	type = *pos++;
++	subtype = *pos++;
++	wpa_printf(MSG_ERROR, "RKS ANQP ZTM Req: Received subtype %u ", subtype);
+ 
++	pos++; /* Reserved */
++
++	switch (subtype) {
++	case RKS_ANQP_STYPE_CERT_REQ:
++		wpa_printf(MSG_ERROR, "ANQP: RKS Cert Req");
++		rx_anqp_rks_cert_req(hapd, *pos, sa, dialog_token, msg);
++		msg = NULL;
++		break;
++	case RKS_ANQP_STYPE_JOIN_REQ:
++        wpa_printf(MSG_ERROR, "ANQP: RKS Join Req");
++		rx_anqp_rks_join_req(hapd, *pos, sa, dialog_token, msg);
++		break;
++	default:
++		wpa_printf(MSG_ERROR, "RKS ANQP: Unsupported Subtype "
++								"%u", subtype);
++		break;
++	}
++
++	return msg;
++}
++void gas_serv_req_rks_anqp_processing(struct hostapd_data *hapd,
++					  const u8 *sa, u8 dialog_token,
++					  int prot, struct wpabuf *buf)
++{
++	struct wpabuf *tx_buf;
++
++	if (wpabuf_len(buf) > hapd->conf->gas_frag_limit ||
++	    hapd->conf->gas_comeback_delay) {
++		struct gas_dialog_info *di;
++		u16 comeback_delay = 1;
++
++		if (hapd->conf->gas_comeback_delay) {
++			/* Testing - allow overriding of the delay value */
++			comeback_delay = hapd->conf->gas_comeback_delay;
++		}
++
++		wpa_printf(MSG_DEBUG, "RKS ANQP RESP: Too long response to fit in "
++			   "initial response - use GAS comeback");
++		di = gas_dialog_create(hapd, sa, dialog_token);
++		if (!di) {
++			wpa_printf(MSG_INFO, "ANQP: Could not create dialog "
++				   "for " MACSTR " (dialog token %u)",
++				   MAC2STR(sa), dialog_token);
++			wpabuf_free(buf);
++			tx_buf = gas_anqp_build_initial_resp_buf(
++				dialog_token, WLAN_STATUS_UNSPECIFIED_FAILURE,
++				0, NULL);
++		} else {
++			di->prot = prot;
++			di->sd_resp = buf;
++			di->sd_resp_pos = 0;
++			tx_buf = gas_anqp_build_initial_resp_buf(
++				dialog_token, WLAN_STATUS_SUCCESS,
++				comeback_delay, NULL);
++		}
++	} else {
++		wpa_printf(MSG_DEBUG, "RKS ANQP: Initial response (no comeback)");
++		tx_buf = gas_anqp_build_initial_resp_buf(
++			dialog_token, WLAN_STATUS_SUCCESS, 0, buf);
++		wpa_hexdump_buf(MSG_ERROR, "tx_buf is", tx_buf);
++		wpabuf_free(buf);
++	}
++	if (!tx_buf)
++		return;
++	if (prot)
++		convert_to_protected_dual(tx_buf);
++
++	hostapd_drv_send_action(hapd, hapd->iface->freq, 0, sa,
++				wpabuf_head(tx_buf),
++				wpabuf_len(tx_buf));
++	wpabuf_free(tx_buf);
++}
++/*CCN67_ANQP*/
+ 
+ static void gas_serv_req_local_processing(struct hostapd_data *hapd,
+ 					  const u8 *sa, u8 dialog_token,
+@@ -1766,6 +1933,20 @@ static void gas_serv_rx_gas_initial_req(struct hostapd_data *hapd,
+ 			wpa_printf(MSG_DEBUG, "ANQP: Invalid Query Request");
+ 			return;
+ 		}
++/*CCN67_ANQP*/
++		if( WPA_GET_BE24(pos) == OUI_RUCKUS) {
++			struct wpabuf *msg;
++			wpa_printf(MSG_ERROR, "RKS ANQP Received");
++			msg = rx_anqp_vendor_specific_rks(hapd, sa, pos, slen, data, elen, dialog_token);
++			if (!msg) {
++				wpa_printf(MSG_ERROR, "RKS(ZTM) Response is not ready");
++				return;
++			}
++
++			gas_serv_req_rks_anqp_processing(hapd, sa, dialog_token, prot, msg);
++			return;
++		}
++/*CCN67_ANQP*/
+ 
+ 		switch (info_id) {
+ 		case ANQP_QUERY_LIST:
+@@ -1824,6 +2005,22 @@ static void gas_serv_rx_gas_comeback_req(struct hostapd_data *hapd,
+ 			return;
+ 		goto send_resp;
+ 	}
++/*CCN67_ANQP*/
++	if (dialog->sd_resp == NULL) {
++		wpa_printf(MSG_ERROR, "For ZTM JOIN Response without data");
++		wpa_printf(MSG_DEBUG, "GAS: Did not receive response from ZTMD");
++		hapd->conf->gas_comeback_delay = 300;
++		tx_buf = gas_anqp_build_comeback_resp_buf(
++				dialog_token, WLAN_STATUS_GAS_RESP_NOT_RECEIVED, 0,
++				0, hapd->conf->gas_comeback_delay,
++				NULL);
++		if (tx_buf == NULL)
++			return;
++		goto send_resp;
++	} else {
++		wpa_hexdump_buf(MSG_ERROR, "dialog->sd_resp is", dialog->sd_resp);
++	}
++/*CCN67_ANQP*/
+ 
+ 	frag_len = wpabuf_len(dialog->sd_resp) - dialog->sd_resp_pos;
+ 	if (frag_len > hapd->conf->gas_frag_limit) {
+diff --git a/src/ap/gas_serv.h b/src/ap/gas_serv.h
+index 1528af4..8be94a3 100644
+--- a/src/ap/gas_serv.h
++++ b/src/ap/gas_serv.h
+@@ -91,5 +91,10 @@ void gas_serv_deinit(struct hostapd_data *hapd);
+ void gas_serv_req_dpp_processing(struct hostapd_data *hapd,
+ 				 const u8 *sa, u8 dialog_token,
+ 				 int prot, struct wpabuf *buf);
++/*CCN67_ANQP*/
++void gas_serv_req_rks_anqp_processing(struct hostapd_data *hapd,
++					  const u8 *sa, u8 dialog_token,
++					  int prot, struct wpabuf *buf);
++/*CCN67_ANQP*/
+ 
+ #endif /* GAS_SERV_H */
+diff --git a/src/common/ieee802_11_defs.h b/src/common/ieee802_11_defs.h
+index 38f0149..e3d0862 100644
+--- a/src/common/ieee802_11_defs.h
++++ b/src/common/ieee802_11_defs.h
+@@ -2667,4 +2667,19 @@ enum dscp_policy_request_type {
+ #define WFA_CAPA_QM_DSCP_POLICY BIT(0)
+ #define WFA_CAPA_QM_UNSOLIC_DSCP BIT(1)
+ 
++/*CCN67_ANQP*/
++#define OUI_RUCKUS 0x001392
++#define RKS_ANQP_OUI_TYPE 0xc1
++#define RKS_ANQP_STYPE_CERT_REQ 3
++#define RKS_ANQP_STYPE_CERT_RESP 4
++#define RKS_ANQP_STYPE_JOIN_REQ 5
++#define RKS_ANQP_STYPE_JOIN_RESP 6
++#define RKS_CERT_REQ_AP_TYPE_SOLO 1
++#define RKS_CERT_REQ_AP_TYPE_ZD 2
++#define RKS_CERT_REQ_AP_TYPE_UNLEASHED 3
++#define RKS_CERT_REQ_AP_TYPE_SZ 4
++#define RKS_ANQP_CERT_REQ "ZTM_NTF_CERT_REQ"
++#define RKS_ANQP_JOIN_REQ "ZTM_NTF_JOIN_REQ"
++/*CCN67_ANQP*/
++
+ #endif /* IEEE802_11_DEFS_H */

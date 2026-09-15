@@ -1,0 +1,120 @@
+From 8e5f43586f7b3c56f23305449562df5d1b7ef772 Mon Sep 17 00:00:00 2001
+From: "jiajun.wang" <jiajun.wang@gl-inet.com>
+Date: Sun, 8 Feb 2026 12:08:19 +0800
+Subject: [PATCH] fix: resolve persistent repeater relay failure caused by PMF.
+ #SDK-20963
+
+if connect failed by PMF,retry authentication without scanning after 2s
+
+Signed-off-by: jiajun.wang <jiajun.wang@gl-inet.com>
+---
+ wpa_supplicant/sme.c | 65 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 65 insertions(+)
+
+diff --git a/wpa_supplicant/sme.c b/wpa_supplicant/sme.c
+index c40bd06..d56d19c 100644
+--- a/wpa_supplicant/sme.c
++++ b/wpa_supplicant/sme.c
+@@ -46,6 +46,9 @@ static int sme_sae_set_pmk(struct wpa_supplicant *wpa_s, const u8 *bssid);
+ 
+ #ifdef CONFIG_SAE
+ 
++/* PMF SA Query retry timeout in seconds */
++#define SME_SAE_PMF_RETRY_TIMEOUT 2
++
+ static int index_within_array(const int *array, int idx)
+ {
+ 	int i;
+@@ -422,6 +425,48 @@ static void sme_auth_handle_rrm(struct wpa_supplicant *wpa_s,
+ 	wpa_s->rrm.rrm_used = 1;
+ }
+ 
++static void sme_send_authentication(struct wpa_supplicant *wpa_s,
++				    struct wpa_bss *bss, struct wpa_ssid *ssid,
++				    int start);
++ 
++/**
++ * sme_sae_pmf_retry - Retry SAE authentication after PMF SA Query timeout
++ * @eloop_ctx: wpa_supplicant pointer
++ * @timeout_ctx: unused
++ *
++ * This function is called after waiting for AP's PMF SA Query to timeout.
++ * It retries SAE authentication without triggering a new scan.
++ */
++static void sme_sae_pmf_retry(void *eloop_ctx, void *timeout_ctx)
++{
++	struct wpa_supplicant *wpa_s = eloop_ctx;
++
++	wpa_dbg(wpa_s, MSG_INFO,
++		"SME: Retrying SAE authentication after PMF SA Query timeout");
++
++	if (!wpa_s->current_bss || !wpa_s->current_ssid) {
++		wpa_dbg(wpa_s, MSG_INFO,
++			"SME: No BSS/SSID available for PMF retry");
++		return;
++	}
++
++	if (wpa_s->wpa_state == WPA_DISCONNECTED ||
++	    wpa_s->wpa_state == WPA_INACTIVE) {
++		wpa_dbg(wpa_s, MSG_INFO,
++			"SME: Not retrying - already disconnected");
++		return;
++	}
++
++	if (wpa_s->wpa_state == WPA_COMPLETED) {
++		wpa_dbg(wpa_s, MSG_INFO,
++			"SME: Not retrying - already connected");
++		return;
++	}
++
++	/* Retry authentication without scanning */
++	sme_send_authentication(wpa_s, wpa_s->current_bss,
++				wpa_s->current_ssid, 1);
++}
+ 
+ static void sme_send_authentication(struct wpa_supplicant *wpa_s,
+ 				    struct wpa_bss *bss, struct wpa_ssid *ssid,
+@@ -447,6 +492,10 @@ static void sme_send_authentication(struct wpa_supplicant *wpa_s,
+ #endif /* CONFIG_MBO */
+ 	int omit_rsnxe = 0;
+ 
++#ifdef CONFIG_SAE
++	eloop_cancel_timeout(sme_sae_pmf_retry, wpa_s, NULL);
++#endif /* CONFIG_SAE */
++
+ 	if (bss == NULL) {
+ 		wpa_msg(wpa_s, MSG_ERROR, "SME: No scan result available for "
+ 			"the network");
+@@ -1518,6 +1567,21 @@ static int sme_sae_auth(struct wpa_supplicant *wpa_s, u16 auth_transaction,
+ 		return -1;
+ 	}
+ 
++	if (status_code == WLAN_STATUS_ASSOC_REJECTED_TEMPORARILY &&
++	    (external || wpa_s->current_bss) && wpa_s->current_ssid) {
++		wpa_dbg(wpa_s, MSG_INFO,
++			"SME: SAE authentication temporarily rejected "
++			"(status=%u, PMF SA Query), will retry in %d seconds",
++			status_code, SME_SAE_PMF_RETRY_TIMEOUT);
++
++		eloop_cancel_timeout(sme_sae_pmf_retry, wpa_s, NULL);
++
++		eloop_register_timeout(SME_SAE_PMF_RETRY_TIMEOUT, 0,
++				       sme_sae_pmf_retry, wpa_s, NULL);
++
++		return 0;
++	}
++
+ 	if (status_code != WLAN_STATUS_SUCCESS &&
+ 	    status_code != WLAN_STATUS_SAE_HASH_TO_ELEMENT &&
+ 	    status_code != WLAN_STATUS_SAE_PK) {
+@@ -2571,6 +2635,7 @@ void sme_clear_on_disassoc(struct wpa_supplicant *wpa_s)
+ 	wpabuf_free(wpa_s->sme.sae_token);
+ 	wpa_s->sme.sae_token = NULL;
+ 	sae_clear_data(&wpa_s->sme.sae);
++	eloop_cancel_timeout(sme_sae_pmf_retry, wpa_s, NULL);
+ #endif /* CONFIG_SAE */
+ #ifdef CONFIG_IEEE80211R
+ 	if (wpa_s->sme.ft_ies || wpa_s->sme.ft_used)
+-- 
+2.34.1
+

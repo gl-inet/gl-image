@@ -1,0 +1,138 @@
+
+---
+ src/ap/drv_callbacks.c             | 7 +++++--
+ src/ap/hostapd.h                   | 2 +-
+ src/drivers/driver.h               | 4 +++-
+ src/drivers/driver_nl80211.c       | 3 +++
+ src/drivers/driver_nl80211_event.c | 7 ++++++-
+ wpa_supplicant/events.c            | 3 ++-
+ 6 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/ap/drv_callbacks.c b/src/ap/drv_callbacks.c
+index edc44f8..5594cad 100644
+--- a/src/ap/drv_callbacks.c
++++ b/src/ap/drv_callbacks.c
+@@ -137,7 +137,7 @@ static bool check_sa_query_need(struct hostapd_data *hapd, struct sta_info *sta)
+ 
+ 
+ int hostapd_notif_assoc(struct hostapd_data *hapd, const u8 *addr,
+-			const u8 *req_ies, size_t req_ies_len, int reassoc)
++			const u8 *req_ies, size_t req_ies_len, int reassoc, u16 aid)
+ {
+ 	struct sta_info *sta;
+ 	int new_assoc;
+@@ -230,6 +230,8 @@ int hostapd_notif_assoc(struct hostapd_data *hapd, const u8 *addr,
+ 		}
+ 	}
+ 	sta->flags &= ~(WLAN_STA_WPS | WLAN_STA_MAYBE_WPS | WLAN_STA_WPS2);
++	sta->aid = aid;
++	wpa_printf(MSG_DEBUG, "nl80211: New station aid[%d]" , aid);
+ 
+ 	/*
+ 	 * ACL configurations to the drivers (implementing AP SME and ACL
+@@ -2020,7 +2022,8 @@ void hostapd_wpa_event(void *ctx, enum wpa_event_type event,
+ 		hostapd_notif_assoc(hapd, data->assoc_info.addr,
+ 				    data->assoc_info.req_ies,
+ 				    data->assoc_info.req_ies_len,
+-				    data->assoc_info.reassoc);
++				    data->assoc_info.reassoc,
++				    data->assoc_info.aid);
+ 		break;
+ #ifdef CONFIG_OWE
+ 	case EVENT_UPDATE_DH:
+diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
+index 03d559e..e16630f 100644
+--- a/src/ap/hostapd.h
++++ b/src/ap/hostapd.h
+@@ -758,7 +758,7 @@ void hostapd_prune_associations(struct hostapd_data *hapd, const u8 *addr);
+ void hostapd_notify_assoc_fils_finish(struct hostapd_data *hapd,
+ 				      struct sta_info *sta);
+ int hostapd_notif_assoc(struct hostapd_data *hapd, const u8 *addr,
+-			const u8 *ie, size_t ielen, int reassoc);
++			const u8 *ie, size_t ielen, int reassoc, u16 aid);
+ void hostapd_notif_disassoc(struct hostapd_data *hapd, const u8 *addr);
+ void hostapd_event_sta_low_ack(struct hostapd_data *hapd, const u8 *addr);
+ void hostapd_event_connect_failed_reason(struct hostapd_data *hapd,
+diff --git a/src/drivers/driver.h b/src/drivers/driver.h
+index 69672e2..1e0baa7 100644
+--- a/src/drivers/driver.h
++++ b/src/drivers/driver.h
+@@ -5584,6 +5584,7 @@ union wpa_event_data {
+ 		 * fils_pmkid - PMKID used or generated in FILS authentication
+ 		 */
+ 		const u8 *fils_pmkid;
++		u16 aid;
+ 	} assoc_info;
+ 
+ 	/**
+@@ -6281,7 +6282,7 @@ extern void (*wpa_supplicant_event_global)(void *ctx, enum wpa_event_type event,
+  */
+ 
+ static inline void drv_event_assoc(void *ctx, const u8 *addr, const u8 *ie,
+-				   size_t ielen, int reassoc)
++				   size_t ielen, int reassoc, u16 aid)
+ {
+ 	union wpa_event_data event;
+ 	os_memset(&event, 0, sizeof(event));
+@@ -6289,6 +6290,7 @@ static inline void drv_event_assoc(void *ctx, const u8 *addr, const u8 *ie,
+ 	event.assoc_info.req_ies = ie;
+ 	event.assoc_info.req_ies_len = ielen;
+ 	event.assoc_info.addr = addr;
++	event.assoc_info.aid = aid;
+ 	wpa_supplicant_event(ctx, EVENT_ASSOC, &event);
+ }
+ 
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index e90d55e..959496a 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -3199,6 +3199,9 @@ static int nl80211_mgmt_subscribe_ap_dev_sme(struct i802_bss *bss)
+ #endif
+ 	}
+ 
++	if (nl80211_register_spurious_class3(bss))
++		goto out_err;
++
+ 	nl80211_mgmt_handle_register_eloop(bss);
+ 	return 0;
+ 
+diff --git a/src/drivers/driver_nl80211_event.c b/src/drivers/driver_nl80211_event.c
+index 4d79dc5..71e7c0e 100644
+--- a/src/drivers/driver_nl80211_event.c
++++ b/src/drivers/driver_nl80211_event.c
+@@ -1556,12 +1556,17 @@ static void nl80211_new_station_event(struct wpa_driver_nl80211_data *drv,
+ 	if (is_ap_interface(drv->nlmode) && drv->device_ap_sme) {
+ 		u8 *ies = NULL;
+ 		size_t ies_len = 0;
++		u16 aid = 0;
+ 		if (tb[NL80211_ATTR_IE]) {
+ 			ies = nla_data(tb[NL80211_ATTR_IE]);
+ 			ies_len = nla_len(tb[NL80211_ATTR_IE]);
+ 		}
++		if (tb[NL80211_ATTR_STA_AID]) {
++			aid = nla_get_u16(tb[NL80211_ATTR_STA_AID]);
++			wpa_printf(MSG_DEBUG, "nl80211: STA AID %d", aid);
++		}
+ 		wpa_hexdump(MSG_DEBUG, "nl80211: Assoc Req IEs", ies, ies_len);
+-		drv_event_assoc(bss->ctx, addr, ies, ies_len, 0);
++		drv_event_assoc(bss->ctx, addr, ies, ies_len, 0, aid);
+ 		return;
+ 	}
+ 
+diff --git a/wpa_supplicant/events.c b/wpa_supplicant/events.c
+index d4a481f..f70a30a 100644
+--- a/wpa_supplicant/events.c
++++ b/wpa_supplicant/events.c
+@@ -3386,7 +3386,8 @@ static void wpa_supplicant_event_assoc(struct wpa_supplicant *wpa_s,
+ 				    data->assoc_info.addr,
+ 				    data->assoc_info.req_ies,
+ 				    data->assoc_info.req_ies_len,
+-				    data->assoc_info.reassoc);
++				    data->assoc_info.reassoc,
++				    data->assoc_info.aid);
+ 		return;
+ 	}
+ #endif /* CONFIG_AP */
+-- 
+2.45.2
+

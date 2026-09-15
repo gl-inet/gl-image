@@ -9,6 +9,9 @@ PKGARCH:=aarch64_cortex-a53
 
 include $(INCLUDE_DIR)/package.mk
 
+# Preserve released module bytes without changing stripping for other payloads.
+RSTRIP := $(subst $(SCRIPT_DIR)/strip-kmod.sh,$(CURDIR)/files/strip-runtime-kmod.sh,$(RSTRIP))
+
 define Package/mtk-wifi-runtime
   SECTION:=firmware
   CATEGORY:=Firmware
@@ -26,12 +29,13 @@ endef
 define Package/mtk-phy-runtime
   SECTION:=firmware
   CATEGORY:=Firmware
-  TITLE:=MT7987 and AN8811HB 2.5G PHY binary runtime
+  TITLE:=MT7987 2.5G PHY binary runtime
   DEPENDS:=@TARGET_mediatek_mt7987
 endef
 
 define Package/mtk-phy-runtime/description
- Binary-only MT7987 internal and Airoha AN8811HB 2.5G PHY drivers and firmware.
+ Binary-only MT7987 internal PHY driver and firmware. The AN8811HB driver is
+ built from public source in the kernel.
  The driver payload is ABI-locked to Linux 5.4.281.
 endef
 
@@ -54,6 +58,8 @@ define Build/Prepare
 	for ipk in $(CURDIR)/blobs/wifi/*.ipk; do \
 		tar -xOzf $$$$ipk ./data.tar.gz | tar -xzf - -C $(PKG_BUILD_DIR)/wifi; \
 	done
+	# wpa-cli is rebuilt from the release hostapd source package.
+	rm -f $(PKG_BUILD_DIR)/wifi/usr/sbin/wpa_cli
 	for ipk in $(CURDIR)/blobs/phy/*.ipk; do \
 		tar -xOzf $$$$ipk ./data.tar.gz | tar -xzf - -C $(PKG_BUILD_DIR)/phy; \
 	done

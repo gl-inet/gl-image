@@ -399,7 +399,7 @@
 		<&tphyu3port0 PHY_TYPE_USB3>;
 };
 
-&spi1 {
+&spi1 { 
 	pinctrl-0 = <&spi1_1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
@@ -431,3 +431,4 @@
 		status = "ok";
 	};
 };
+

@@ -1,0 +1,138 @@
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index 7bac6bc..a57df7f 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -2872,10 +2872,13 @@ static int nl80211_mgmt_subscribe_non_ap(struct i802_bss *bss)
+ 
+ #ifdef CONFIG_PASN
+ 	/* register for PASN Authentication frames */
+-	if ((drv->capa.flags & WPA_DRIVER_FLAGS_SME) &&
+-	    nl80211_register_frame(bss, bss->nl_mgmt, type,
+-				   (u8 *) "\x07\x00", 2, false))
+-		ret = -1;
++	if (!(drv->capa.flags & WPA_DRIVER_FLAGS_SME)) {
++
++		/* register for PASN Authentication frames */
++		if(nl80211_register_frame(bss, bss->nl_mgmt, type,
++				   (u8 *) "\x07\x00", 2, false) < 0)
++				   ret = -1;
++	}
+ #endif /* CONFIG_PASN */
+ 
+ #ifdef CONFIG_INTERWORKING
+@@ -3722,6 +3725,41 @@ static int issue_key_mgmt_set_key(struct wpa_driver_nl80211_data *drv,
+ }
+ #endif /* CONFIG_DRIVER_NL80211_QCA */
+ 
++#ifdef CONFIG_PASN
++int set_pasn_key(struct wpa_driver_nl80211_data *drv,
++		const u8 *key, size_t key_len)
++{
++	struct nl_msg *msg;
++	int ret;
++	struct nlattr *attr = NULL;
++
++	if (!(msg = nl80211_drv_msg(drv, 0, NL80211_CMD_VENDOR)) ||
++			nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, MTK_NL80211_VENDOR_ID) ||
++			nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_SET_PASN_KEY))
++		goto fail;
++
++	attr = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA);
++	if (!attr)
++		goto fail;
++
++	nla_put(msg, MTK_NL80211_VENDOR_ATTR_SET_PASN_KEY, key_len, (void*) key);
++	nla_nest_end(msg, attr);
++	ret = send_and_recv_msgs(drv, msg, NULL, NULL, NULL, NULL);
++	if (ret) {
++		wpa_printf(MSG_DEBUG,
++			  "nl80211: Key management set key failed: ret=%d (%s)",
++			   ret, strerror(-ret));
++	}
++	else {
++		wpa_printf(MSG_DEBUG,
++			  "nl80211: Key management set key SUCCESS: ret=%d", ret);
++		return ret;
++	}
++fail:
++	nlmsg_free(msg);
++	return ret;
++}
++#endif /* CONFIG_PASN */
+ 
+ static int nl80211_set_pmk(struct wpa_driver_nl80211_data *drv,
+ 			   const u8 *key, size_t key_len,
+diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
+index b1bfe53..fd0b854 100644
+--- a/src/drivers/driver_nl80211.h
++++ b/src/drivers/driver_nl80211.h
+@@ -335,5 +335,6 @@ int wpa_driver_nl80211_abort_scan(void *priv, u64 scan_cookie);
+ int wpa_driver_nl80211_vendor_scan(struct i802_bss *bss,
+ 				   struct wpa_driver_scan_params *params);
+ int nl80211_set_default_scan_ies(void *priv, const u8 *ies, size_t ies_len);
+-
++int set_pasn_key(struct wpa_driver_nl80211_data *drv,
++                const u8 *key, size_t key_len);
+ #endif /* DRIVER_NL80211_H */
+diff --git a/wpa_supplicant/ctrl_iface.c b/wpa_supplicant/ctrl_iface.c
+index 8679183..0d8f041 100644
+--- a/wpa_supplicant/ctrl_iface.c
++++ b/wpa_supplicant/ctrl_iface.c
+@@ -2836,6 +2836,15 @@ static char * wpa_supplicant_ie_txt(char *pos, char *end, const char *proto,
+ 			return pos;
+ 		pos += ret;
+ 	}
++#ifdef CONFIG_PASN
++	if (data.key_mgmt & WPA_KEY_MGMT_PASN) {
++		ret = os_snprintf(pos, end - pos, "%sPASN",
++				  pos == start ? "" : "+");
++		if (os_snprintf_error(end - pos, ret))
++			return pos;
++		pos += ret;
++	}
++#endif
+ 	if (data.key_mgmt & WPA_KEY_MGMT_SAE_EXT_KEY) {
+ 		ret = os_snprintf(pos, end - pos, "%sSAE-EXT-KEY",
+ 				  pos == start ? "" : "+");
+@@ -12652,8 +12661,8 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
+ 		if (wpas_ctrl_iface_configure_mscs(wpa_s, buf + 5))
+ 			reply_len = -1;
+ #ifdef CONFIG_PASN
+-	} else if (os_strncmp(buf, "PASN_START ", 11) == 0) {
+-		if (wpas_ctrl_iface_pasn_start(wpa_s, buf + 11) < 0)
++	} else if (os_strncmp(buf, "PASN_AUTH_START ", 16) == 0) {
++		if (wpas_ctrl_iface_pasn_start(wpa_s, buf + 16) < 0)
+ 			reply_len = -1;
+ 	} else if (os_strcmp(buf, "PASN_STOP") == 0) {
+ 		wpas_pasn_auth_stop(wpa_s);
+diff --git a/wpa_supplicant/pasn_supplicant.c b/wpa_supplicant/pasn_supplicant.c
+index aad3462..022f5d4 100644
+--- a/wpa_supplicant/pasn_supplicant.c
++++ b/wpa_supplicant/pasn_supplicant.c
+@@ -24,6 +24,8 @@
+ #include "driver_i.h"
+ #include "bss.h"
+ #include "config.h"
++#include "rsn_supp/wpa_i.h"
++#include "drivers/driver_nl80211.h"
+ 
+ static const int dot11RSNAConfigPMKLifetime = 43200;
+ 
+@@ -1342,6 +1344,8 @@ int wpas_pasn_auth_rx(struct wpa_supplicant *wpa_s,
+ 	struct wpa_ie_data rsn_data;
+ 	struct wpa_pasn_params_data pasn_params;
+ 	struct wpabuf *wrapped_data = NULL, *secret = NULL, *frame = NULL;
++	struct i802_bss *bss = (struct i802_bss *)wpa_s->drv_priv;
++	struct wpa_driver_nl80211_data *drv = (struct wpa_driver_nl80211_data *)bss->drv;
+ 	u8 mic[WPA_PASN_MAX_MIC_LEN], out_mic[WPA_PASN_MAX_MIC_LEN];
+ 	u8 mic_len;
+ 	u16 status;
+@@ -1570,6 +1574,8 @@ int wpas_pasn_auth_rx(struct wpa_supplicant *wpa_s,
+ 	ptksa_cache_add(wpa_s->ptksa, pasn->bssid, pasn->cipher,
+ 			dot11RSNAConfigPMKLifetime, &pasn->ptk);
+ 
++	wpa_printf(MSG_DEBUG, "PASN: calling set_pasn_key");
++	set_pasn_key(drv, pasn->ptk.tk, pasn->ptk.tk_len);
+ 	forced_memzero(&pasn->ptk, sizeof(pasn->ptk));
+ 
+ 	pasn->status = WLAN_STATUS_SUCCESS;

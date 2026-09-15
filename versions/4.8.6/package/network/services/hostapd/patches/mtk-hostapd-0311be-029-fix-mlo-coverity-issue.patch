@@ -1,0 +1,53 @@
+Index: hostapd-2022-07-29-b704dc72/src/ap/drv_callbacks.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/drv_callbacks.c
++++ hostapd-2022-07-29-b704dc72/src/ap/drv_callbacks.c
+@@ -1905,7 +1905,7 @@ err:
+ }
+ #endif /* CONFIG_OWE */
+ 
+-static int hostapd_event_bss_ml_info(struct hostapd_data *hapd, u8 event_id, 
++static void hostapd_event_bss_ml_info(struct hostapd_data *hapd, u8 event_id, 
+ 		u8 mld_grp_idx, u8 link_id, u8 *mld_addr)
+ {
+ 	wpa_printf(MSG_DEBUG, "ML: hostapd_event_bss_mlo_info, hapd:%p, add link:%u, mld_grp_idx=%u, link_id=%u, MLD addr " MACSTR "\n", hapd, event_id, mld_grp_idx, link_id, MAC2STR(mld_addr));
+Index: hostapd-2022-07-29-b704dc72/src/common/sae.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/common/sae.c
++++ hostapd-2022-07-29-b704dc72/src/common/sae.c
+@@ -2248,8 +2248,7 @@ u16 sae_parse_commit(struct sae_data *sa
+ 	}
+ 
+ #ifdef CONFIG_MTK_IEEE80211BE
+-	res = ml_sae_process_auth(sae, 1, pos, end - pos);
+-	if (res < 0) {
++	if (ml_sae_process_auth(sae, 1, pos, end - pos) != WLAN_STATUS_SUCCESS) {
+ 		return WLAN_STATUS_UNSPECIFIED_FAILURE;
+ 	}
+ #endif
+Index: hostapd-2022-07-29-b704dc72/src/drivers/driver_common.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/driver_common.c
++++ hostapd-2022-07-29-b704dc72/src/drivers/driver_common.c
+@@ -95,6 +95,8 @@ const char * event_to_string(enum wpa_ev
+ 	E2S(CCA_STARTED_NOTIFY);
+ 	E2S(CCA_ABORTED_NOTIFY);
+ 	E2S(CCA_NOTIFY);
++	E2S(UPDATE_BSS_ML_INFO);
++	E2S(UPDATE_STA_PROFILE_UPDATE);
+ 	}
+ 
+ 	return "UNKNOWN";
+Index: hostapd-2022-07-29-b704dc72/src/rsn_supp/wpa.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/rsn_supp/wpa.c
++++ hostapd-2022-07-29-b704dc72/src/rsn_supp/wpa.c
+@@ -2202,7 +2202,7 @@ static void wpa_supplicant_process_1_of_
+ 	u16 key_info;
+ 	int rekey, ret;
+ 	struct wpa_gtk_data gd;
+-	const u8 *key_rsc;
++	const u8 *key_rsc = null_rsc;
+ 	u8 need_install = true;
+ 
+ 	if (!sm->msg_3_of_4_ok && !wpa_fils_is_completed(sm)) {

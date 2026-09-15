@@ -1,0 +1,9 @@
+--- a/net/ipv4/fib_semantics.c
++++ b/net/ipv4/fib_semantics.c
+@@ -337,5 +337,6 @@
+ 	return &fib_info_devhash[fib_devindex_hashfn(val)];
+ }
++EXPORT_SYMBOL(fib_info_devhash_bucket);
+ 
+ static unsigned int fib_info_hashfn_1(int init_val, u8 protocol, u8 scope,
+ 					      u32 prefsrc, u32 priority)

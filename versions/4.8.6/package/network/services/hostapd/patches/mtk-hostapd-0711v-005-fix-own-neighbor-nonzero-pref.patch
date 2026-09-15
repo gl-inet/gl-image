@@ -1,0 +1,55 @@
+diff --git a/src/ap/neighbor_db.c b/src/ap/neighbor_db.c
+index 49b47d5..3db0691 100644
+--- a/src/ap/neighbor_db.c
++++ b/src/ap/neighbor_db.c
+@@ -358,6 +358,34 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
+ #endif /* NEED_AP_MLME */
+ }
+ 
++int hostapd_neighbor_check_other_mac_presence(char *nei_buf, size_t buflen, u8 *own_addr,
++	u8 *own_addr_link0, u8 *own_addr_link1)
++{
++	int len = 0, own_mac = 0, shift_len = 0;
++
++	while (len < buflen) {
++		if (nei_buf[len] == WLAN_EID_NEIGHBOR_REPORT) {
++			if (os_memcmp(&nei_buf[len + 2], own_addr, ETH_ALEN) == 0 ||
++					os_memcmp(&nei_buf[len + 2], own_addr_link0, ETH_ALEN) == 0 ||
++					os_memcmp(&nei_buf[len + 2], own_addr_link1, ETH_ALEN) == 0)
++				own_mac = 1;
++			else
++				own_mac = 0;
++
++			shift_len = nei_buf[len + 1];
++
++			if (own_mac) {
++				len = len + shift_len + 2;
++				continue;
++			} else {
++				break;
++			}
++		}
++	}
++
++	return own_mac;
++}
++
+ void hostapd_neighbor_set_own_report_pref(struct hostapd_data *hapd, char *nei_buf,
+ 		size_t buflen, const int pref)
+ {
+@@ -386,6 +414,15 @@ void hostapd_neighbor_set_own_report_pref(struct hostapd_data *hapd, char *nei_b
+ 				own_mac = 0;
+ 		}
+ 	}
++	wpa_printf(MSG_DEBUG, "own_addr_link0=" MACSTR ",own_addr_link1=" MACSTR,
++		                        MAC2STR(own_addr_link0), MAC2STR(own_addr_link1));
++	/* Do not set pref, if only own non setup link is used as neighbor*/
++	own_mac = hostapd_neighbor_check_other_mac_presence(nei_buf, buflen, hapd->own_addr,
++					own_addr_link0, own_addr_link1);
++	if (own_mac) {
++		wpa_printf(MSG_DEBUG,"Do not set received pref value for own bss/ neighbor\n");
++		return;
++	}
+ 
+ 	own_mac = 0;
+ 	while (len < buflen) {

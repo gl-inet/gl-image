@@ -1,0 +1,58 @@
+diff --git a/src/ap/neighbor_db.c b/src/ap/neighbor_db.c
+index de31381..ccb3e3c 100644
+--- a/src/ap/neighbor_db.c
++++ b/src/ap/neighbor_db.c
+@@ -422,6 +422,8 @@ int add_stapro_neighbor_rep(struct hostapd_data *hapd, u8 *nei_rep,
+ 	temp_len = 2 + 6 + 4 + 1 + 1 + 1 + 3 + 11;   //length of neighbour_report till common info(without linkid)
+ 	shift_len = nei_len / ml_link_num;          // linkid is included or not, if shift_len > temp_len
+ 
++	if (shift_len == temp_len)   //means linkid not present do no need of per sta profile
++		return nei_len;
+ 	while (len < nei_len && j < ml_link_num) {    //AP's own links as neighbour, ap_nei
+ 		if (nei_rep[len] == WLAN_EID_NEIGHBOR_REPORT) {
+ 			struct hostapd_iface *iface = hapd->iface;
+@@ -442,10 +444,10 @@ int add_stapro_neighbor_rep(struct hostapd_data *hapd, u8 *nei_rep,
+ 					i = 0;
+ 				} else {
+ 					i++;
+-					if (i > 2) {
++					if (i >= hapd->iface->interfaces->count) {
+ 						i = 0;
+ 						j++;
+-						len += temp_len;
++						len += temp_len + 1;
+ 					}
+ 				}
+ 			} else
+@@ -509,7 +511,7 @@ int add_stapro_neighbor_rep(struct hostapd_data *hapd, u8 *nei_rep,
+ 					return ((nei_len + pos - start_pro) - ((ap_nei_tmp - 1) * (temp_len + 1)));
+ 				} else {
+ 					i++;
+-					if (i > 2) {
++					if (i >= hapd->iface->interfaces->count) {
+ 						wpa_printf(MSG_DEBUG, "This mac is not in list\n");
+ 						len += temp_len;
+ 						pos += temp_len;
+diff --git a/src/ml/ml_common.c b/src/ml/ml_common.c
+index 6061324..32b0822 100644
+--- a/src/ml/ml_common.c
++++ b/src/ml/ml_common.c
+@@ -387,9 +387,16 @@ int ml_parse_ie(const u8 *ie, size_t len, struct wpa_ml_ie_parse *ml, u8 *bssid,
+ 			if (hapd) {
+ 				struct hostapd_iface *iface = hapd->iface;
+ 				if (iface) {
+-					struct hostapd_iface *h = iface->interfaces->iface[ml->prof_num];
+-					struct hostapd_data *h_hapd = h->bss[0];
++					int idx;
++					struct hostapd_iface *h = iface->interfaces->iface[profile->link_id];
++					struct hostapd_data *h_hapd = NULL;
+ 					struct sta_info *sta = NULL;
++
++					for (idx= 0; idx < hapd->iconf->num_bss; idx++) {
++						if(hapd == iface->bss[idx])
++							break;
++					}
++					h_hapd= h->bss[idx];
+ 					sta = ap_get_sta(h_hapd, profile->addr);
+ 					if (sta) {
+ 						wpa_printf(MSG_INFO, "STA "MACSTR" found\n", MAC2STR(profile->addr));

@@ -1,0 +1,72 @@
+Index: hostapd-2022-07-29-b704dc72/src/drivers/driver.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/driver.h
++++ hostapd-2022-07-29-b704dc72/src/drivers/driver.h
+@@ -2098,6 +2098,8 @@ struct wpa_driver_capa {
+ #define WPA_DRIVER_FLAGS2_SA_QUERY_OFFLOAD_AP	0x0000000000000200ULL
+ /** Driver supports background radar/CAC detection */
+ #define WPA_DRIVER_RADAR_BACKGROUND		0x0000000000000400ULL
++/** Driver supports 5MHZ_SHIFT */
++#define WPA_DRIVER_5MHZ_SHIFT		0x0000000000000800ULL
+ 	u64 flags2;
+ 
+ #define FULL_AP_CLIENT_STATE_SUPP(drv_flags) \
+Index: hostapd-2022-07-29-b704dc72/src/drivers/mediatek_driver_cmd_nl80211.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/mediatek_driver_cmd_nl80211.c
++++ hostapd-2022-07-29-b704dc72/src/drivers/mediatek_driver_cmd_nl80211.c
+@@ -332,7 +332,21 @@ static enum hostapd_hw_mode get_mtk_hw_m
+ 	}
+ }
+ 
++void mtk_nl80211_5m_shift_enable(struct wpa_driver_nl80211_data *drv,
++                u8 *data, size_t data_len)
++{
++	struct wpa_supplicant *wpa_s;
++
++	wpa_printf(MSG_DEBUG,
++		   "nl80211: 5m_shift enable event vendor event received");
+ 
++	drv->capa.flags2 |= WPA_DRIVER_5MHZ_SHIFT;
++
++    if (drv->nlmode != NL80211_IFTYPE_AP) {
++        wpa_s = (struct wpa_supplicant *)(drv->ctx);
++		wpa_s->drv_flags2 |= WPA_DRIVER_5MHZ_SHIFT;
++    }
++}
+ void mtk_nl80211_acs_complete_event(struct wpa_driver_nl80211_data *drv,
+                 u8 *data, size_t data_len)
+ {
+@@ -466,6 +480,11 @@ void nl80211_vendor_event_mtk(struct wpa
+ 	            "nl80211: MTK_NL80211_VENDOR_EVENT_ACS_COMPLETE_EVENT event %u", subcmd);
+             mtk_nl80211_acs_complete_event(drv, data, len);
+             break;
++        case MTK_NL80211_VENDOR_EVENT_5M_SHIFT_ENABLE:
++			wpa_printf(MSG_INFO,
++	            "nl80211: MTK_NL80211_VENDOR_EVENT_5M_SHIFT_ENABLE event %u", subcmd);
++            mtk_nl80211_5m_shift_enable(drv, data, len);
++            break;
+ 	case MTK_NL80211_VENDOR_EVENT_RX_T2LM_STOP_DISASSOC_TIMER:
+ 		wpa_printf(MSG_DEBUG,
+ 		"nl80211: MTK_NL80211_VENDOR_EVENT_RX_T2LM_STOP_DISASSOC_TIMER event %u", subcmd);
+Index: hostapd-2022-07-29-b704dc72/wpa_supplicant/events.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/wpa_supplicant/events.c
++++ hostapd-2022-07-29-b704dc72/wpa_supplicant/events.c
+@@ -2439,9 +2439,13 @@ static int wpas_select_network_from_last
+ 				return 0;
+ 			}
+ #endif /* CONFIG_OWE */
+-			if (wpa_supplicant_req_sched_scan(wpa_s))
+-				wpa_supplicant_req_new_scan(wpa_s, timeout_sec,
+-							    timeout_usec);
++			if (!(wpa_s->drv_flags2 & WPA_DRIVER_5MHZ_SHIFT)) {
++				if (wpa_supplicant_req_sched_scan(wpa_s))
++					wpa_supplicant_req_new_scan(wpa_s, timeout_sec,
++									timeout_usec);
++			} else {
++				wpa_dbg(wpa_s, MSG_INFO, "5M SHIFT ENABLE, skip new scan!");
++			}
+ 
+ 			wpa_msg_ctrl(wpa_s, MSG_INFO,
+ 				     WPA_EVENT_NETWORK_NOT_FOUND);

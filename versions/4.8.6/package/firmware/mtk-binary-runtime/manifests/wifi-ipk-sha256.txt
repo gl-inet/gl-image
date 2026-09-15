@@ -7,12 +7,12 @@ f20762c593a71d669b16d26f265a1b1dbdd1c05ebe84d024c86254cb0f28ab54  package/firmwa
 701626c65cedfeb2a20952125bd58d9d386438ead2fb32d77ff3953d83e282f9  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt7990_5.4.281+TEST-1_aarch64_cortex-a53.ipk
 1a0193d07c9937206ed042f352ea3872ec8d0d181c32bb1304f84bb1cd641760  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt7990_dbg_5.4.281+TEST-1_aarch64_cortex-a53.ipk
 731b905fb863322f96aea14e79e48ee52cff93a01167ed22f0b3bcdd85b5fb6c  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt7991_5.4.281+TEST-1_aarch64_cortex-a53.ipk
-985df903b00d6b8bcf71fc41ea0d34185d84d4a45c0d1a11500d4c2fd17e3108  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt_hwifi_5.4.281+TEST-1_aarch64_cortex-a53.ipk
+74d5f4f1ba2ad24f3789a2ebdc9e21f124cef6e1a1428934ccf1dc7655137d0a  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt_hwifi_5.4.281+TEST-1_aarch64_cortex-a53.ipk
 149ae15513f2bd17058803caba15c14a04742f65290aecd7406427a9b65f1673  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mtk_pci_5.4.281+TEST-1_aarch64_cortex-a53.ipk
 dbb9bb4d448b8a14fffb515bff4d8199bf038d175a39719bca1ce8a259553165  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mtk_wed_5.4.281+TEST-1_aarch64_cortex-a53.ipk
 809ad08a5882fe4131c175da0364b3b41b180529cd9888f96619469c3e8cca63  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt_spectrum_5.4.281-1_aarch64_cortex-a53.ipk
-f952544fb439f42d378259336a43525095e4ceac48d888694af13d3716e95070  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt_wifi7_5.4.281+TEST-1_aarch64_cortex-a53.ipk
-c0e02c7e3033c0c212ae30df02a2ebdd6dcf313b04a1d3a4b54e635e7015d45b  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt_wifi_osal_5.4.281-1_aarch64_cortex-a53.ipk
+4f56706b26d1af62491246b854e1eb1796c5b2b429d763022f54858db7e663a4  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt_wifi7_5.4.281+TEST-1_aarch64_cortex-a53.ipk
+4903293f55cd11e346603bb82d3b4dcfdb0bcbcd11fdd0a709a3dfbf31ac8061  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-mt_wifi_osal_5.4.281-1_aarch64_cortex-a53.ipk
 164187c256d711701fdc8fcc45364e1c35d92d6ab3d61b719567c7a9165de41b  package/firmware/mtk-binary-runtime/blobs/wifi/kmod-warp_5.4.281-1_aarch64_cortex-a53.ipk
 aba23bc5eb203fd2c8af7a9424c1b941732b658d1aadf46cc075b17027b0d5f7  package/firmware/mtk-binary-runtime/blobs/wifi/kvcedit_1_aarch64_cortex-a53.ipk
 c609b2c556d6e12c3753b73b08d2d7755bfc10391bae86d60750404678481eae  package/firmware/mtk-binary-runtime/blobs/wifi/libkvcutil_1_aarch64_cortex-a53.ipk

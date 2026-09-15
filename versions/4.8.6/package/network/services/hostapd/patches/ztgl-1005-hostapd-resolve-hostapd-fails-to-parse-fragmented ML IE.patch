@@ -1,0 +1,49 @@
+From ad6d0e6c505ea9c335d63ebe894b0bffe9923c1b Mon Sep 17 00:00:00 2001
+From: "jiajun.wang" <jiajun.wang@gl-inet.com>
+Date: Thu, 19 Mar 2026 11:30:32 +0800
+Subject: [PATCH] fix: resolve issue where hostapd fails to parse fragmented ML
+ IE. #SDK-21425
+
+*none
+
+Signed-off-by: jiajun.wang <jiajun.wang@gl-inet.com>
+---
+ src/ap/drv_callbacks.c | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/ap/drv_callbacks.c b/src/ap/drv_callbacks.c
+index 6b62636..fd9b0f3 100644
+--- a/src/ap/drv_callbacks.c
++++ b/src/ap/drv_callbacks.c
+@@ -389,7 +389,27 @@ int hostapd_notif_assoc(struct hostapd_data *hapd, const u8 *addr,
+ 		wpa_auth_set_rsn_selection(sta->wpa_sm, elems.rsn_selection,
+ 					   elems.rsn_selection_len);
+ #ifdef CONFIG_MTK_IEEE80211BE
+-		ml_new_assoc_sta(sta->wpa_sm, elems.ml, elems.ml_len);
++		if (elems.ml && elems.ml_len) {
++			struct wpabuf *ml_defrag;
++			const u8 *ml_ie = elems.ml;
++			size_t ml_ie_len = elems.ml_len;
++
++			ml_defrag = ieee802_11_defrag(&elems,
++						      WLAN_EID_EXTENSION,
++						      WLAN_EID_EXT_MULTI_LINK);
++			if (ml_defrag) {
++				ml_ie = wpabuf_head(ml_defrag);
++				ml_ie_len = wpabuf_len(ml_defrag);
++				wpa_printf(MSG_INFO,
++					   "ML: use defrag ML IE len=%zu for ml_new_assoc_sta",
++					   ml_ie_len);
++			}
++
++			ml_new_assoc_sta(sta->wpa_sm, ml_ie, ml_ie_len);
++
++			if (ml_defrag)
++				wpabuf_free(ml_defrag);
++		}
+ #endif
+ 		wpa_auth_set_auth_alg(sta->wpa_sm, sta->auth_alg);
+ 		res = wpa_validate_wpa_ie(hapd->wpa_auth, sta->wpa_sm,
+-- 
+2.34.1
+

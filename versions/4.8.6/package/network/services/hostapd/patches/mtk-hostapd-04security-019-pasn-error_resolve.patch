@@ -1,0 +1,15 @@
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index 6a00fe8..d98df33 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -2670,8 +2670,8 @@ static int pasn_wd_handle_sae_confirm(struct hostapd_data *hapd,
+ 		if (res == SAE_KEY_MISMATCH) {
+ 			u8 notify_mac[ETH_ALEN];
+ #ifdef CONFIG_MTK_IEEE80211BE
+-			if (pasn->sae->dot11MultiLinkActivated)
+-				os_memcpy(notify_mac, pasn->sae->peer_ml_ie->ml_addr, ETH_ALEN);
++			if (pasn->sae.dot11MultiLinkActivated)
++				os_memcpy(notify_mac, pasn->sae.peer_ml_ie->ml_addr, ETH_ALEN);
+ 			else
+ #endif
+ 			os_memcpy(notify_mac, sta->addr, ETH_ALEN);

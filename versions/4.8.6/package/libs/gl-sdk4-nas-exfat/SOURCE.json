@@ -1,0 +1,9 @@
+{
+  "repository": "gl-sdk4-nas-exfat",
+  "revision": "963e6c8dedd464aa632d054e726bfd324445f3b6",
+  "imported_paths": [
+    "Makefile",
+    "src"
+  ],
+  "license_evidence": "src/node.c and other original source headers"
+}

@@ -1,0 +1,49 @@
+Index: backports-6.5/include/uapi/linux/nl80211.h
+===================================================================
+--- backports-6.5.orig/include/uapi/linux/nl80211.h
++++ backports-6.5/include/uapi/linux/nl80211.h
+@@ -3354,6 +3354,7 @@ enum nl80211_attrs {
+ 	NL80211_ATTR_MLO_LINK_DISABLED,
+ 
+ 	/* add attributes here, update the policy in nl80211.c */
++	NL80211_ATTR_DOT11VMBSSID = NL80211_ATTR_MBSSID_ELEMS + 120,
+ 
+ 	__NL80211_ATTR_AFTER_LAST,
+ 	NUM_NL80211_ATTR = __NL80211_ATTR_AFTER_LAST,
+@@ -7838,6 +7839,7 @@ enum nl80211_mbssid_config_attributes {
+ enum nl80211_ap_settings_flags {
+ 	NL80211_AP_SETTINGS_EXTERNAL_AUTH_SUPPORT	= 1 << 0,
+ 	NL80211_AP_SETTINGS_SA_QUERY_OFFLOAD_SUPPORT	= 1 << 1,
++	NL80211_AP_SETTINGS_DOT11VMBSSID_SUPPORT	= 1 << 16,
+ };
+ 
+ #endif /* __LINUX_NL80211_H */
+Index: backports-6.5/net/wireless/nl80211.c
+===================================================================
+--- backports-6.5.orig/net/wireless/nl80211.c
++++ backports-6.5/net/wireless/nl80211.c
+@@ -789,6 +789,7 @@ static const struct nla_policy nl80211_p
+ 	[NL80211_ATTR_MBSSID_ELEMS] = { .type = NLA_NESTED },
+ 	[NL80211_ATTR_RADAR_BACKGROUND] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_AP_SETTINGS_FLAGS] = { .type = NLA_U32 },
++	[NL80211_ATTR_DOT11VMBSSID] = { .type = NLA_U8 },
+ 	[NL80211_ATTR_EHT_CAPABILITY] =
+ 		NLA_POLICY_BINARY_RANGE(NL80211_EHT_MIN_CAPABILITY_LEN, NL80211_EHT_MAX_CAPABILITY_LEN),
+ 		[NL80211_ATTR_DISABLE_EHT] = { .type = NLA_FLAG },
+@@ -6172,6 +6173,16 @@ static int nl80211_start_ap(struct sk_bu
+ 	else if (info->attrs[NL80211_ATTR_EXTERNAL_AUTH_SUPPORT])
+ 		params->flags |= NL80211_AP_SETTINGS_EXTERNAL_AUTH_SUPPORT;
+ 
++	if (info->attrs[NL80211_ATTR_DOT11VMBSSID]) {
++		if (nla_get_u8(info->attrs[NL80211_ATTR_DOT11VMBSSID]) != 0) {
++			params->flags |= NL80211_AP_SETTINGS_DOT11VMBSSID_SUPPORT;
++		} else {
++			params->flags &= ~NL80211_AP_SETTINGS_DOT11VMBSSID_SUPPORT;
++		}
++	} else {
++		params->flags &= ~NL80211_AP_SETTINGS_DOT11VMBSSID_SUPPORT;
++	}
++
+ 	if (wdev->conn_owner_nlportid &&
+ 	    info->attrs[NL80211_ATTR_SOCKET_OWNER] &&
+ 	    wdev->conn_owner_nlportid != info->snd_portid) {

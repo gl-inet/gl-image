@@ -9,7 +9,7 @@ include $(INCLUDE_DIR)/kernel.mk
 include ./version.mk
 
 PKG_NAME:=gl-sdk4-usb-control
-PKG_VERSION:=$(strip $(call findrev))
+PKG_VERSION:=git-2026.023.34580-bec1a82
 PKG_RELEASE:=1
 
 include $(INCLUDE_DIR)/package.mk

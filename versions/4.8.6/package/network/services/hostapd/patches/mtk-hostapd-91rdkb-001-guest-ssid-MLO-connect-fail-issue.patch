@@ -1,0 +1,60 @@
+From bee8fcbfdc7907bfbb75b0351d27b27f365fa343 Mon Sep 17 00:00:00 2001
+From: Fang Zhao <fang.zhao@mediatek.com>
+Date: Fri, 7 Jun 2024 18:33:08 +0800
+Subject: [PATCH] fix guest ssid MLO connect fail issue.
+
+Signed-off-by: Fang Zhao <fang.zhao@mediatek.com>
+---
+ src/ap/hostapd.c             | 15 +++++++++++++++
+ src/drivers/driver_nl80211.c |  2 +-
+ 2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
+index 68528a4c4..d77e91664 100644
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -55,6 +55,7 @@
+ #include "hs20.h"
+ #include "airtime_policy.h"
+ #include "wpa_auth_kay.h"
++#include "../drivers/driver_nl80211.h"
+ 
+ #ifdef CONFIG_MTK_IEEE80211BE
+ #include "ml/ml_common.h"
+@@ -3224,6 +3225,20 @@ int hostapd_add_iface(struct hapd_interfaces *interfaces, char *buf)
+ 				os_free(hapd);
+ 				return -1;
+ 			}
++
++			struct i802_bss *bss = (struct i802_bss *)hapd->drv_priv;
++			struct wpa_driver_nl80211_data *drv = bss->drv;
++			for (bss = drv->first_bss; bss; bss = bss->next) {
++				if (os_memcmp(hapd->own_addr, bss->addr, ETH_ALEN) == 0) {
++					break;
++				}
++			}
++			if (bss) {
++				wpa_printf(MSG_INFO, "%s: free hapd %p %s get mlo info from %s\n",
++					   __func__, hapd, hapd->conf->iface, bss->ifname);
++				if (hapd->driver && hapd->driver->get_bss_mlo_info)
++					hapd->driver->get_bss_mlo_info(bss);
++			}
+ 			hostapd_init_wps_complete(hapd);
+ 		}
+ 		hostapd_owe_update_trans(hapd_iface);
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index d84b6a76e..a29d43991 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -7472,7 +7472,7 @@ static int nl80211_get_bss_mlo_info(struct wpa_driver_nl80211_data *drv, struct
+ 
+ 	wpa_printf(MSG_INFO, "nl80211_get_bss_mlo_info");
+ 
+-	if (!(msg = nl80211_drv_msg(drv, 0, NL80211_CMD_VENDOR)) ||
++	if (!(msg = nl80211_bss_msg(bss, 0, NL80211_CMD_VENDOR)) ||
+ 		nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, MTK_NL80211_VENDOR_ID) ||
+ 		nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_GET_BSS_MLO_INFO)) {
+ 		nlmsg_free(msg);
+-- 
+2.18.0
+

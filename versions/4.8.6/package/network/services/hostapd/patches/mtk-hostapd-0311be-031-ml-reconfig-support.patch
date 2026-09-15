@@ -1,0 +1,480 @@
+Index: hostapd-2022-07-29-b704dc72/src/ap/drv_callbacks.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/drv_callbacks.c
++++ hostapd-2022-07-29-b704dc72/src/ap/drv_callbacks.c
+@@ -1918,6 +1918,14 @@ static void hostapd_event_bss_ml_info(st
+ 		wpa_printf(MSG_DEBUG, "ML: hostapd_event_bss_mlo_info, invalid add link event id:%u, it shall be 0 or 1\n", event_id);
+ }
+ 
++static void hostapd_event_ml_reconfig (struct hostapd_data *hapd,
++		u8 *mld_addr, u8 link_num, struct ml_reconf_info *link)
++{
++
++	wpa_printf(MSG_DEBUG, "ML: update sta link of ML Reconfiguration");
++	ml_reconfig_update_sta_link(hapd, mld_addr, link_num, link);
++}
++
+ void hostapd_wpa_event(void *ctx, enum wpa_event_type event,
+ 		       union wpa_event_data *data)
+ {
+@@ -2164,6 +2172,10 @@ void hostapd_wpa_event(void *ctx, enum w
+ 			data->ml_info_event.mld_grp_idx,
+ 			data->ml_info_event.link_id, data->ml_info_event.addr);
+ 		break;
++	case EVENT_NOTIFY_ML_RECONF:
++		hostapd_event_ml_reconfig(hapd, data->reconf_event.addr,
++			data->reconf_event.link_num, data->reconf_event.link);
++		break;
+ #ifdef CONFIG_IEEE80211AX
+ 	case EVENT_BSS_COLOR_COLLISION:
+ 		/* The BSS color is shared amongst all BBSs on a specific phy.
+Index: hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wpa_auth.c
++++ hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.c
+@@ -4441,6 +4441,11 @@ static int wpa_gtk_update(struct wpa_aut
+ 	struct wpa_auth_config *conf = &wpa_auth->conf;
+ 	int ret = 0;
+ 	size_t len;
++#ifdef CONFIG_MTK_IEEE80211BE
++	struct hostapd_data *hapd = (struct hostapd_data *)wpa_auth->cb_ctx;
++	struct wpa_ml_group *ml_group;
++	int i = 0;
++#endif /*CONFIG_MTK_IEEE80211BE*/
+ 
+ 	wpa_printf(MSG_DEBUG,
+ 		   "In wpa_gtk_update group is %p, GN:%d, GN_igtk:%d, group->GN_bigtk:%d", group, group->GN, group->GN_igtk, group->GN_bigtk);
+@@ -4502,6 +4507,18 @@ static int wpa_gtk_update(struct wpa_aut
+ 				group->BIGTK[group->GN_bigtk - 6], len);
+ 	}
+ 
++#ifdef CONFIG_MTK_IEEE80211BE
++	ml_group = hapd->ml_group;
++	for (i = 0; ml_group && i < ml_group->ml_link_num; i++) {
++		struct wpa_ml_link *link = &ml_group->links[i];
++
++		/*send MLO Group Key data to driver fro ML reconfiguration*/
++		/*per BSS per link*/
++		if (link->ctx == hapd)
++			ml_reconfig_send_kde(hapd, link);
++	}
++#endif /*CONFIG_MTK_IEEE80211BE*/
++
+ 	return ret;
+ }
+ 
+Index: hostapd-2022-07-29-b704dc72/src/drivers/driver.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/driver.h
++++ hostapd-2022-07-29-b704dc72/src/drivers/driver.h
+@@ -4736,6 +4736,20 @@ struct wpa_driver_ops {
+ 	 * This optional callback can be used to get MLO info when setup bss.
+ 	 */
+ 	int (*get_bss_mlo_info)(void *priv);
++
++	/**
++	 * set_ml_reconf_kde - set ml reconf kde to driver
++	 * @priv: Private driver interface data
++	 * @gtk: MLO GTK KDE
++	 * @gtk_len: the length of MLO GTK KDE
++	 * @igtk: MLO IGTK KDE
++	 * @gtk_len: the length of MLO IGTK KDE
++	 * @gtk: MLO BIGTK KDE
++	 * @gtk_len: the length of MLO BIGTK KDE
++	 * Return: 0 on success, negative error code otherwise
++	 */
++	int (*set_ml_reconf_kde)(void *priv, u8 *gtk, size_t gtk_len,
++			u8 *igtk, size_t igtk_len, u8 *bigtk, size_t bigtk_len);
+ #endif
+ };
+ 
+@@ -5333,6 +5347,10 @@ enum wpa_event_type {
+ 	  * EVENT_UPDATE_STA_PROFILE_UPDATE - Notification of PER-STA PROFILE INFO
+ 	  */
+ 	EVENT_UPDATE_STA_PROFILE_UPDATE,
++	/**
++	  * EVENT_NOTIFY_ML_RECONF - Notification of ML Reconfigurarion INFO
++	  */
++	EVENT_NOTIFY_ML_RECONF,
+ };
+ 
+ 
+@@ -6248,6 +6266,11 @@ union wpa_event_data {
+ 	  * struct per_sta_profile - Data for EVENT_UPDATE_STA_PROFILE_UPDATE
+     */
+ 	struct per_sta_profile profiles[ML_MAX_LINK_NUM];
++
++	/**
++	  * struct ml_reconf_event - Data for EVENT_NOTIFY_ML_RECONF
++	 */
++	struct ml_reconf_event reconf_event;
+ };
+ 
+ /**
+Index: hostapd-2022-07-29-b704dc72/src/drivers/driver_nl80211.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/driver_nl80211.c
++++ hostapd-2022-07-29-b704dc72/src/drivers/driver_nl80211.c
+@@ -7584,6 +7584,60 @@ static int wpa_driver_nl80211_get_bss_ml
+ 
+ 	return nl80211_get_bss_mlo_info(drv, bss);
+ }
++
++static int nl80211_set_ml_reconf_kde(struct wpa_driver_nl80211_data *drv,
++		u8 *gtk, size_t gtk_len, u8 *igtk, size_t igtk_len, u8 *bigtk, size_t bigtk_len)
++{
++	struct nl_msg *msg = NULL;
++	struct nlattr *attr = NULL;
++	int ret = 0;
++
++	wpa_printf(MSG_DEBUG, "nl80211_set_ml_reconf_kde");
++
++	if (!(msg = nl80211_drv_msg(drv, 0, NL80211_CMD_VENDOR)) ||
++		nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, MTK_NL80211_VENDOR_ID) ||
++		nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_SET_MLO_KDE)) {
++		nlmsg_free(msg);
++		return -1;
++	}
++
++	attr = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA);
++	if(!attr) {
++		wpa_printf(MSG_ERROR, "nl80211: nla_nest_start FAIL");
++		goto fail;
++	}
++
++	if (nla_put(msg, MTK_NL80211_VENDOR_ATTR_MLO_GTK_KDE, gtk_len, gtk))
++		goto fail;
++
++	if (nla_put(msg, MTK_NL80211_VENDOR_ATTR_MLO_IGTK_KDE, igtk_len, igtk))
++		goto fail;
++
++	if (bigtk_len != 0 && nla_put(msg, MTK_NL80211_VENDOR_ATTR_MLO_BIGTK_KDE, bigtk_len, bigtk))
++		goto fail;
++
++	nla_nest_end(msg, attr);
++
++	ret = send_and_recv_msgs(drv, msg, NULL, NULL, NULL, NULL);
++	if (ret)
++		wpa_printf(MSG_DEBUG, "nl80211: vendor command set ml reconf kde fail");
++	return ret;
++fail:
++	nlmsg_free(msg);
++	return -1;
++}
++
++static int wpa_driver_nl80211_set_ml_reconf_kde(void *priv, u8 *gtk, size_t gtk_len,
++		u8 *igtk, size_t igtk_len, u8 *bigtk, size_t bigtk_len)
++{
++	struct i802_bss *bss = priv;
++	struct wpa_driver_nl80211_data *drv = bss->drv;
++
++	wpa_printf(MSG_DEBUG, "nl80211: set gourp key data for ML Reconfiguration");
++
++	return nl80211_set_ml_reconf_kde(drv, gtk, gtk_len, igtk, igtk_len, bigtk, bigtk_len);
++}
++
+ #endif
+ 
+ static int wpa_driver_nl80211_set_operstate(void *priv, int state)
+@@ -13431,6 +13485,7 @@ const struct wpa_driver_ops wpa_driver_n
+ #endif /* CONFIG_TESTING_OPTIONS */
+ #ifdef CONFIG_MTK_IEEE80211BE
+ 	.get_bss_mlo_info = wpa_driver_nl80211_get_bss_mlo_info,
++	.set_ml_reconf_kde = wpa_driver_nl80211_set_ml_reconf_kde,
+ #endif
+ #ifdef SUPP_RANDOM_MAC_IN_DRIVER_SUPPORT
+ 	.seq_num = nl80211_set_seq_num,
+Index: hostapd-2022-07-29-b704dc72/src/drivers/mediatek_driver_cmd_nl80211.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/drivers/mediatek_driver_cmd_nl80211.c
++++ hostapd-2022-07-29-b704dc72/src/drivers/mediatek_driver_cmd_nl80211.c
+@@ -214,6 +214,43 @@ static void mtk_ml80211_bss_ml_info_even
+ 		wpa_supplicant_event(bss->ctx, EVENT_UPDATE_BSS_ML_INFO, event);
+ }
+ 
++static void mtk_nl80211_ml_reconf_event(struct wpa_driver_nl80211_data *drv, struct i802_bss *bss,
++					u8 *data, size_t len)
++{
++
++	struct nlattr *tb[MTK_NL80211_VENDOR_ATTR_ML_RECONF_MAX + 1];
++	union wpa_event_data event;
++	u8 num = 0;
++
++	if (nla_parse(tb, MTK_NL80211_VENDOR_ATTR_ML_RECONF_MAX, (struct nlattr *)data, len, NULL)) {
++		wpa_printf(MSG_DEBUG, "Invalid ML info attribute\n");
++		return;
++	}
++
++	if (!tb[MTK_NL80211_VENDOR_ATTR_ML_RECONF_STA] ||
++		!tb[MTK_NL80211_VENDOR_ATTR_ML_RECONF_LINK_NUM] ||
++		!tb[MTK_NL80211_VENDOR_ATTR_ML_RECONF_LINK_INFO])
++		return;
++
++	if (tb[MTK_NL80211_VENDOR_ATTR_ML_RECONF_STA])
++		os_memcpy(event.reconf_event.addr, nla_data(tb[MTK_NL80211_VENDOR_ATTR_ML_RECONF_STA]), ETH_ALEN);
++
++	if (tb[MTK_NL80211_VENDOR_ATTR_ML_RECONF_LINK_NUM])
++		num = nla_get_u8(tb[MTK_NL80211_VENDOR_ATTR_ML_RECONF_LINK_NUM]);
++
++	event.reconf_event.link_num = num;
++	if (num > (ML_MAX_LINK_NUM * 2)) {
++		wpa_printf(MSG_ERROR, "ML: Invalid link num: %u", num);
++		return;
++	}
++
++	if (tb[MTK_NL80211_VENDOR_ATTR_ML_RECONF_LINK_INFO])
++		os_memcpy(event.reconf_event.link, nla_data(tb[MTK_NL80211_VENDOR_ATTR_ML_RECONF_LINK_INFO]),
++			 num * sizeof(struct ml_reconf_info));
++
++	wpa_supplicant_event(bss->ctx, EVENT_NOTIFY_ML_RECONF, &event);
++}
++
+ void mtk_nl80211_mlo_sta_profile_event(struct wpa_driver_nl80211_data *drv,
+                 u8 *data, size_t data_len)
+ {
+@@ -495,6 +532,11 @@ void nl80211_vendor_event_mtk(struct wpa
+ 		"nl80211: MTK_NL80211_VENDOR_EVENT_SEND_MLO_STA_LINK_MAC event %u", subcmd);
+ 		mtk_nl80211_rx_sta_link_mac_event(drv, data, len);
+ 		break;
++	case MTK_NL80211_VENDOR_EVENT_NOTIFY_ML_RECONF:
++		wpa_printf(MSG_DEBUG,
++		"nl80211: MTK_NL80211_VENDOR_EVENT_NOTIFY_ML_RECONF event %u", subcmd);
++		mtk_nl80211_ml_reconf_event(drv, bss, data, len);
++		break;
+ 	    default:
+ 	        wpa_printf(MSG_DEBUG,
+ 	            "nl80211:Ignore unsupported mtk vendor event %u, MTK_NL80211_VENDOR_EVENT_MLO_EVENT(%u)",
+Index: hostapd-2022-07-29-b704dc72/src/ml/ml_common.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ml/ml_common.c
++++ hostapd-2022-07-29-b704dc72/src/ml/ml_common.c
+@@ -1346,4 +1346,197 @@ int ml_rekey_gtk(struct wpa_state_machin
+ 	return 0;
+ }
+ 
++void ml_reconf_add_sta_link(struct wpa_state_machine *sm, struct ml_reconf_info *info)
++{
++	u8 i = 0;
++	int found = 0;
++
++	for (i = 0; i < sm->sta_ml_ie->prof_num; i++) {
++		if (info->link_id == sm->sta_ml_ie->profiles[i].link_id)
++			found = 1;
++	}
++
++	if (found == 1) {
++		os_memcpy(sm->sta_ml_ie->profiles[sm->sta_ml_ie->prof_num].addr,
++			info->link_addr, ETH_ALEN);
++		return;
++	}
++
++	if (sm->sta_ml_ie->prof_num + 1 > ML_MAX_LINK_NUM)
++		return;
++	sm->sta_ml_ie->profiles[sm->sta_ml_ie->prof_num].link_id = info->link_id;
++	os_memcpy(sm->sta_ml_ie->profiles[sm->sta_ml_ie->prof_num].addr,
++			info->link_addr, ETH_ALEN);
++	sm->sta_ml_ie->prof_num++;
++}
++
++void ml_reconf_del_sta_link (struct wpa_state_machine *sm, struct ml_reconf_info *info)
++{
++	u8 i = 0, j = 0;
++	int found = 0;
++
++	for (i = 0; i < sm->sta_ml_ie->prof_num; i++) {
++		if (info->link_id == sm->sta_ml_ie->profiles[i].link_id)
++			found = 1;
++	}
++
++	if (found == 0)
++		return;
++
++	for ( j = i; j + 1 < sm->sta_ml_ie->prof_num ; j++)
++		memcpy(&sm->sta_ml_ie->profiles[j], &sm->sta_ml_ie->profiles[j + 1], sizeof(struct per_sta_profile));
++
++	sm->sta_ml_ie->prof_num--;
++}
++
++struct sta_info *ml_get_sta_by_mld_addr(struct hostapd_data *hapd, u8 *mld_addr)
++{
++	struct sta_info *sta;
++	struct wpa_state_machine *sm;
++
++	for (sta = hapd->sta_list; sta != NULL; sta = sta->next) {
++		sm = sta->wpa_sm;
++		if (sm && sm->sta_ml_ie) {
++			if (os_memcmp(sm->sta_ml_ie->ml_addr, mld_addr, ETH_ALEN) == 0)
++				return sta;
++		}
++	}
++	return NULL;
++}
++
++int ml_reconfig_update_sta_link(struct hostapd_data *hapd, u8 *addr, u8 link_num, struct ml_reconf_info *info)
++{
++	struct sta_info *sta;
++	struct wpa_state_machine *sm;
++	u8 found = 0;
++	u8 i;
++
++	/*find the sta by mld_addr*/
++	sta = ml_get_sta_by_mld_addr(hapd, addr);
++	if (!sta) {
++		wpa_printf(MSG_INFO,"ML Link reconfig: this sta ("MACSTR") is not associated with any interface", MAC2STR(addr));
++		return -1;
++	}
++
++	sm = sta->wpa_sm;
++		/*delete link firstly*/
++	for (i = 0 ; i < link_num; i++) {
++		if (info[i].event_id != 1)
++			continue;
++		wpa_printf(MSG_DEBUG, "Link id(%d): dellink event(%d)", info[i].link_id, info[i].event_id);
++		ml_reconf_del_sta_link(sm, &info[i]);
++	}
++
++	for (i = 0 ; i < link_num; i++) {
++		if (info[i].event_id != 0)
++			continue;
++		 wpa_printf(MSG_DEBUG, "Link id(%d): addlink event(%d)", info[i].link_id, info[i].event_id);
++		 ml_reconf_add_sta_link(sm, &info[i]);
++	}
++
++	return 0;
++}
++
++int ml_reconfig_send_kde(struct hostapd_data *hapd, struct wpa_ml_link *link)
++{
++	struct wpa_authenticator *auth = hapd->wpa_auth;
++	struct wpa_auth_config *conf = &auth->conf;
++	struct wpa_group *gsm = auth->group;
++	struct wpa_mlo_gtk_kde gtk;
++	size_t gtk_len = 0;
++	struct wpa_mlo_igtk_kde igtk;
++	size_t igtk_len = 0;
++	struct wpa_mlo_bigtk_kde bigtk;
++	size_t bigtk_len = 0;
++	int gtkidx;
++	u8 rsc[WPA_KEY_RSC_LEN];
++	size_t gtk_kde_len = 0, igtk_kde_len = 0, bigtk_kde_len = 0;
++	u8 *gtk_kde = NULL, *igtk_kde = NULL, *bigtk_kde = NULL;
++	u8 *pos = NULL;
++
++	os_memset(&gtk, 0, sizeof(gtk));
++	os_memset(&igtk, 0, sizeof(igtk));
++	os_memset(&bigtk, 0, sizeof(bigtk));
++
++	/*GTK KDE*/
++	gtk_len = gsm->GTK_len;
++	os_memcpy(gtk.gtk, gsm->GTK[gsm->GN - 1], gtk_len);
++	gtkidx = gsm->GN;
++	gtk.info = (gtkidx & 0x03) | (link->link_id & 0x0f) << 4;
++
++	gtk_kde_len = 2 + RSN_SELECTOR_LEN + WPA_MLO_GTK_KDE_PREFIX_LEN + gtk_len;
++	gtk_kde = os_malloc(gtk_kde_len);
++	if (gtk_kde == NULL)
++		goto err;
++	pos = gtk_kde;
++	pos = wpa_add_kde(pos, RSN_KEY_DATA_MLO_GTK,
++					(const u8 *)&gtk, WPA_MLO_GTK_KDE_PREFIX_LEN + gtk_len,
++					NULL, 0);
++	wpa_hexdump(MSG_DEBUG, "ML Reconfig: Send GTK KDE", gtk_kde, gtk_kde_len);
++
++	/*IGTK KDE*/
++	if (conf->ieee80211w != NO_MGMT_FRAME_PROTECTION) {
++		igtk_len = wpa_cipher_key_len(conf->group_mgmt_cipher);
++		igtk.keyid[0] = gsm->GN_igtk;
++		igtk.keyid[1] = 0;
++		if (gsm->wpa_group_state != WPA_GROUP_SETKEYSDONE ||
++			ml_get_seqnum(auth, NULL, gsm->GN_igtk, rsc) < 0)
++			os_memset(igtk.pn, 0, sizeof(igtk.pn));
++		else
++			os_memcpy(igtk.pn, rsc, sizeof(igtk.pn));
++		os_memcpy(igtk.igtk, gsm->IGTK[gsm->GN_igtk - 4], igtk_len);
++		igtk.info = (link->link_id & 0x0f) << 4;
++
++		igtk_kde_len = 2 + RSN_SELECTOR_LEN + WPA_MLO_IGTK_KDE_PREFIX_LEN + igtk_len;
++		igtk_kde = os_malloc(igtk_kde_len);
++		if (igtk_kde == NULL)
++			goto err;
++		pos = igtk_kde;
++		pos = wpa_add_kde(pos, RSN_KEY_DATA_MLO_IGTK,
++					(const u8 *)&igtk, WPA_MLO_IGTK_KDE_PREFIX_LEN + igtk_len,
++					NULL, 0);
++		wpa_hexdump(MSG_DEBUG, "ML Reconfig: Send IGTK KDE", igtk_kde, igtk_kde_len);
++	}
++
++	/*BIGKT KDE*/
++	if (conf->ieee80211w != NO_MGMT_FRAME_PROTECTION && conf->beacon_prot) {
++		bigtk_len = wpa_cipher_key_len(conf->group_mgmt_cipher);
++		bigtk.keyid[0] = gsm->GN_bigtk;
++		bigtk.keyid[1] = 0;
++		if (gsm->wpa_group_state != WPA_GROUP_SETKEYSDONE ||
++			ml_get_seqnum(auth, NULL, gsm->GN_bigtk, rsc) < 0)
++			os_memset(bigtk.pn, 0, sizeof(bigtk.pn));
++		else
++			os_memcpy(bigtk.pn, rsc, sizeof(bigtk.pn));
++		os_memcpy(bigtk.bigtk, gsm->BIGTK[gsm->GN_bigtk - 6], bigtk_len);
++		bigtk.info = (link->link_id & 0x0f) << 4;
++
++		bigtk_kde_len = 2 + RSN_SELECTOR_LEN + WPA_MLO_BIGTK_KDE_PREFIX_LEN + bigtk_len;
++		bigtk_kde = os_malloc(bigtk_kde_len);
++		if (bigtk_kde == NULL)
++			goto err;
++		pos = bigtk_kde;
++		pos = wpa_add_kde(pos, RSN_KEY_DATA_MLO_BIGTK,
++					(const u8 *)&bigtk, WPA_MLO_BIGTK_KDE_PREFIX_LEN + bigtk_len,
++					NULL, 0);
++		wpa_hexdump(MSG_DEBUG, "ML Reconfig: Send BIGTK KDE", bigtk_kde, bigtk_kde_len);
++	}
++
++	/*Send Group KDE to Driver*/
++	if (hapd->driver && hapd->driver->set_ml_reconf_kde)
++		hapd->driver->set_ml_reconf_kde(hapd->drv_priv,
++			gtk_kde, gtk_kde_len, igtk_kde, igtk_kde_len, bigtk_kde, bigtk_kde_len);
++	os_free(gtk_kde);
++	os_free(igtk_kde);
++	os_free(bigtk_kde);
++	return 0;
++err:
++	if (gtk_kde)
++		os_free(gtk_kde);
++	if (igtk_kde)
++		os_free(igtk_kde);
++	if (bigtk_kde)
++		os_free(bigtk_kde);
++	return -1;
++}
+ 
+Index: hostapd-2022-07-29-b704dc72/src/ml/ml_common.h
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ml/ml_common.h
++++ hostapd-2022-07-29-b704dc72/src/ml/ml_common.h
+@@ -144,6 +144,17 @@ struct wpa_mlo_link_kde {
+ 	u8 var[]; /* RSNE | RSNXE */
+ } STRUCT_PACKED;
+ 
++struct ml_reconf_info {
++	u8 event_id;
++	u8 link_id;
++	u8 link_addr[ETH_ALEN];
++};
++
++struct ml_reconf_event {
++	u8 addr[ETH_ALEN];
++	u8 link_num;
++	struct ml_reconf_info link[2 * ML_MAX_LINK_NUM];
++};
+ 
+ struct per_sta_profile {
+ 	u8 link_id;
+@@ -221,5 +232,9 @@ u8* ml_set_ieee80211w_kde(struct wpa_sta
+ 			  struct wpa_ml_link *link);
+ u8* ml_add_rekey_kde(struct wpa_state_machine *sm, u8 *pos);
+ int ml_rekey_gtk(struct wpa_state_machine *sm, struct wpa_eapol_ie_parse *kde);
++void ml_reconf_add_sta_link (struct wpa_state_machine *sm, struct ml_reconf_info *info);
++void ml_reconf_del_sta_link (struct wpa_state_machine *sm, struct ml_reconf_info *info);
++int ml_reconfig_update_sta_link(struct hostapd_data *hapd, u8 *addr, u8 link_num, struct ml_reconf_info *info);
++int ml_reconfig_send_kde(struct hostapd_data *hapd, struct wpa_ml_link *link);
+ 
+ #endif /* WPA_ML_COMMON_H */

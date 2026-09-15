@@ -1,0 +1,30 @@
+Index: hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wpa_auth.c	2025-07-10 10:20:36.235515106 +0800
++++ hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.c	2025-07-10 11:28:45.170858917 +0800
+@@ -3963,7 +3963,10 @@
+ 				  payload, sizeof(payload), NULL, 0);
+ 	}
+ #endif /* CONFIG_DPP2 */
+-
++	/* install key before sending EAPOL M3 */
++	wpa_auth_set_key(sm->wpa_auth, 0, wpa_cipher_to_alg(sm->pairwise), sm->addr,
++					       0, sm->PTK.tk, wpa_cipher_key_len(sm->pairwise),
++					       KEY_FLAG_PAIRWISE_RX_TX);
+ 	wpa_send_eapol(sm->wpa_auth, sm,
+ 		       (secure ? WPA_KEY_INFO_SECURE : 0) |
+ 		       (wpa_mic_len(sm->wpa_key_mgmt, sm->pmk_len) ?
+@@ -3993,9 +3996,13 @@
+ 					       sm->keyidx_active, NULL, 0,
+ 					       KEY_FLAG_PAIRWISE_RX_TX_MODIFY);
+ 		else {
++			/* do not install key as already install before sending EAPOL M3 */
++			/*
+ 			res = wpa_auth_set_key(sm->wpa_auth, 0, alg, sm->addr,
+ 					       0, sm->PTK.tk, klen,
+ 					       KEY_FLAG_PAIRWISE_RX_TX);
++			*/
++			res = 0;
+ #ifdef ZERO_HANDOFF_ROAMING
+ 			if (1) {
+ 				struct wpa_ptk_entry params;

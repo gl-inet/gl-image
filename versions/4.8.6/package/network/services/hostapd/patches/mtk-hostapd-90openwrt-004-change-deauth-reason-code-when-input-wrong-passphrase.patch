@@ -1,0 +1,25 @@
+Index: hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wpa_auth.c
++++ hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.c
+@@ -3278,6 +3278,8 @@ SM_STATE(WPA_PTK, PTKCALCNEGOTIATING)
+ 	if (!ok) {
+ 		wpa_auth_logger(sm->wpa_auth, sm->addr, LOGGER_DEBUG,
+ 				"invalid MIC in msg 2/4 of 4-Way Handshake");
++		wpa_printf(MSG_INFO, "invalid MIC in msg 2/4 of 4-Way Handshake!");
++		sm->disconnect_reason = WLAN_REASON_PREV_AUTH_NOT_VALID;
+ 		if (psk_found)
+ 			wpa_auth_psk_failure_report(sm->wpa_auth, sm->addr);
+ 		return;
+@@ -4076,8 +4078,9 @@ SM_STEP(WPA_PTK)
+ 			wpa_auth_vlogger(wpa_auth, sm->addr, LOGGER_DEBUG,
+ 					 "PTKSTART: Retry limit %u reached",
+ 					 conf->wpa_pairwise_update_count);
+-			sm->disconnect_reason =
+-				WLAN_REASON_4WAY_HANDSHAKE_TIMEOUT;
++			if (sm->disconnect_reason == 0)
++				sm->disconnect_reason =
++					WLAN_REASON_4WAY_HANDSHAKE_TIMEOUT;
+ 			SM_ENTER(WPA_PTK, DISCONNECT);
+ 		} else if (sm->TimeoutEvt)
+ 			SM_ENTER(WPA_PTK, PTKSTART);

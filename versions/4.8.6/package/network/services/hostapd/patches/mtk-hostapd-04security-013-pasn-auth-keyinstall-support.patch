@@ -1,0 +1,81 @@
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index f352475..97ad277 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -3265,6 +3265,19 @@ fail:
+ 	return -1;
+ }
+ 
++#ifdef CONFIG_PASN
++static inline int wpa_auth_set_key(struct wpa_authenticator *wpa_auth,
++                                   int vlan_id,
++                                   enum wpa_alg alg, const u8 *addr, int idx,
++                                   u8 *key, size_t key_len,
++                                   enum key_flag key_flag)
++{
++        if (!wpa_auth->cb->set_key)
++                return -1;
++        return wpa_auth->cb->set_key(wpa_auth->cb_ctx, vlan_id, alg, addr, idx,
++                                     key, key_len, key_flag);
++}
++#endif /* CONFIG_PASN */
+ 
+ static void handle_auth_pasn_1(struct hostapd_data *hapd, struct sta_info *sta,
+ 			       const struct ieee80211_mgmt *mgmt, size_t len)
+@@ -3566,6 +3579,7 @@ static void handle_auth_pasn_3(struct hostapd_data *hapd, struct sta_info *sta,
+ 	u8 mic[WPA_PASN_MAX_MIC_LEN], out_mic[WPA_PASN_MAX_MIC_LEN];
+ 	u8 mic_len;
+ 	int ret;
++	struct wpa_state_machine *sm = NULL;
+ 
+ 	if (ieee802_11_parse_elems(mgmt->u.auth.variable,
+ 				   len - offsetof(struct ieee80211_mgmt,
+@@ -3609,6 +3623,7 @@ static void handle_auth_pasn_3(struct hostapd_data *hapd, struct sta_info *sta,
+ 			   "PASN: Public key should not be included");
+ 		goto fail;
+ 	}
++	sm = sta->wpa_sm;
+ 
+ 	/* Verify the MIC */
+ 	ret = pasn_mic(sta->pasn->ptk.kck, sta->pasn->akmp, sta->pasn->cipher,
+@@ -3663,7 +3678,22 @@ static void handle_auth_pasn_3(struct hostapd_data *hapd, struct sta_info *sta,
+ 
+ 	ptksa_cache_add(hapd->ptksa, sta->addr, sta->pasn->cipher, 43200,
+ 			&sta->pasn->ptk);
++
++	wpa_printf(MSG_INFO,
++		   "PASN: AUTH Success Installed Key for peer" MACSTR, MAC2STR(sm->addr));
++	ret = wpa_auth_set_key(sm->wpa_auth, 0,
++				wpa_cipher_to_alg(sta->pasn->cipher),
++				sm->addr,
++				sm->keyidx_active, sta->pasn->ptk.tk,
++				wpa_cipher_key_len(sta->pasn->cipher),
++				KEY_FLAG_PAIRWISE_RX_TX);
++	if (ret == 0) {
++		wpa_auth_sta_deinit(sta->wpa_sm);
++		return;
++	}
++
+ fail:
++	wpa_auth_sta_deinit(sta->wpa_sm);
+ 	ap_free_sta(hapd, sta);
+ }
+ 
+@@ -4128,6 +4158,17 @@ static void handle_auth(struct hostapd_data *hapd,
+ #endif /* CONFIG_FILS */
+ #ifdef CONFIG_PASN
+ 	case WLAN_AUTH_PASN:
++
++		if (sta->wpa_sm == NULL)
++			sta->wpa_sm =
++				wpa_auth_sta_init(hapd->wpa_auth,
++							  sta->addr, NULL);
++		if (sta->wpa_sm == NULL) {
++			wpa_printf(MSG_WARNING, "PASN: Failed to initialize WPA "
++					"state machine");
++			return;
++		}
++
+ 		handle_auth_pasn(hapd, sta, mgmt, len, auth_transaction,
+ 				 status_code);
+ 		return;

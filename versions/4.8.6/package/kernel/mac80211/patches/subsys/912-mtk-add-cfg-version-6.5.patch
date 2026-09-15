@@ -1,0 +1,16 @@
+Index: backports-6.5/backport-include/linux/version.h
+===================================================================
+--- backports-6.5.orig/backport-include/linux/version.h
++++ backports-6.5/backport-include/linux/version.h
+@@ -1,5 +1,11 @@
+ #ifndef _BP_LINUX_VERSION_H
+ #define _BP_LINUX_VERSION_H
++
++#ifdef CFG_CFG80211_VERSION
++#undef CFG_CFG80211_VERSION
++#endif
++#define CFG_CFG80211_VERSION KERNEL_VERSION(6, 5, 0)
++
+ #include_next <linux/version.h>
+ 
+ #ifndef RHEL_RELEASE_VERSION

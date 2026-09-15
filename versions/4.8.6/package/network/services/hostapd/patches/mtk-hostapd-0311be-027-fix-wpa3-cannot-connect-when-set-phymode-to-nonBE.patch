@@ -1,0 +1,14 @@
+Index: hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.c
+===================================================================
+--- hostapd-2022-07-29-b704dc72.orig/src/ap/wpa_auth.c
++++ hostapd-2022-07-29-b704dc72/src/ap/wpa_auth.c
+@@ -5187,7 +5187,8 @@ int wpa_auth_pmksa_add_sae(struct wpa_au
+ #ifdef CONFIG_MTK_IEEE80211BE
+ 	if (1) {
+ 		struct wpa_ml_group *ml_group = ((struct hostapd_data *)wpa_auth->cb_ctx)->ml_group;
+-		if (!ml_group) { /*legacy case*/
++		if (!ml_group || ml_group->ml_link_num == 0) { /*legacy case*/
++			// When ml_link_num is zero(dellink or set phymode), Ap cannot generate pmksa for STA 
+ 			wpa_printf(MSG_INFO, "RSN: legacy case to add pmksa");
+ 			if (pmksa_cache_auth_add(wpa_auth->pmksa, pmk, pmk_len, pmkid,
+ 				 NULL, 0, aa, addr, 0, NULL, akmp

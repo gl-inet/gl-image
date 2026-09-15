@@ -1,0 +1,23 @@
+diff --git a/src/ap/wpa_auth_ft.c b/src/ap/wpa_auth_ft.c
+index 54098e1..99cf64f 100644
+--- a/src/ap/wpa_auth_ft.c
++++ b/src/ap/wpa_auth_ft.c
+@@ -2859,6 +2859,7 @@ u8 * wpa_sm_write_assoc_resp_ies(struct wpa_state_machine *sm, u8 *pos,
+ 	size_t rsnxe_len;
+ 	int rsnxe_used;
+ 	int res;
++	int sae_used;
+ 	struct wpa_auth_config *conf;
+ 	struct wpa_ft_ies parse;
+ 	u8 *ric_start;
+@@ -3152,8 +3153,9 @@ u8 * wpa_sm_write_assoc_resp_ies(struct wpa_state_machine *sm, u8 *pos,
+ 		anonce = NULL;
+ 		snonce = NULL;
+ 	}
++	sae_used = wpa_key_mgmt_sae(sm->wpa_key_mgmt);
+ 	rsnxe_used = (auth_alg == WLAN_AUTH_FT) &&
+-		(conf->sae_pwe == 1 || conf->sae_pwe == 2);
++		sae_used && (conf->sae_pwe == 1 || conf->sae_pwe == 2);
+ #ifdef CONFIG_TESTING_OPTIONS
+ 	if (sm->wpa_auth->conf.ft_rsnxe_used) {
+ 		rsnxe_used = sm->wpa_auth->conf.ft_rsnxe_used == 1;

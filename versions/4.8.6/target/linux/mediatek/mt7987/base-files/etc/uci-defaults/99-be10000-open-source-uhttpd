@@ -2,6 +2,13 @@
 
 [ "$(cat /tmp/sysinfo/board_name 2>/dev/null)" = "glinet,gl-be10000" ] || exit 0
 
+# LuCI uses uhttpd; the bundled nginx default also binds port 80.
+if [ -x /etc/init.d/nginx ]; then
+	/etc/init.d/nginx disable
+	/etc/init.d/nginx stop
+fi
+/etc/init.d/uhttpd enable
+
 listen_http="$(uci -q get uhttpd.main.listen_http)"
 case "$listen_http" in
 *127.0.0.1:8080*)

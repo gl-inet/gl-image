@@ -35,6 +35,14 @@ The sysupgrade image is generated under `bin/targets/mediatek/mt7987/`.
 Do not change the kernel version or ABI-relevant kernel configuration unless
 matching MediaTek runtime modules are supplied for the new ABI.
 
+## Build Configuration Files
+
+Three configurations are included for distinct purposes:
+
+- `configs/gl-be10000-baseline.config`: captured from the internal shipping build for audit and comparison.
+- `configs/gl-be10000-open-source.config`: builds the public open-source image without independent GL.iNet proprietary applications or Web UI.
+- `configs/gl-be10000-ccs-validation.config`: enables GPL/copyleft components corresponding to the distributed firmware for CCS validation, while proprietary applications and Web UI remain excluded.
+
 ## OpenWrt
 
 OpenWrt Project is a Linux operating system targeting embedded devices. Instead

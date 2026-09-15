@@ -1,0 +1,54 @@
+From 575b741254f6a52ecf99d7f6caea411033ea60aa Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Tue, 15 Oct 2024 09:05:02 +0800
+Subject: [PATCH] 
+ 999-2953-net-ethernet-mtk_eth_soc-enable-PKT-WDONE-for-MT7988D
+
+---
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 12 ++++++++++--
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h |  1 +
+ 2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+index 6acffef..175e3bc 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -4139,13 +4139,21 @@ static int mtk_start_dma(struct mtk_eth *eth)
+ 
+ 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+ 		val = mtk_r32(eth, reg_map->qdma.glo_cfg);
+-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
+-		    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
++		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+ 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4))
+ 				mtk_m32(eth, MTK_QDMA_FQ_FASTPATH_EN,
+ 					MTK_QDMA_FQ_FASTPATH_EN,
+ 					reg_map->qdma.fq_fast_cfg);
+ 
++			val &= ~(MTK_RESV_BUF_MASK | MTK_DMA_SIZE_MASK);
++			mtk_w32(eth,
++				val | MTK_TX_DMA_EN | MTK_RX_DMA_EN |
++				MTK_DMA_SIZE_32DWORDS | MTK_TX_WB_DDONE |
++				MTK_NDP_CO_PRO | MTK_MUTLI_CNT |
++				MTK_RESV_BUF | MTK_WCOMP_EN | MTK_PKT_RX_WDONE |
++				MTK_DMAD_WR_WDONE | MTK_CHK_DDONE_EN |
++				MTK_RX_2B_OFFSET, reg_map->qdma.glo_cfg);
++		} else if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+ 			val &= ~(MTK_RESV_BUF_MASK | MTK_DMA_SIZE_MASK);
+ 			mtk_w32(eth,
+ 				val | MTK_TX_DMA_EN | MTK_RX_DMA_EN |
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+index 6de40ed..4df4d56 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+@@ -478,6 +478,7 @@
+ 
+ /* QDMA V2 Global Configuration Register */
+ #define MTK_CHK_DDONE_EN	BIT(28)
++#define MTK_PKT_RX_WDONE	BIT(27)
+ #define MTK_DMAD_WR_WDONE	BIT(26)
+ #define MTK_WCOMP_EN		BIT(24)
+ #define MTK_RESV_BUF		(0x80 << 16)
+-- 
+2.45.2
+

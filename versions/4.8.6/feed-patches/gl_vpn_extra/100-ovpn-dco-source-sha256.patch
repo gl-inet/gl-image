@@ -1,0 +1,11 @@
+--- a/ovpn-dco/Makefile
++++ b/ovpn-dco/Makefile
+@@ -14,7 +14,7 @@
+ 
+ PKG_SOURCE:=v$(PKG_VERSION).tar.gz
+ PKG_SOURCE_URL=https://github.com/OpenVPN/ovpn-dco/archive/refs/tags/
+-PKG_HASH:=dfc30c86e686779635b31f433fc4908d
++PKG_HASH:=0b30b8973b362b80a05f278ae217f01a2a2417e16e9c68c486960275a55306cc
+ 
+ PKG_MAINTAINER:=Jianhui Zhao <zhaojh329@gmail.com>
+ PKG_LICENSE:=GPL-2.0-only

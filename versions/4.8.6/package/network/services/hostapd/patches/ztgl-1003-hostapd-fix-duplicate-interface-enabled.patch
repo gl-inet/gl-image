@@ -1,0 +1,85 @@
+From e2388061f86595e4b6ee02cc255d16b916b8d456 Mon Sep 17 00:00:00 2001
+From: "jiazheng.yin" <jiazheng.yin@gl-inet.com>
+Date: Wed, 18 Mar 2026 18:32:40 +0800
+Subject: [PATCH] hostapd: guard main IF state and tolerate duplicate START_AP
+
+Signed-off-by: jiazheng.yin <jiazheng.yin@gl-inet.com>
+---
+ src/drivers/driver_nl80211.c | 37 ++++++++++++++++++++++++++++++++----
+ 1 file changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index 3170212..c84ed98 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -1653,6 +1653,7 @@ static void wpa_driver_nl80211_event_rtm_newlink(void *ctx,
+ 	char extra[100], *pos, *end;
+ 	int init_failed;
+ 	struct hostapd_data *hapd;
++	int is_main_if_event;
+ 
+ 	extra[0] = '\0';
+ 	pos = extra;
+@@ -1710,7 +1711,15 @@ static void wpa_driver_nl80211_event_rtm_newlink(void *ctx,
+ 	if (init_failed)
+ 		return; /* do not update interface state */
+ 
+-	if (!drv->if_disabled && !(ifi->ifi_flags & IFF_UP)) {
++	/*
++	* Only main interface NEWLINK should drive drv->if_disabled state.
++	* Non-main events (e.g. bridge/vap peers) must not flip main state.
++	*/
++	is_main_if_event = drv->first_bss &&
++		(os_strcmp(drv->first_bss->ifname, ifname) == 0 ||
++		ifi->ifi_index == drv->ifindex);
++
++	if (is_main_if_event && !drv->if_disabled && !(ifi->ifi_flags & IFF_UP)) {
+ 		namebuf[0] = '\0';
+ 		if (if_indextoname(ifi->ifi_index, namebuf) &&
+ 		    linux_iface_up(drv->global->ioctl_sock, namebuf) > 0) {
+@@ -1745,7 +1754,7 @@ static void wpa_driver_nl80211_event_rtm_newlink(void *ctx,
+ 		}
+ 	}
+ 
+-	if (drv->if_disabled && (ifi->ifi_flags & IFF_UP)) {
++	if (is_main_if_event && drv->if_disabled && (ifi->ifi_flags & IFF_UP)) {
+ 		namebuf[0] = '\0';
+ 		if (if_indextoname(ifi->ifi_index, namebuf) &&
+ 		    linux_iface_up(drv->global->ioctl_sock, namebuf) == 0) {
+@@ -5440,11 +5449,31 @@ static int wpa_driver_nl80211_set_ap(void *priv,
+ 
+ 	ret = send_and_recv_msgs_connect_handle(drv, msg, bss, 1);
+ 	if (ret) {
++		int old_beacon_set = bss->beacon_set;
++		int duplicate_start_ap;
++
+ 		wpa_printf(MSG_DEBUG, "nl80211: Beacon set failed: %d (%s)",
+ 			   ret, strerror(-ret));
+-		if (!bss->beacon_set)
++		
++		/*
++		* Some drivers report START_AP as in-progress/already-started when
++		* interface-up events race with an already running AP. Keep the local
++		* beacon state to avoid poisoning follow-up reload decisions.
++		*/
++		duplicate_start_ap = !beacon_set && old_beacon_set &&
++			(ret == -EINPROGRESS || ret == -EALREADY);
++		if (duplicate_start_ap) {
++			wpa_printf(MSG_INFO,
++			"nl80211: treat duplicate START_AP as success ifname=%s ret=%d old_beacon_set=%d",
++			bss->ifname, ret, old_beacon_set);
+ 			ret = 0;
+-		bss->beacon_set = 0;
++			bss->beacon_set = 1;
++		} else if (!old_beacon_set) {
++			ret = 0;
++			bss->beacon_set = 0;
++		} else {
++			bss->beacon_set = 0;
++		}
+ 	} else {
+ 		bss->beacon_set = 1;
+ 		nl80211_set_bss(bss, params->cts_protect, params->preamble,
+-- 
+2.34.1
+

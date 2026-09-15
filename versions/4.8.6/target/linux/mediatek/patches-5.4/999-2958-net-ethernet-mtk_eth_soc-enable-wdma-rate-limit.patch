@@ -1,0 +1,45 @@
+From 73c399fcb2b5c044328e1946d241cb944cc9142e Mon Sep 17 00:00:00 2001
+From: "chak-kei.lam" <chak-kei.lam@mediatek.com>
+Date: Tue, 7 Jan 2025 17:19:32 +0800
+Subject: [PATCH] net ethernet mtk_eth_soc enable wdma rate limit
+
+---
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 5 +++++
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h | 5 +++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+index 1347934..68ffe0e 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -5049,6 +5049,11 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
+ 			/* PSE should drop PPE to p8 packets when WDMA Rx ring full*/
+ 			mtk_w32(eth, 0x00000100, PSE_PPE_DROP(0));
+ 			mtk_w32(eth, 0x00000100, PSE_PPE_DROP(1));
++
++			/* set WDMA Tx MAX rate to 5.5Gbps */
++			mtk_m32(eth, MTK_WDMA_MAX_RATE0, 0x167, MTK_WDMA_SCH_Q01_CFG(0));
++			/* enable WDMA Tx rate limit */
++			mtk_m32(eth, MTK_WDMA_MAX_RATE_ULMT0, 0, MTK_WDMA_SCH_Q01_CFG(0));
+ 		}
+ 
+ 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_ESW)) {
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+index 91532aa..aeb6fd3 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+@@ -643,6 +643,11 @@
+ #define MTK_CDM_TS_PARSER_FSM_MASK	GENMASK(12, 8)
+ #define MTK_CDM_TS_FSM_MASK		GENMASK(3, 0)
+ 
++/* WDMA Scheduler Configuration Register */
++#define MTK_WDMA_SCH_Q01_CFG(x)	(WDMA_BASE(x) + 0x280)
++#define MTK_WDMA_MAX_RATE_ULMT0	BIT(14)
++#define MTK_WDMA_MAX_RATE0		GENMASK(9, 0)
++
+ /*TDMA Register*/
+ #define MTK_TDMA_GLO_CFG	(0x6204)
+ 
+-- 
+2.45.2
+

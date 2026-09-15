@@ -3038,10 +3038,10 @@ Index: linux-5.4.281/drivers/net/usb/r8152.c
 +			orig = ocp_reg_read(tp, OCP_10GBT_CTRL);
 +			new1 = orig & ~MDIO_AN_10GBT_CTRL_ADV2_5G;
 +
-+			/* if (advertising & RTL_ADVERTISED_2500_FULL) { */
-+			new1 |= MDIO_AN_10GBT_CTRL_ADV2_5G;
-+			tp->ups_info.speed_duplex = NWAY_2500M_FULL;
-+			/* } */
++			if (advertising & RTL_ADVERTISED_2500_FULL) {
++				new1 |= MDIO_AN_10GBT_CTRL_ADV2_5G;
++				tp->ups_info.speed_duplex = NWAY_2500M_FULL;
++			}
 +
 +			if (orig != new1)
 +				ocp_reg_write(tp, OCP_10GBT_CTRL, new1);

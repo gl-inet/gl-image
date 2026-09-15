@@ -29,21 +29,21 @@
 
 struct usb_control_data {
     struct device *dev;
-    struct gpio_desc *control_gpio;
-    int irq;
-    int power_default;
-    struct work_struct gpio_work;
-    int gpio_value;
-    char usb_power_path[MAX_PATH_LEN];
+    struct gpio_desc *control_gpio;     // 控制信号
+    int irq;                            // 中断号
+    int power_default;                  // 默认电平
+    struct work_struct gpio_work;       // 工作队列
+    int gpio_value;                     // 工作队列要设置的值
+    char usb_power_path[MAX_PATH_LEN];  // sysfs路径（从设备树读取）
 };
 
-
+// 工作队列函数 - 在进程上下文中安全地写sysfs
 static void write_gpio_value_work(struct work_struct *work)
 {
     struct usb_control_data *data = container_of(work, struct usb_control_data, gpio_work);
     struct file *fp;
     mm_segment_t old_fs;
-    char buffer[4];
+    char buffer[4];  // "1\n" 或 "0\n"
     int ret;
 
     snprintf(buffer, sizeof(buffer), "%d\n", data->gpio_value);
@@ -70,14 +70,14 @@ static void write_gpio_value_work(struct work_struct *work)
     set_fs(old_fs);
 }
 
-
+// 中断处理函数
 static irqreturn_t usb_control_irq_handler(int irq, void *dev_id)
 {
     struct usb_control_data *data = dev_id;
     int control_state;
 
     control_state = gpiod_get_value(data->control_gpio);
-
+    
     if (control_state) {
         data->gpio_value = 1;
         schedule_work(&data->gpio_work);
@@ -127,10 +127,10 @@ static int check_sysfs_file_exists(const char *path)
     struct file *fp;
     mm_segment_t old_fs;
     int ret = 0;
-
+    
     old_fs = get_fs();
     set_fs(KERNEL_DS);
-
+    
     fp = filp_open(path, O_RDONLY, 0);
     if (IS_ERR(fp)) {
         ret = -ENOENT;
@@ -138,7 +138,7 @@ static int check_sysfs_file_exists(const char *path)
         filp_close(fp, NULL);
         ret = 0;
     }
-
+    
     set_fs(old_fs);
     return ret;
 }
@@ -261,8 +261,8 @@ static struct platform_driver usb_control_driver = {
         .of_match_table = usb_control_of_match,
     },
     .probe = usb_control_probe,
-    .remove = usb_control_remove,
-
+    .remove = usb_control_remove,       //卸载驱动时调用
+    //.shutdown = usb_control_shutdown,   //reboot时调用
 };
 
 module_platform_driver(usb_control_driver);
@@ -270,3 +270,4 @@ module_platform_driver(usb_control_driver);
 MODULE_AUTHOR("Chengyang.li <chengyang.li@gl-inet.com>");
 MODULE_DESCRIPTION("GL.iNet USB Control Driver");
 MODULE_LICENSE("GPL");
+

@@ -1,0 +1,394 @@
+diff --git a/hostapd/Makefile b/hostapd/Makefile
+index 675cd53..f5d3390 100644
+--- a/hostapd/Makefile
++++ b/hostapd/Makefile
+@@ -683,6 +683,10 @@ ifdef CONFIG_EAP
+ CFLAGS += -DEAP_SERVER
+ endif
+ 
++ifdef CONFIG_RECONF
++CFLAGS += -DCONFIG_RECONF
++endif
++
+ ifdef CONFIG_PKCS12
+ CFLAGS += -DPKCS12_FUNCS
+ endif
+diff --git a/hostapd/config_file.c b/hostapd/config_file.c
+index 5f87154..33d97ea 100644
+--- a/hostapd/config_file.c
++++ b/hostapd/config_file.c
+@@ -3033,6 +3033,13 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+ 			return 1;
+ 		} else
+ 			conf->conf_changed = 1;
++	} else if (os_strcmp(buf, "reconf_rekey") == 0) {
++		bss->reconf_rekey = atoi(pos);
++		if (bss->reconf_rekey != 0 && bss->reconf_rekey != 1) {
++			wpa_printf(MSG_ERROR, "Line %d: Invalid reconf_rekey=%d; allowed values are 0 or 1",
++				   line, bss->reconf_rekey);
++			return 1;
++		}
+ 	} else if (os_strcmp(buf, "wpa") == 0) {
+ 		bss->wpa = atoi(pos);
+ 	} else if (os_strcmp(buf, "extended_key_id") == 0) {
+diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
+index fa6abc1..d4781e0 100644
+--- a/hostapd/ctrl_iface.c
++++ b/hostapd/ctrl_iface.c
+@@ -1281,6 +1281,15 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
+ #ifdef CONFIG_TESTING_OPTIONS
+ 	} else if (os_strcasecmp(cmd, "ext_mgmt_frame_handling") == 0) {
+ 		hapd->ext_mgmt_frame_handling = atoi(value);
++	} else if (os_strcasecmp(cmd, "reconf_rekey") == 0) {
++		int val = atoi(value);
++		if (val != 0 && val != 1) {
++			wpa_printf(MSG_DEBUG, "CTRL_IFACE: Invalid reconf_rekey value %d (must be 0 or 1)", val);
++			ret = -1;
++		} else {
++			hapd->conf->reconf_rekey = val;
++			wpa_printf(MSG_DEBUG, "CTRL_IFACE: reconf_rekey set to %d", val);
++		}
+ 	} else if (os_strcasecmp(cmd, "ext_eapol_frame_io") == 0) {
+ 		hapd->ext_eapol_frame_io = atoi(value);
+ 	} else if (os_strcasecmp(cmd, "force_backlog_bytes") == 0) {
+diff --git a/hostapd/hostapd.conf b/hostapd/hostapd.conf
+index b88535e..a3b525e 100644
+--- a/hostapd/hostapd.conf
++++ b/hostapd/hostapd.conf
+@@ -332,6 +332,11 @@ macaddr_acl=0
+ # bit 0 = Open System Authentication
+ # bit 1 = Shared Key Authentication (requires WEP)
+ auth_algs=3
++# Enable/disable rekey on reconfiguration.
++# 1 = enabled (default), 0 = disabled
++# If not set, default is 1.
++# Example:
++# reconf_rekey=1
+ 
+ # Send empty SSID in beacons and ignore probe request frames that do not
+ # specify full SSID, i.e., require stations to know SSID.
+diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
+index a1cfbcd..a143578 100644
+--- a/src/ap/ap_config.c
++++ b/src/ap/ap_config.c
+@@ -85,6 +85,9 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
+ 
+ 	bss->max_num_sta = MAX_STA_COUNT;
+ 
++	/* reconf_rekey: Enable rekey on reconfiguration (default: 1) */
++	bss->reconf_rekey = 1;
++
+ 	bss->dtim_period = 2;
+ 
+ 	bss->radius_server_auth_port = 1812;
+diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
+index c61f15e..ff5d9e1 100644
+--- a/src/ap/ap_config.h
++++ b/src/ap/ap_config.h
+@@ -314,6 +314,11 @@ struct hostapd_bss_config {
+ 
+ 	int max_num_sta; /* maximum number of STAs in station table */
+ 
++/*
++* reconf_rekey: Enable rekey on reconfiguration.
++* 1 = enabled (default), 0 = disabled (user can set in hostapd.conf)
++ */
++	int reconf_rekey;
+ 	int dtim_period;
+ 	unsigned int bss_load_update_period;
+ 	unsigned int chan_util_avg_period;
+diff --git a/src/ap/ieee802_1x.c b/src/ap/ieee802_1x.c
+index c27bf5b..6217c29 100644
+--- a/src/ap/ieee802_1x.c
++++ b/src/ap/ieee802_1x.c
+@@ -38,7 +38,7 @@
+ #include "ieee802_11.h"
+ #include "ieee802_1x.h"
+ #include "wpa_auth_kay.h"
+-
++#include "wpa_auth_i.h"
+ 
+ #ifdef CONFIG_HS20
+ static void ieee802_1x_wnm_notif_send(void *eloop_ctx, void *timeout_ctx);
+@@ -1065,6 +1065,53 @@ void ieee802_1x_receive(struct hostapd_data *hapd, const u8 *sa, const u8 *buf,
+ 		   " (encrypted=%d)",
+ 		   (unsigned long) len, MAC2STR(sa), encrypted);
+ 	sta = ap_get_sta(hapd, sa);
++/*
++* Handle Group Key Rekeying in Multi-Link Operation (MLO) when the main (associated) link is deleted.
++*
++* In MLO, if the main link is deleted and a group rekey is triggered from another link,
++* the state machine for that non-main link may not be present. In such cases, the rekey
++* packet should be handled by the link that still has a valid state machine.
++*
++* The following logic searches for an MLO station (sm_sta) with a state machine and
++* reconfiguration in progress. If the main link is deleted (primary_link_del set),
++* and the rekey packet's source address matches any of the station's link addresses,
++* the rekey operation is redirected to the link with the available state machine.
++*/
++#if defined(CONFIG_MTK_IEEE80211BE) && defined(CONFIG_RECONF)
++	if (hapd->conf->reconf_rekey == 1) {
++		struct sta_info *sm_sta; /* MLO station with a state machine */
++		struct wpa_ml_group *ml_group;
++		int i, j;
++		int found;
++		ml_group = hapd->ml_group;
++		if (ml_group) {
++			for (sm_sta = hapd->sta_list; sm_sta != NULL; sm_sta = sm_sta->next) {
++				if (sm_sta->wpa_sm && sm_sta->wpa_sm->reconfig_del) {
++					/* Only consider stations eligible for group rekey */
++					if (sm_sta->wpa_sm->valid_rekey != 1 || !sm_sta->wpa_sm->sta_ml_ie)
++						continue;
++					/* Check if the primary link is deleted or added again */
++					if (sm_sta->wpa_sm->primary_link_del == 0 || sm_sta->wpa_sm->primary_link_del == 1) {
++						/* Check if the source address matches any of the link addresses */
++						found = 0;
++						for (j = 0; j < sm_sta->wpa_sm->sta_ml_ie->prof_num; j++) {
++							if (os_memcmp(sa, sm_sta->wpa_sm->sta_ml_ie->profiles[j].addr, ETH_ALEN) == 0) {
++								found = 1;
++								break;
++							}
++						}
++						/* If a match is found, update sta to use the station with the state machine */
++						if (found) {
++							sta = sm_sta;
++							wpa_printf(MSG_DEBUG, "Updated sta addr: assoc link is deleted "MACSTR, MAC2STR(sta->addr));
++							break;
++						}
++					}
++				}
++			}
++		}
++	}
++#endif /* CONFIG_MTK_IEEE80211BE */
+ 	if (!sta || (!(sta->flags & (WLAN_STA_ASSOC | WLAN_STA_PREAUTH)) &&
+ 		     !(hapd->iface->drv_flags & WPA_DRIVER_FLAGS_WIRED))) {
+ 		wpa_printf(MSG_DEBUG,
+diff --git a/src/ap/wpa_auth.c b/src/ap/wpa_auth.c
+index 36f34d1..0b8f4a9 100644
+--- a/src/ap/wpa_auth.c
++++ b/src/ap/wpa_auth.c
+@@ -424,7 +424,65 @@ void wpa_rekey_gtk(void *eloop_ctx, void *timeout_ctx)
+ 			struct wpa_authenticator *wpa_auth_tmp;
+ 			struct wpa_ml_link *link;
+ 			struct sta_info *sta = NULL;
+-
++#ifdef CONFIG_RECONF
++            struct wpa_ml_group *mlo_group;
++            u8 found = false;
++            int rekey = -1;
++			u8 j = 0;
++            struct hostapd_data *hapd = (struct hostapd_data *)wpa_auth->cb_ctx;
++            if (hapd->conf->reconf_rekey == 1) {
++                mlo_group = hapd->ml_group;
++                 /* Find the link ID for the current rekey operation */
++                if(mlo_group){
++                    for (i = 0; mlo_group && i < ml_group->ml_link_num; i++) {
++                        struct wpa_ml_link *link = &ml_group->links[i];
++                        if(link){
++                            if (link->ctx == hapd){
++                                wpa_printf(MSG_DEBUG, "Rekey link id is:%d",link->link_id);
++                                rekey = link->link_id;
++                                break;
++                            }
++                        }
++                    }
++                }
++/* Loop through all links and their associated stations to determine if the rekey link and the association link are the same, and if the association link has been deleted */
++                for (i = 0; i < ml_group->ml_link_num; i++) {
++                    link = &ml_group->links[i];
++                    if (link) {
++                        for (sta = ((struct hostapd_data *)link->ctx)->sta_list; sta; sta = sta->next) {
++                            if (sta->wpa_sm && sta->wpa_sm->sta_ml_ie){
++                                sta->wpa_sm->valid_rekey = 1;
++                                if(sta->wpa_sm->reconfig_del == 1){
++                                    if (link->ctx == wpa_auth->cb_ctx && sta->wpa_sm->primary_link_del == 1) {
++                                            sta->wpa_sm->valid_rekey = 0;
++                                            wpa_printf(MSG_DEBUG, "assoc link is deleted for "MACSTR"",MAC2STR(sta->addr));
++                                    } else{
++                                        /* Check if the rekey is happening on a non-association link,and whether that link is deleted or not.*/
++                                        found = false;
++                                        if(sta->wpa_sm->sta_ml_ie->link_id == rekey){
++                                            found = true;
++                                        } else{
++                                            for (j = 0; j < sta->wpa_sm->sta_ml_ie->prof_num; j++) {
++                                                if (sta->wpa_sm->sta_ml_ie->profiles[j].link_id == rekey){
++                                                    wpa_printf(MSG_DEBUG, "rekey link is Available for "MACSTR"",MAC2STR(sta->addr));
++                                                    found = true;
++                                                    break;
++                                                }
++                                            }
++                                        }
++										/*If the rekey link is not found in the station's ML IE, mark rekey as invalid*/
++                                        if(!found){
++                                            wpa_printf(MSG_DEBUG, "rekey link is deleted for "MACSTR"",MAC2STR(sta->addr));
++                                            sta->wpa_sm->valid_rekey = 0;
++                                        }
++                                    }
++                                }
++                            }
++                        }
++                    }
++                }
++            }
++#endif /*CONFIG_RECONF*/
+ 			if (1) {
+ 				wpa_auth->ts.sec = now.sec;
+ 				wpa_auth->ts.usec = now.usec;
+@@ -4576,7 +4634,23 @@ static int wpa_group_update_sta(struct wpa_state_machine *sm, void *ctx)
+ 	/* Do not rekey GTK/IGTK when STA is in WNM-Sleep Mode */
+ 	if (sm->is_wnmsleep)
+ 		return 0;
+-
++/*
++ * For MLO Reconfiguration: Skip group key rekeying for deleted links.
++ *
++ * During Multi-Link Operation (MLO) reconfiguration, if reconf_rekey is enabled and
++ * the current link's profile has been deleted (sm->valid_rekey == 0), group key rekeying
++ * should not be performed for this link. This prevents unnecessary or invalid rekey
++ * operations on links that are no longer active.
++ */
++#ifdef CONFIG_RECONF
++    {
++        struct hostapd_data *hapd = (struct hostapd_data *)sm->wpa_auth->cb_ctx;
++        if (hapd->conf->reconf_rekey == 1 && sm->valid_rekey == 0){
++            wpa_printf(MSG_DEBUG, "Skip rekey - Profile for "MACSTR" link is deleted",MAC2STR(sm->addr));
++            return 0;
++        }
++    }
++#endif
+ 	sm->group->GKeyDoneStations++;
+ 	sm->GUpdateStationKeys = true;
+ 
+diff --git a/src/ap/wpa_auth_i.h b/src/ap/wpa_auth_i.h
+index ee4d7ff..2ff23db 100644
+--- a/src/ap/wpa_auth_i.h
++++ b/src/ap/wpa_auth_i.h
+@@ -108,6 +108,11 @@ struct wpa_state_machine {
+ #ifdef CONFIG_MTK_IEEE80211BE
+ 	unsigned int dot11MultiLinkActivated:1;
+ 	struct wpa_ml_ie_parse *sta_ml_ie;
++#ifdef CONFIG_RECONF
++	int primary_link_del;/*set if main link is deleted*/
++	int reconfig_del;/*set if reconfigure occurs with deleted link*/
++	int valid_rekey;/*set if rekey is on not deleted link*/
++#endif
+ #endif
+ 
+ 
+diff --git a/src/ml/ml_common.c b/src/ml/ml_common.c
+index f66c258..6061324 100644
+--- a/src/ml/ml_common.c
++++ b/src/ml/ml_common.c
+@@ -1305,18 +1305,29 @@ u8* ml_add_rekey_kde(struct wpa_state_machine *sm, u8 *pos)
+ 		u8 found = false;
+ 
+ 		link = &ml_group->links[i];
+-		if (link->link_id == sm->sta_ml_ie->link_id) {
+-			found = true;
+-		} else {
+-			for (j = 0; j < sm->sta_ml_ie->prof_num; j++) {
+-				if (sm->sta_ml_ie->profiles[j].link_id == link->link_id)
+-					found = true;
++#ifdef CONFIG_RECONF
++		if (((struct hostapd_data *)sm->wpa_auth->cb_ctx)->conf->reconf_rekey == 1) {
++			if(sm->reconfig_del == 1) {/*Reconfig Cases handling*/
++				if (link->link_id == sm->sta_ml_ie->link_id) {
++					/*Reconfigure Case : Check if Setup link is deleted*/
++					if(sm->primary_link_del == 1) {
++						wpa_printf(MSG_INFO," Setup Link is deleted, No kde for setup link");
++					} else {
++						found = true;
++					}
++				} else {
++					/*Reconfigure Case : Check if Non- Setup link is deleted*/
++					for (j = 0; j < sm->sta_ml_ie->prof_num; j++) {
++						if (sm->sta_ml_ie->profiles[j].link_id == link->link_id)
++							found = true;
++						}
++					}
++
++					if (!found)
++						continue;
+ 			}
+ 		}
+-
+-		if (!found)
+-			continue;
+-
++#endif
+ 		pos = ml_set_gtk_kde(sm, pos, link);
+ 		pos = ml_set_ieee80211w_kde(sm, pos, link);
+ 	}
+@@ -1355,7 +1366,14 @@ void ml_reconf_add_sta_link(struct wpa_state_machine *sm, struct ml_reconf_info
+ 		if (info->link_id == sm->sta_ml_ie->profiles[i].link_id)
+ 			found = 1;
+ 	}
+-
++#ifdef CONFIG_RECONF
++/*Check if added link is primary link, if yes than update primary_link_del to 0*/
++	if(found == 0) {
++		if(info->link_id == sm->sta_ml_ie->link_id && ((struct hostapd_data *)sm->wpa_auth->cb_ctx)->conf->reconf_rekey == 1) {
++			sm->primary_link_del = 0;
++		}
++	}
++#endif
+ 	if (found == 1) {
+ 		os_memcpy(sm->sta_ml_ie->profiles[sm->sta_ml_ie->prof_num].addr,
+ 			info->link_addr, ETH_ALEN);
+@@ -1374,14 +1392,27 @@ void ml_reconf_del_sta_link (struct wpa_state_machine *sm, struct ml_reconf_info
+ {
+ 	u8 i = 0, j = 0;
+ 	int found = 0;
+-
++#ifdef CONFIG_RECONF
++	if (((struct hostapd_data *)sm->wpa_auth->cb_ctx)->conf->reconf_rekey == 1) {
++		sm->reconfig_del = 1;/*update the reconfig_del flag to indicate that the sta has been reconfigured and its link is deleted*/
++	}
++#endif
+ 	for (i = 0; i < sm->sta_ml_ie->prof_num; i++) {
+-		if (info->link_id == sm->sta_ml_ie->profiles[i].link_id)
++		if (info->link_id == sm->sta_ml_ie->profiles[i].link_id){
++			wpa_printf(MSG_DEBUG, "Found MAC addr, sta MAC address for deletion is: "MACSTR"",MAC2STR(sm->sta_ml_ie->profiles[i].addr));
+ 			found = 1;
++			break;
++		}
+ 	}
+-
+-	if (found == 0)
++/*Main link is deleted*/
++	if (found == 0) {
++#ifdef CONFIG_RECONF
++        if (((struct hostapd_data *)sm->wpa_auth->cb_ctx)->conf->reconf_rekey == 1) {
++            sm->primary_link_del = 1;
++        }
++#endif
+ 		return;
++	}
+ 
+ 	for ( j = i; j + 1 < sm->sta_ml_ie->prof_num ; j++)
+ 		memcpy(&sm->sta_ml_ie->profiles[j], &sm->sta_ml_ie->profiles[j + 1], sizeof(struct per_sta_profile));
+@@ -1413,6 +1444,23 @@ int ml_reconfig_update_sta_link(struct hostapd_data *hapd, u8 *addr, u8 link_num
+ 
+ 	/*find the sta by mld_addr*/
+ 	sta = ml_get_sta_by_mld_addr(hapd, addr);
++/*if not found, search sta for all interface*/
++#ifdef CONFIG_RECONF
++    if (sta == NULL && hapd->conf->reconf_rekey == 1) {
++        struct hostapd_iface *iface = hapd->iface;
++        if (iface && iface->interfaces) {
++            for (i = 0; i < iface->interfaces->count; i++) {
++                struct hostapd_iface *h = iface->interfaces->iface[i];
++                struct hostapd_data *h_hapd = h->bss[0];
++                if (!h_hapd)
++                    continue;
++                sta = ap_get_sta(h_hapd, addr);
++                if (sta)
++                    break;
++            }
++        }
++    }
++#endif
+ 	if (!sta) {
+ 		wpa_printf(MSG_INFO,"ML Link reconfig: this sta ("MACSTR") is not associated with any interface", MAC2STR(addr));
+ 		return -1;

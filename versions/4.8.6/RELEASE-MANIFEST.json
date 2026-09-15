@@ -17,20 +17,186 @@
     "device": "glinet_gl-be10000",
     "kernel_version": "5.4.281",
     "public_config": "configs/gl-be10000-open-source.config",
-    "build_guide": "GL-BE10000_FIRMWARE_GUIDE.md"
+    "build_guide": "GL-BE10000_FIRMWARE_GUIDE.md",
+    "package_source_mapping": "configs/feed-package-sources.json",
+    "shipping_kernel_config": "configs/gl-be10000-shipping-kernel.config",
+    "shipping_kernel_config_sha256": "ec828bda73af15145acb0599b4d22e75fa0633931de44dbc7364e73c46102289"
   },
   "feeds": [
-    {"name": "packages", "url": "https://git.openwrt.org/feed/packages.git", "revision": "1be343f776e7b035b20357fa7e8dcd14c6e4fb61"},
-    {"name": "luci", "url": "https://git.openwrt.org/project/luci.git", "revision": "e4c46338b196e486a88b1a75b78e283708c82bc4"},
-    {"name": "routing", "url": "https://git.openwrt.org/feed/routing.git", "revision": "a9e43101bb726070cbf81b6225fc0625f4a4a5e5"},
-    {"name": "telephony", "url": "https://git.openwrt.org/feed/telephony.git", "revision": "920fbc5c0a2e4badf51bceff42e9a1e3eb693462"},
-    {"name": "mtk_openwrt_feed", "url": "https://github.com/mediatek/mtk-openwrt-feeds.git", "revision": "5fbb639c7ab50e92553da94f5920185859fd1f2b"}
+    {
+      "name": "gl_feed_common",
+      "url": "https://github.com/gl-inet/gl-feeds.git",
+      "revision": "dd53f412aa2bc896523ff25d68a032ebaac94c21"
+    },
+    {
+      "name": "gl_feed_21_02",
+      "url": "https://github.com/gl-inet/gl-feeds.git",
+      "revision": "de1f0ca04af05a4b0556cf11e7597da375c722ff"
+    },
+    {
+      "name": "gl_vpn_extra",
+      "url": "https://github.com/gl-inet/vpn-extra-feeds.git",
+      "revision": "f60dabffd7d0cea6794c6e8e67c8fce3768ccf1a"
+    },
+    {
+      "name": "mptcp_feeds",
+      "url": "https://github.com/gl-inet/mptcp-feeds.git",
+      "revision": "457a896aa16ade75ade667a99997ae6932cbcfc4"
+    },
+    {
+      "name": "packages",
+      "url": "https://git.openwrt.org/feed/packages.git",
+      "revision": "1be343f776e7b035b20357fa7e8dcd14c6e4fb61"
+    },
+    {
+      "name": "luci",
+      "url": "https://git.openwrt.org/project/luci.git",
+      "revision": "e4c46338b196e486a88b1a75b78e283708c82bc4"
+    },
+    {
+      "name": "routing",
+      "url": "https://git.openwrt.org/feed/routing.git",
+      "revision": "a9e43101bb726070cbf81b6225fc0625f4a4a5e5"
+    },
+    {
+      "name": "telephony",
+      "url": "https://git.openwrt.org/feed/telephony.git",
+      "revision": "920fbc5c0a2e4badf51bceff42e9a1e3eb693462"
+    },
+    {
+      "name": "mtk_openwrt_feed",
+      "url": "https://github.com/mediatek/mtk-openwrt-feeds.git",
+      "revision": "6c27b42b2913790b5cfa15402704cdbde74449f3"
+    }
   ],
   "vendor_runtime": {
     "directory": "package/firmware/mtk-binary-runtime",
     "wifi_ipk_count": 27,
     "phy_ipk_count": 3,
     "network_ipk_count": 3,
-    "kernel_abi": "5.4.281"
+    "kernel_abi": "5.4.281",
+    "shipping_module_checksums": "package/firmware/mtk-binary-runtime/manifests/shipping-modules-sha256.txt"
+  },
+  "builder": {
+    "tag": "BE10000-4.8.6_-1001-0723-1784773357",
+    "commit": "3729e24d1b64f00e731c9161b9856ef42ad46d7d",
+    "reference": "user-confirmed build tree with recorded profile pin changes"
+  },
+  "feed_patches": [
+    {
+      "path": "feed-patches/gl_vpn_extra/100-ovpn-dco-source-sha256.patch",
+      "sha256": "63150abe2f5b009962de62e4f7b75242bda04bba9efa3c3c43586d17e1c204ae"
+    }
+  ],
+  "validation": {
+    "status": "verified build candidate; source-boundary and device-validation items remain open",
+    "public_build_exit_code": 0,
+    "public_sysupgrade_sha256": "4cdf4724f901f4302b612043a881c6f04024a202390eb57849ba657b37c5e50e",
+    "package_provider_check": "385 baseline package providers/selections passed; GPL exFAT package additionally restored",
+    "kernel_config_basis": "configuration extracted from the exact shipped firmware",
+    "kernel_config_exceptions": [],
+    "an8811hb_source": {
+      "path": "target/linux/mediatek/files-5.4/drivers/net/phy/air_an8811hb.c",
+      "license": "GPL-2.0+",
+      "integration_patch": "target/linux/mediatek/patches-5.4/999-2749-net-phy-add-Airoha-AN8811HB-PHY-driver",
+      "built_in": true,
+      "binary_ipk_removed": true
+    },
+    "cfg80211_debugfs": "enabled; mac80211 built as m and not installed",
+    "common_modules": 227,
+    "common_modules_raw_identical": 219,
+    "additional_modules_identical_after_strip": 8,
+    "remaining_vendor_module_differences": [],
+    "vendor_difference_detail": "Six replaced modules are byte-identical to shipping in bundled IPKs, built runtime IPKs and the final image. Eight other common modules differ only by standard stripping.",
+    "vendor_ipk_changes": "six module payloads replaced from exact shipping image; PHY IPKs unchanged",
+    "optional_modules_compiled": [
+      "gl-repeater",
+      "gl-sdk4-tertf",
+      "gl-sdk4-black_white_list",
+      "dns_mark",
+      "kmwan",
+      "parental_control"
+    ],
+    "optional_module_deferred": "gl-mpflow: missing fib_info_devhash_bucket export; explicitly deferred by user",
+    "default_optional_modules": "seven added GL modules remain disabled",
+    "ntfs_simulated_scenarios_passed": 11,
+    "image_content_check": "passed",
+    "exfat_payload_check": "libexfat.so, fsck.exfat and mkfs.exfat identical to shipping files",
+    "source_boundaries_pending": [
+      "libguci copyright-holder license authorization",
+      "s2s embedded LGPL library and relinking materials",
+      "arp-scan package license declaration"
+    ],
+    "device_validation": "not_performed",
+    "validated_date": "2026-09-15",
+    "shipping_module_byte_checks": [
+      {
+        "module": "lib/modules/5.4.281/mapfilter.ko",
+        "shipping_sha256": "1941b720b2f01253a25d70e22900ea68c3a6624ca982a6fd62722c0d1e29963d",
+        "source_ipk_matches": true,
+        "runtime_ipk_matches": true,
+        "firmware_matches": true
+      },
+      {
+        "module": "lib/modules/5.4.281/mtfwd.ko",
+        "shipping_sha256": "bc755fd84d6226f2b15504f569a59199e073e7b8f0e57aa745b636de3f6f208a",
+        "source_ipk_matches": true,
+        "runtime_ipk_matches": true,
+        "firmware_matches": true
+      },
+      {
+        "module": "lib/modules/5.4.281/mtqos.ko",
+        "shipping_sha256": "f9e1cf065658db48bcc54339555bbdeb6771168582d75e99f836e14bd7fe57e9",
+        "source_ipk_matches": true,
+        "runtime_ipk_matches": true,
+        "firmware_matches": true
+      },
+      {
+        "module": "lib/modules/5.4.281/mtk_hwifi.ko",
+        "shipping_sha256": "034170c2209f9ff78043de57ca6ad60dc4d1a71c3738ec6d36948c0fad5319ee",
+        "source_ipk_matches": true,
+        "runtime_ipk_matches": true,
+        "firmware_matches": true
+      },
+      {
+        "module": "lib/modules/5.4.281/mt_wifi.ko",
+        "shipping_sha256": "40e0588dc2dc1a27860468a164efc5af7ef3292385ebe65c06c7b978abddd27f",
+        "source_ipk_matches": true,
+        "runtime_ipk_matches": true,
+        "firmware_matches": true
+      },
+      {
+        "module": "lib/modules/5.4.281/mt_wifi_osal.ko",
+        "shipping_sha256": "8846feb1f4e9b02512012f1d69c13bbf31a0cb26315f1bc9eae8fd4cace95abe",
+        "source_ipk_matches": true,
+        "runtime_ipk_matches": true,
+        "firmware_matches": true
+      }
+    ],
+    "oopslog_libguci": {
+      "source_import": "exact shipping C sources",
+      "default_packages": [
+        "gl-sdk4-uci",
+        "gl-oopslog"
+      ],
+      "build": "passed",
+      "binary_checks": {
+        "libguci_byte_identical": true,
+        "oopslog_byte_identical": false,
+        "oopslog_identical_after_build_date_time_normalization": true,
+        "shipping_oopslog_sha256": "9f9b50d2b75bbcd19f9f25a38ce5c37033dc1adbda9d7b9a9e56d2dc56010d69",
+        "built_oopslog_sha256": "faa25f097a0638282519a67b23921f64d7d07d2b3d0c73152432bf9e8205899a",
+        "firmware_matches_built_packages": true
+      },
+      "libguci_license": "pending copyright-holder authorization; no license newly assigned",
+      "runtime_test": "not performed"
+    },
+    "luci": {
+      "default_url": "http://192.168.1.1/",
+      "image_files_and_services": "verified",
+      "nginx_first_boot_autostart": "disabled on BE10000 to avoid port 80 conflict",
+      "mock_default_script_tests": 3,
+      "device_browser_test": "not_performed"
+    }
   }
 }

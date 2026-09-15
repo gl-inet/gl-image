@@ -1,0 +1,50 @@
+[
+  {
+    "repository": "gl-sdk4-repeater-v2",
+    "revision": "30b50ac3622b21737c07b4828feab24a8ef26f3e",
+    "source_subdirectory": "src",
+    "default_selection": "off"
+  },
+  {
+    "repository": "gl-sdk4-mpflow_statistics",
+    "revision": "ddc056ac1470d9c403e13d495ced14a07ff9c7fc",
+    "source_subdirectory": "src",
+    "default_selection": "off"
+  },
+  {
+    "repository": "gl-sdk4-tertf",
+    "revision": "47b684ba117b8fa440574b3804ce9325b71d7a3d",
+    "source_subdirectory": "src",
+    "default_selection": "off"
+  },
+  {
+    "repository": "gl-sdk4-black_white_list",
+    "revision": "8be39661955f26b8bbe39b248845444193c87e92",
+    "source_subdirectory": "src",
+    "default_selection": "off"
+  },
+  {
+    "repository": "gl-sdk4-usb-control",
+    "revision": "bec1a82de89d6e9446c8fad0322471a37c31b769",
+    "source_subdirectory": "src",
+    "default_selection": "unchanged"
+  },
+  {
+    "repository": "gl-sdk4-dns-mark",
+    "revision": "c80883038a1f0dfec5ab7e37fe85ffd1b15f75bb",
+    "source_subdirectory": "src",
+    "default_selection": "off"
+  },
+  {
+    "repository": "gl-sdk4-kmwan",
+    "revision": "f9e3929ee6a93470945af30aa3c7c0f72477a562",
+    "source_subdirectory": "src",
+    "default_selection": "off"
+  },
+  {
+    "repository": "gl-sdk4-parental-control",
+    "revision": "a0e240d7ddfb2b4701fd77370382f6487a6543a3",
+    "source_subdirectory": "src",
+    "default_selection": "off"
+  }
+]

@@ -1,0 +1,13 @@
+diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
+index 03cf001..2abf5e2 100644
+--- a/net/wireless/nl80211.c
++++ b/net/wireless/nl80211.c
+@@ -10324,6 +10324,8 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
+ 	 * but is always valid
+ 	 */
+ 	ies = rcu_dereference(res->proberesp_ies);
++	if (!ies)
++		ies = rcu_dereference(res->ies);
+ 	if (ies) {
+ 		if (nla_put_u64_64bit(msg, NL80211_BSS_TSF, ies->tsf,
+ 				      NL80211_BSS_PAD))

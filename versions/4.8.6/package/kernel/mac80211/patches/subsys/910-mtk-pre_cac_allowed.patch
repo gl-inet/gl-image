@@ -1,0 +1,14 @@
+Index: backports-6.5/net/wireless/reg.c
+===================================================================
+--- backports-6.5.orig/net/wireless/reg.c	2024-09-11 16:18:25.142749896 +0800
++++ backports-6.5/net/wireless/reg.c	2024-09-11 16:26:24.007006702 +0800
+@@ -4185,6 +4185,9 @@
+ 	const struct ieee80211_regdomain *wiphy_regd = NULL;
+ 	bool pre_cac_allowed = false;
+
++	/*regulatory_pre_cac_allowed need return true, so AP can trigger scan on DFS channel*/
++	return true;
++
+ 	rcu_read_lock();
+
+ 	regd = rcu_dereference(cfg80211_regdomain);

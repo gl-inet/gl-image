@@ -1,0 +1,15 @@
+diff --git a/wpa_supplicant/sme.c b/wpa_supplicant/sme.c
+index 51d92cb..c40bd06 100644
+--- a/wpa_supplicant/sme.c
++++ b/wpa_supplicant/sme.c
+@@ -172,6 +172,10 @@ static struct wpabuf * sme_auth_build_sae_commit(struct wpa_supplicant *wpa_s,
+ 			rsnxe_capa = rsnxe[2 + 4];
+ 		else if (rsnxe && rsnxe[1] >= 1)
+ 			rsnxe_capa = rsnxe[2];
++	} else {
++		wpa_printf(MSG_DEBUG,
++				"SAE: BSS not available, could not find in scan result");
++		return NULL;
+ 	}
+ #ifdef CONFIG_MTK_IEEE80211BE
+ 	ml_set_sae_auth_commit_req_ml_ie(&sae, wpa_s->sme.ext_ie, wpa_s->sme.ext_ie_len);

@@ -1,0 +1,14 @@
+Index: dnsmasq-2.85/src/lease.c
+===================================================================
+--- dnsmasq-2.85.orig/src/lease.c
++++ dnsmasq-2.85/src/lease.c
+@@ -998,7 +998,8 @@ void lease_set_hostname(struct dhcp_leas
+ 	      if (!new_name || !lease_tmp->hostname || !hostname_isequal(lease_tmp->hostname, new_name) )
+ 		continue; 
+ 	    }
+-
++    if(!strcmp(new_name, lease_tmp->hostname))
++        continue;
+ 	  if (lease->flags & (LEASE_TA | LEASE_NA))
+ 	    {
+ 	      if (!(lease_tmp->flags & (LEASE_TA | LEASE_NA)))

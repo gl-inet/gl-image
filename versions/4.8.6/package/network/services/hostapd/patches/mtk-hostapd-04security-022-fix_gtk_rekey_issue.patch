@@ -1,0 +1,19 @@
+diff --git a/src/ap/wpa_auth.c b/src/ap/wpa_auth.c
+index 0b8f4a9..b878fda 100644
+--- a/src/ap/wpa_auth.c
++++ b/src/ap/wpa_auth.c
+@@ -4645,9 +4645,11 @@ static int wpa_group_update_sta(struct wpa_state_machine *sm, void *ctx)
+ #ifdef CONFIG_RECONF
+     {
+         struct hostapd_data *hapd = (struct hostapd_data *)sm->wpa_auth->cb_ctx;
+-        if (hapd->conf->reconf_rekey == 1 && sm->valid_rekey == 0){
+-            wpa_printf(MSG_DEBUG, "Skip rekey - Profile for "MACSTR" link is deleted",MAC2STR(sm->addr));
+-            return 0;
++        if (sm->dot11MultiLinkActivated) {
++          if (hapd->conf->reconf_rekey == 1 && sm->valid_rekey == 0){
++             wpa_printf(MSG_DEBUG, "Skip rekey - Profile for "MACSTR" link is deleted",MAC2STR(sm->addr));
++             return 0;
++          }
+         }
+     }
+ #endif
