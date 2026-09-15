@@ -18,6 +18,35 @@ the completed internal build tree. It includes package selections that are not
 part of this public source release. Use
 `configs/gl-mt3600be-open-source.config` to build the public-source image.
 
+For comparison with later releases, the 4.9.0 source release currently does
+not include `configs/gl-mt3600be-baseline.config`. Its available
+`gl-mt3600be-open-source.config` is the Clean configuration and must not be
+used as a substitute for a matching 4.9.0 shipping configuration.
+
+## Build Configuration Files
+
+This source release provides three configuration files for different purposes:
+
+### `configs/gl-mt3600be-baseline.config`
+
+Configuration captured from the internal shipping firmware build for audit and
+comparison purposes. It may reference GL.iNet proprietary components that are
+not included in this public source release.
+
+### `configs/gl-mt3600be-open-source.config`
+
+Configuration for building the public open-source firmware image. GL.iNet
+proprietary applications and Web UI components are excluded.
+
+### `configs/gl-mt3600be-ccs-validation.config`
+
+Configuration for CCS verification. It enables public GPL/copyleft GL kernel
+components corresponding to the distributed firmware that can be built from
+this source release. The modules are selected as optional modules for source
+verification and are not enabled in the normal public firmware image.
+
+GL.iNet proprietary applications and Web UI components are excluded.
+
 ## Build environment
 
 Use a 64-bit, case-sensitive GNU/Linux environment. The reference environment
@@ -118,7 +147,21 @@ cd versions/4.8.7
 ```sh
 ./scripts/feeds update -a
 ./scripts/feeds install -a
+```
+
+For the public open-source firmware:
+
+```sh
 cp configs/gl-mt3600be-open-source.config .config
+make defconfig
+make prereq
+make -j"$(nproc)"
+```
+
+For CCS validation of public GL GPL components:
+
+```sh
+cp configs/gl-mt3600be-ccs-validation.config .config
 make defconfig
 make prereq
 make -j"$(nproc)"

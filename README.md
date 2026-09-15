@@ -5,6 +5,36 @@ GL-MT3600BE source releases:
 * [Firmware 4.9.0 build and upgrade guide](versions/4.9.0/GL-MT3600BE_FIRMWARE_GUIDE.md)
 * [Firmware 4.8.7 build and upgrade guide](versions/4.8.7/GL-MT3600BE_FIRMWARE_GUIDE.md)
 
+## Configuration types
+
+Each version directory may contain more than one `.config` file. The
+configuration files have different purposes and are not selected automatically
+by the OpenWrt build system.
+
+| Configuration | Purpose |
+| --- | --- |
+| `gl-mt3600be-open-source.config` | Clean build containing OpenWrt and other publicly redistributable components, without GL.iNet proprietary modules and applications. |
+| `gl-mt3600be-baseline.config` | Internal shipping baseline containing the GL.iNet proprietary modules and applications captured from the corresponding shipping build. |
+| `gl-mt3600be-ccs-validation.config` | CCS validation build that enables the GPL/copyleft GL.iNet kernel modules covered by this source release, while excluding GL.iNet proprietary applications and Web UI components. |
+
+To select a configuration, copy it to `.config` before running `make defconfig`:
+
+```sh
+cp configs/gl-mt3600be-open-source.config .config
+make defconfig
+```
+
+The `open-source` configuration is the Clean configuration under this source
+release terminology. The `baseline` configuration records the corresponding
+shipping build for audit and comparison. The `ccs-validation` configuration
+enables the publicly available GPL/copyleft components that must be checked
+against the distributed firmware. Each version included in this source
+release provides all three configurations in its respective `configs/` directory.
+
+Do not use a baseline configuration from another firmware version to reproduce
+a shipping image. Package selections, feed revisions, patches and hardware
+options must match the target firmware version.
+
 OpenWrt Project is a Linux operating system targeting embedded devices. Instead
 of trying to create a single, static firmware, OpenWrt provides a fully
 writable filesystem with package management. This frees you from the
