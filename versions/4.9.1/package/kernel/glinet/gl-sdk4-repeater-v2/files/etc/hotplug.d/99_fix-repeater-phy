@@ -1,0 +1,17 @@
+#!/bin/sh
+
+ls /sys/kernel/debug/ieee80211 > /tmp/repeater_wifi_phyname
+
+(
+    sleep 35
+    band_2g_phy=$(ubus call repeater devices | jsonfilter -e "@.devices[@.band='2g'].phy")
+
+    if [ -z "$band_2g_phy" ]; then
+        exit 0
+    fi
+
+    if ! grep -q "$band_2g_phy" /tmp/repeater_wifi_phyname; then
+        logger -t repeater "wifi phy id changed, now restart repeater"
+        /etc/init.d/repeater restart
+    fi
+) &

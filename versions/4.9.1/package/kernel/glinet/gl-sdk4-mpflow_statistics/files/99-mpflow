@@ -1,0 +1,18 @@
+#!/bin/sh
+
+[ -e /proc/gl-mpflow ] || exit 0
+
+ifaces=$(ubus list|grep interface.|grep -v -E 'loopback|6')
+[ -z "$ifaces" ] && exit 0
+ifstatus=$(ubus call network.interface.$INTERFACE status 2>/dev/null)
+[ -z "$ifstatus" ] && exit 0
+
+dev=$(echo $ifstatus|jsonfilter -e '@.device')
+[ -z "$dev" -o "$dev" = "br-lan" ] && exit 0
+
+if [ ifup = "$ACTION" ]; then
+    echo -n "a $dev" > /proc/gl-mpflow/control
+else
+    echo -n "d $dev" > /proc/gl-mpflow/control
+fi
+

@@ -1,0 +1,81 @@
+#!/bin/sh /etc/rc.common
+
+START=21
+. /lib/functions/kmwan.sh
+
+del_all_staticrt() {
+    local static_cnt dynamic_cnt
+    static_cnt=$(ip -6 route show | awk '/default via'/ | awk '/fe80'/ | awk '/proto static'/ | wc -l)
+
+    for item in $(seq $static_cnt); do
+        ip -6 r del default proto static
+    done
+}
+
+update_tracks()
+{
+    local track_ip=$(uci get glconfig.general.track_ip)
+    local track_ipv6=$(uci get glconfig.general.track_ipv6)
+    [ -z "$track_ip" -o -z "$track_ipv6" ] && return
+
+    set_tracks() {
+        uci delete kmwan.$1.tracks
+
+        local addr_type=$(uci get kmwan.$1.addr_type)
+        local loop_info
+
+        [ -z "$addr_type" ] && return
+
+        if [ "$addr_type" = "4" ]; then
+            loop_info=$track_ip
+        elif [ "$addr_type" = "6" ]; then
+            loop_info=$track_ipv6
+        else
+            echo "[kmwan]$1 addr_type option error, please check config file"
+        fi
+
+        for info in $loop_info; do
+            info="ping,$info"
+            uci add_list kmwan.$1.tracks=$info
+        done
+    }
+
+    config_foreach set_tracks member
+    uci set kmwan.global.inited='1'
+    uci commit kmwan
+    sync
+}
+
+stop(){
+    del_all_staticrt
+    flush_netcell
+}
+
+start() {
+    local enable=`uci -q get kmwan.global.enable`
+    if [ "$enable" != "1" ];then
+        return 0
+    fi
+
+    local inited=$(uci get kmwan.global.inited)
+    [ "$inited" = "0" ] && update_tracks
+
+    netcell_set_base_config
+    netcell_set_interface_metric
+    load_netcell_from_config
+    gen_weight_route
+}
+
+boot() {
+    local enable=`uci -q get kmwan.global.enable`
+    if [ "$enable" != "1" ];then
+        return 0
+    fi
+
+    local inited=$(uci get kmwan.global.inited)
+    [ "$inited" = "0" ] && update_tracks
+
+    netcell_set_base_config
+    netcell_set_interface_metric "boot"
+}
+

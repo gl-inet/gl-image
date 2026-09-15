@@ -1,0 +1,198 @@
+#!/bin/sh
+
+. /lib/functions/network.sh
+. /lib/functions.sh
+
+ROUITESTR="ip route replace default proto static"
+ROUTE6_STR="ip -6 route replace default proto static"
+nexthop_cnt=0
+nexthop6_cnt=0
+
+config_load kmwan
+
+__append_nexthop()
+{
+    local via dev weight
+
+    network_get_gateway via "$1"
+    [ -z "$via" -a  -n "$(echo $1|grep modem)" ] && network_get_gateway via "${1}_4"
+    network_get_device dev "$1"
+
+    [ -n "$via" -a -n "$dev" ] || return
+
+    ROUITESTR="$ROUITESTR ""nexthop via $via dev $dev weight $2"
+    nexthop_cnt=$(expr $nexthop_cnt + 1)
+}
+
+__append_nexthop6()
+{
+    local iface6 json_str via dev weight i route_count
+
+    iface6=$(ubus list|grep interface|grep -E '\.'$1'$')
+    [ -n "$iface6" ] || return
+    json_str="$(ubus call $iface6 status)"
+    [ -n "$json_str" ] || return
+
+    dev=$(echo "$json_str"|jsonfilter -e '@.l3_device')
+    route_count=$(echo "$json_str" | jsonfilter -e '@.route' | grep -o 'nexthop' | wc -l)
+    if ! [[ "$route_count" =~ ^[0-9]+$ ]] || [ "$route_count" -eq 0 ]; then
+        route_count=3
+    fi
+    for i in $(seq 0 $((route_count -1))); do
+        via=$(echo "$json_str"|jsonfilter -e '@["route"]['$i']["nexthop"]')
+        [ -n "$via" -a "$via" != "::" ] && break
+    done
+
+    [ -n "$dev" -a -n "$via" ] || return
+    ROUTE6_STR="$ROUTE6_STR ""nexthop via $via dev $dev weight $2"
+    nexthop6_cnt=$(expr $nexthop6_cnt + 1)
+}
+
+append_nexthop()
+{
+    [ "$2" = "0" ] && return
+
+    if [ "$3" = "4" ]; then
+        __append_nexthop "$1" "$2"
+    else
+        __append_nexthop6 "$1" "$2"
+    fi
+}
+
+for_each_member()
+{
+    __load_member(){
+        local member=$1
+        local interface weight addr_type
+        config_get interface "$member" "interface"
+        config_get weight "$member" "weight"
+        config_get addr_type "$member" "addr_type"
+        [ -n "$interface" ] && [ -n "$weight" ] && {
+            append_nexthop "$interface" "$weight" "$addr_type"
+        }
+    }
+    config_foreach  __load_member member
+
+    [ -n "$(ip -6 route show | grep nexthop)" ] && ip -6 route del default proto static
+}
+
+get_metric_by_dev()
+{
+    local dev="$1" ret
+    get_member() {
+        local cond interface tmp_dev
+
+        cond=$(echo $1 | grep 6)
+        [ -z "$cond" ] && return
+
+        interface=$(uci -q get kmwan.$1.interface)
+        network_get_device tmp_dev "$interface"
+        if [ "$dev" = "$tmp_dev" ]; then
+            ret=$interface
+        fi
+    }
+    config_foreach get_member member
+    echo $(uci -q get kmwan.$ret.metric)
+}
+
+add_static_rt6() {
+    set_ipv6_static_rt() {
+        local addr_type disabled json_str dev via metric
+        addr_type=$(uci get kmwan.$1.addr_type)
+        disabled=$(uci get kmwan.$1.disabled)
+
+        [ "$addr_type" = "6" ] || return
+        [ -n "$(ubus list | grep "network.interface.$1")" ] || return
+
+        json_str="$(ubus call network.interface.$1 status)"
+        [ -n "$json_str" ] || return
+
+        dev=$(echo "$json_str"|jsonfilter -e '@.l3_device')
+        for i in $(seq 0 3); do
+            via=$(echo "$json_str"|jsonfilter -e '@["route"]['$i']["nexthop"]')
+            [ -n "$via" -a "$via" != "::" ] && break
+        done
+        metric=$(uci get kmwan.$1.metric)
+
+        [ -n "$dev" ] && [ -n "$via" ] && {
+            ip -6 r | grep "default via $via dev $dev proto static" | while read line;do
+                ip -6 r del $line
+            done
+            ip -6 r replace default proto static via $via dev $dev proto static metric $metric
+        }
+    }
+    config_foreach set_ipv6_static_rt member
+}
+
+del_all_defaultrt6() {
+    [ $nexthop6_cnt -gt 1 ] || return
+    local static_cnt dynamic_cnt
+    static_cnt=$(ip -6 route show | awk '/default via'/ | awk '/fe80'/ | awk '/proto static'/ | wc -l)
+
+    for item in $(seq $static_cnt); do
+        ip -6 r del default proto static
+    done
+
+    dynamic_cnt=$(ip -6 route show | awk '/default via'/ | awk '/ra'/ | wc -l)
+    for item in $(seq $dynamic_cnt); do
+        ip -6 r del default
+    done
+}
+
+set_iface6_disable()
+{
+    _set_iface6_disable() {
+        local config=$1
+        local is_modem=$(echo $config | grep modem)
+        if [ -n "$is_modem" ]; then
+            local is_modem_6=$(echo $is_modem | grep _6)
+            [ -n "$is_modem_6" ] && uci set kmwan.$is_modem_6.disabled="1"
+        else
+            case $config in
+                wan6|wwan6|tethering6|secondwan6)
+                    uci set kmwan.$config.disabled="1"
+                ;;
+                *)
+                ;;
+            esac
+        fi
+    }
+    config_foreach _set_iface6_disable member
+    uci commit kmwan
+}
+
+handle_balance_rt()
+{
+    if [ $nexthop_cnt -gt 1 ]; then
+        eval "$ROUITESTR"
+        [ $? -ne 0 ] || return
+        network_flush_cache
+        /etc/init.d/kmwan restart
+        exit
+    else
+        [ -n "$(ip route show | grep nexthop)" ] && ip route del default proto static
+    fi
+}
+
+config_get MODE global "mode"
+config_get ENABLE global "enable"
+[ "$ENABLE" = "0" ] && exit 0
+
+ipv6_enable=$(uci get glipv6.globals.enabled)
+[ "$ipv6_enable" != "1" ] && set_iface6_disable
+
+if [ "$MODE" = "failover" ]; then 
+    [ -n "$(ip route show | grep nexthop)" ] && ip route del default proto static
+    [ -n "$(ip -6 route show | grep nexthop)" ] && {
+        ip -6 route del default proto static
+        /etc/init.d/kmwan restart
+        exit
+    }
+    [ "$ipv6_enable" = "1" ] && add_static_rt6
+    exit
+fi
+
+for_each_member
+del_all_defaultrt6
+handle_balance_rt
+[ $nexthop6_cnt -gt 1 ] && eval "$ROUTE6_STR"

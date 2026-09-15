@@ -1,0 +1,150 @@
+#!/bin/sh /etc/rc.common
+# shellcheck disable=SC3043 SC3001 SC3037
+
+. /lib/functions.sh
+START=90
+
+reset_isolate_proc() {
+    [ -e /proc/gl-black_white_list/net_secure ] && echo 0 > /proc/gl-black_white_list/net_secure
+    [ -e /proc/gl-black_white_list/custom_isolate ] && echo "" > /proc/gl-black_white_list/custom_isolate
+    [ -e /proc/gl-black_white_list/mesh_iface ] && echo "" > /proc/gl-black_white_list/mesh_iface
+}
+
+stop() {
+    reset_isolate_proc
+    echo clr > /proc/gl-black_white_list/control
+    echo disable > /proc/gl-black_white_list/control
+}
+
+load_mac_list() {
+    echo add $1 > /proc/gl-black_white_list/control
+}
+
+update_blacklist() {
+    [ -z "$1" ] && return
+    uci add_list gl-black_white_list.black.mac="$1"
+}
+
+start() {
+    if [ -s "/etc/config/gl_block" ]; then
+        config_load gl_block
+        config_list_foreach block_mac mac update_blacklist
+        uci commit gl-black_white_list
+        echo -n "" > /etc/config/gl_block
+    fi
+    [ -s "/etc/config/gl-black_white_list" ] && sed -i 's/option mac/list mac/g' /etc/config/gl-black_white_list
+    sync
+
+    local enable=$(uci get gl-black_white_list.global.enable)
+    if [ "$enable" != "1" ]; then
+        reset_isolate_proc
+        echo clr > /proc/gl-black_white_list/control
+        echo disable > /proc/gl-black_white_list/control
+        return
+    fi
+
+    [ -z "$(uci get gl-black_white_list.lan)" ] && {
+        uci set gl-black_white_list.lan="secure_option"
+        uci set gl-black_white_list.lan.ap_isolate='0'
+        uci set gl-black_white_list.guest="secure_option"
+        uci set gl-black_white_list.guest.ap_isolate='1'
+        uci set gl-black_white_list.guest.transfer_enable='0'
+        uci set gl-black_white_list.iot="secure_option"
+        uci set gl-black_white_list.iot.ap_isolate='1'
+        uci set gl-black_white_list.iot.transfer_enable='0'
+        uci commit gl-black_white_list
+    }
+
+    echo clr > /proc/gl-black_white_list/control
+    echo enable > /proc/gl-black_white_list/control
+    config_load gl-black_white_list
+    local mode=$(uci get gl-black_white_list.global.mode)
+    case $mode in
+        black|white)
+            echo "$mode" > /proc/gl-black_white_list/control
+            config_list_foreach "$mode" mac load_mac_list
+            ;;
+        *)
+            echo "black_white_list mode is error." > /dev/console
+            ;;
+    esac
+
+    local lan_isolate=$(uci get gl-black_white_list.lan.ap_isolate)
+    local guest_isolate=$(uci get gl-black_white_list.guest.ap_isolate)
+    local iot_isolate=$(uci get gl-black_white_list.iot.ap_isolate)
+    local guest_transfer_enable=$(uci get gl-black_white_list.guest.transfer_enable)
+    local isolate=$(expr "$lan_isolate" + "$guest_isolate" \* 2 + "$guest_transfer_enable" \* 4 + "$iot_isolate" \* 8)
+    echo "$isolate" > /proc/gl-black_white_list/net_secure
+
+    local custom_isolate=""
+    local section vid
+    for section in $(uci -q show gl-black_white_list | sed -n "s/^gl-black_white_list\.\(vlan[0-9][0-9]*\)\.ap_isolate='1'$/\1/p"); do
+        vid="${section#vlan}"
+        if [ -z "$custom_isolate" ]; then
+            custom_isolate="br-vlan${vid}"
+        else
+            custom_isolate="${custom_isolate},br-vlan${vid}"
+        fi
+    done
+    [ -e /proc/gl-black_white_list/custom_isolate ] && echo "$custom_isolate" > /proc/gl-black_white_list/custom_isolate
+
+    if [ -e /proc/gl-black_white_list/mesh_iface ]; then
+        echo "" > /proc/gl-black_white_list/mesh_iface
+    fi
+
+    if [ "$lan_isolate" = "0" ] && [ "$guest_isolate" = "0" ] && [ "$iot_isolate" = "0" ] && [ -z "$custom_isolate" ]; then
+        return
+    fi
+
+    local iface_string=""
+    local mesh_enable
+    local ifname_num
+    local tmp_wireless_ifname
+    mesh_enable=$(uci get gl-mesh.@base[0].enabled 2>/dev/null)
+
+    # Mesh is not enabled or not configured; return.
+    if [ -z "$mesh_enable" ] || [ "$mesh_enable" = "0" ]; then
+        return
+    fi
+
+    tmp_wireless_ifname=$(mktemp)
+    uci show wireless | grep ifname | grep -E "bbss|bsta" > "$tmp_wireless_ifname"
+
+    while IFS= read -r line; do
+        local ifname
+        local mesh_ifname_base
+        ifname=$(echo "$line" | cut -d"'" -f2)
+
+        [ -z "$ifname" ] && continue
+
+        mesh_ifname_base=""
+        ifname_num=""
+
+        # Build base prefix for fuzzy match:
+        # wlan13 matches wlan13.sta1, w13 matches w13.s1.20/w13.s1.30.
+        case "$ifname" in
+            wlan*)
+                ifname_num="${ifname#wlan}"
+                case "$ifname_num" in
+                    ''|*[!0-9]*) ;;
+                    *)
+                        mesh_ifname_base="w${ifname_num}"
+                        ;;
+                esac
+                ;;
+        esac
+
+        if [ -z "$iface_string" ]; then
+            iface_string="${ifname}"
+        else
+            iface_string="${iface_string},${ifname}"
+        fi
+
+        if [ -n "$mesh_ifname_base" ]; then
+            iface_string="${iface_string},${mesh_ifname_base}"
+        fi
+    done < "$tmp_wireless_ifname"
+
+    rm -f "$tmp_wireless_ifname"
+    echo "$iface_string" > /proc/gl-black_white_list/mesh_iface
+}

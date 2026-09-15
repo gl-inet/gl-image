@@ -1,0 +1,27 @@
+#!/bin/sh /etc/rc.common
+
+START=15
+STOP=10
+
+USE_PROCD=1
+
+fix_wifi_iface() {
+    local mode
+
+    config_get mode "$1" mode
+
+    [ "$mode" = "sta" ] && uci set wireless.$1.disabled=1
+}
+
+start_service() {
+    mkdir -p /var/log/gl-repeater
+
+    config_load wireless
+    config_foreach fix_wifi_iface wifi-iface
+    uci commit wireless
+
+    procd_open_instance
+    procd_set_param command /usr/bin/eco /usr/sbin/gl-repeater
+    procd_set_param respawn 3600 2 0
+    procd_close_instance
+}

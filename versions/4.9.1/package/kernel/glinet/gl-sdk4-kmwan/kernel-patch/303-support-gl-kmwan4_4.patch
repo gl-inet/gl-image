@@ -1,0 +1,77 @@
+--- a/include/linux/netdevice.h
++++ b/include/linux/netdevice.h
+@@ -2218,6 +2218,7 @@ struct pcpu_sw_netstats {
+ #define NETDEV_PRECHANGEUPPER	0x001A
+ #define NETDEV_BR_JOIN		0x001B
+ #define NETDEV_BR_LEAVE		0x001C
++#define NETDEV_DEAD			0x001D
+ 
+ int register_netdevice_notifier(struct notifier_block *nb);
+ int unregister_netdevice_notifier(struct notifier_block *nb);
+--- a/include/net/fib_rules.h
++++ b/include/net/fib_rules.h
+@@ -39,6 +39,7 @@ struct fib_lookup_arg {
+ 	int			flags;
+ #define FIB_LOOKUP_NOREF		1
+ #define FIB_LOOKUP_IGNORE_LINKSTATE	2
++#define FIB_LOOKUP_IGNORE_DEAD		4
+ };
+ 
+ struct fib_rules_ops {
+--- a/net/core/rtnetlink.c
++++ b/net/core/rtnetlink.c
+@@ -3433,6 +3433,7 @@ static int rtnetlink_event(struct notifi
+ 	case NETDEV_RELEASE:
+ 	case NETDEV_JOIN:
+ 	case NETDEV_BONDING_INFO:
++	case NETDEV_DEAD:
+ 		break;
+ 	default:
+ 		rtmsg_ifinfo(RTM_NEWLINK, dev, 0, GFP_KERNEL);
+--- a/net/ipv4/fib_semantics.c
++++ b/net/ipv4/fib_semantics.c
+@@ -1478,6 +1478,9 @@ int fib_sync_down_dev(struct net_device
+ 				case NETDEV_CHANGE:
+ 					nexthop_nh->nh_flags |= RTNH_F_LINKDOWN;
+ 					break;
++				case NETDEV_DEAD:
++					nexthop_nh->nh_flags |= RTNH_F_DEAD;
++					break;
+ 				}
+ 				write_unlock_bh(&fib_nhflags_lock);
+ 				if (fi->fib_protocol != RTPROT_STATIC ||
+@@ -1502,6 +1505,9 @@ int fib_sync_down_dev(struct net_device
+ 			case NETDEV_CHANGE:
+ 				fi->fib_flags |= RTNH_F_LINKDOWN;
+ 				break;
++			case NETDEV_DEAD:
++				fi->fib_flags |= RTNH_F_DEAD;
++				break;
+ 			}
+ 			ret++;
+ 		}
+@@ -1511,6 +1517,7 @@ int fib_sync_down_dev(struct net_device
+ 
+ 	return ret;
+ }
++EXPORT_SYMBOL(fib_sync_down_dev);
+ 
+ /* Must be invoked inside of an RCU protected region.  */
+ void fib_select_default(const struct flowi4 *flp, struct fib_result *res)
+@@ -1654,7 +1661,7 @@ repeat:
+ 				};
+ 				rcu_read_lock();
+ 				if (fib_lookup(dev_net(dev), &fl4, &res,
+-					FIB_LOOKUP_IGNORE_LINKSTATE) != 0) {
++					FIB_LOOKUP_IGNORE_LINKSTATE | FIB_LOOKUP_IGNORE_DEAD) != 0) {
+ 					rcu_read_unlock();
+ 					continue;
+ 				}
+@@ -1683,6 +1690,7 @@ repeat:
+ 
+ 	return ret;
+ }
++EXPORT_SYMBOL(fib_sync_up);
+ 
+ #ifdef CONFIG_IP_ROUTE_MULTIPATH
+ 

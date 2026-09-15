@@ -3,3 +3,7 @@ src-git-full luci https://git.openwrt.org/project/luci.git^e4c46338
 src-git-full routing https://git.openwrt.org/feed/routing.git^a9e43101
 src-git-full telephony https://git.openwrt.org/feed/telephony.git^920fbc5c
 src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^5fbb639c
+src-git-full gl_feed_common https://github.com/gl-inet/gl-feeds.git^487db81d10d5cf28d4a4968ebda719071081568c
+src-git-full gl_feed_21_02 https://github.com/gl-inet/gl-feeds.git^de1f0ca04af05a4b0556cf11e7597da375c722ff
+src-git-full gl_vpn_extra https://github.com/gl-inet/vpn-extra-feeds.git^a3c59128e6378646d057b2d56bf532930293095b
+src-git-full mptcp_feeds https://github.com/gl-inet/mptcp-feeds.git^2b8d5f3edf4647d0dc94e19d1dd5932d06d4704a

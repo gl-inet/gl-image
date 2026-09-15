@@ -1,0 +1,66 @@
+# use the official gcc image, based on debian
+# can use verions as well, like gcc:5.2
+# see https://hub.docker.com/_/gcc/
+image: gcc
+
+stages:
+  - style
+  - quality
+  - test
+  - build
+  - libdoc
+
+include:
+  - template: Code-Quality.gitlab-ci.yml
+
+check_style:
+  stage: style
+  tags:
+    - gl_router_runner
+  script:
+    - cd /home/luo/runner-script/sdk4_script;./sdk4_style_ci "$CI_PROJECT_NAME" "$CI_PROJECT_DIR" "$CI_COMMIT_SHORT_SHA" "$CI_COMMIT_MESSAGE" "$CI_COMMIT_REF_NAME" "$GITLAB_USER_NAME"
+
+check_quality:
+  stage: quality
+  tags:
+    - gl_router_runner
+  only:
+    refs:
+      - master
+  script:
+    - cd /home/luo/runner-script/sdk4_script;./sdk4_code_quality "$CI_PROJECT_NAME" "$CI_PROJECT_DIR" "$CI_COMMIT_SHORT_SHA" "$CI_COMMIT_MESSAGE" "$CI_COMMIT_REF_NAME" "$GITLAB_USER_NAME"
+
+code_quality:
+  stage: test
+  tags:
+    - gl_router_runner
+  script:
+    - codeclimate  analyze -f json  ./ >./gl-code-quality-report.json
+  artifacts:
+    expose_as: 'Code Quality Report'
+    paths: [gl-code-quality-report.json]
+
+compile:
+  stage: build
+  tags:
+    - gl_router_runner
+  only:
+    refs:
+      - master
+  script:
+    - echo $CI_PROJECT_NAME
+    - echo $CI_PROJECT_DIR
+    - echo $CI_COMMIT_SHORT_SHA
+    - echo $CI_COMMIT_MESSAGE
+    - cd /home/luo/runner-script/sdk4_script;./sdk4_compile_ci "$CI_PROJECT_NAME" "$CI_PROJECT_DIR" "$CI_COMMIT_SHORT_SHA" "$CI_COMMIT_MESSAGE"
+
+make_doc:
+  stage: libdoc
+  tags:
+    - gl_router_runner
+  only:
+    refs:
+      - master
+  script:
+    - cd /home/luo/runner-script/sdk4_script;./make_sdk4_library_doc "$CI_PROJECT_NAME" "$CI_PROJECT_DIR" "$CI_COMMIT_SHORT_SHA" "$CI_COMMIT_MESSAGE"
+

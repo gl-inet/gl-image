@@ -1,0 +1,5 @@
+--- a/net/ipv4/fib_semantics.c
++++ b/net/ipv4/fib_semantics.c
+@@ -333,2 +333,2 @@
+-static struct hlist_head *
++struct hlist_head *

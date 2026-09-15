@@ -1,0 +1,10 @@
+#!/bin/sh
+
+. /lib/functions.sh
+. /usr/share/libubox/jshn.sh
+
+json_init
+json_add_string interface "$INTERFACE"
+json_add_string status "$STATUS"
+
+ubus send kmwan.status "$(json_dump)"

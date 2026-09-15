@@ -1,0 +1,68 @@
+. /lib/functions/system.sh
+
+#  Old OpenWrt has no the mmc_get_mac_binary, so add it.
+find_mmc_part() {
+    local DEVNAME PARTNAME ROOTDEV
+
+    if grep -q "$1" /proc/mtd; then
+        echo "" && return 0
+    fi
+
+    if [ -n "$2" ]; then
+        ROOTDEV="$2"
+    else
+        ROOTDEV="mmcblk*"
+    fi
+
+    for DEVNAME in /sys/block/$ROOTDEV/mmcblk*p*; do
+        PARTNAME="$(grep PARTNAME ${DEVNAME}/uevent | cut -f2 -d'=')"
+        [ "$PARTNAME" = "$1" ] && echo "/dev/$(basename $DEVNAME)" && return 0
+    done
+}
+
+mmc_get_mac_binary() {
+    local part_name="$1"
+    local offset="$2"
+    local part
+
+    part=$(find_mmc_part "$part_name")
+    get_mac_binary "$part" "$offset"
+}
+
+fix_network() {
+    local network
+
+    config_get network "$1" network
+
+    [ "$network" = "lan" ] && uci set repeater.$1.wds=1
+    [ -z "$network" ] && uci set repeater.$1.network=wwan
+}
+
+config_load repeater
+config_foreach fix_network network
+
+set_default_mac() {
+    local addr
+
+    if [ -f /lib/wifi/qcawificfg80211.sh ]; then
+        addr=$(uci -q get wireless.wifi0.macaddr)
+    elif [ -d /etc/wireless/mediatek ]; then
+        addr=$(mtd_get_mac_binary Factory 0x04)
+        [ -n "$addr" ] || addr=$(mtd_get_mac_binary_ubi Factory 0x04)
+        [ -n "$addr" ] || addr=$(mmc_get_mac_binary factory 0x04)
+    elif [ -f /sys/class/ieee80211/phy0/macaddress ]; then
+        addr=$(cat /sys/class/ieee80211/phy0/macaddress)
+    fi
+
+    [ -n "$addr" ] && uci set repeater.@main[0].macaddr="92${addr:2}"
+}
+
+uci -q get repeater.@main[0].macaddr > /dev/null || set_default_mac
+
+[ -z "$(uci -q get repeater.@main[0].smart_reconnect)" ] && uci set repeater.@main[0].smart_reconnect='1'
+
+uci -q get repeater.@main[0].auto | grep -q '^2$' && {
+    uci set repeater.@main[0].auto='1'
+}
+
+uci commit repeater

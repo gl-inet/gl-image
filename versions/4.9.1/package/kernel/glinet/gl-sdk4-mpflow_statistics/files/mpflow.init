@@ -1,0 +1,61 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+
+. /lib/functions.sh
+FILE=/proc/gl-mpflow/control
+
+netdev_list=""
+offline_devlist=""
+
+get_netdev()
+{
+    local enable iface status online netdev
+    enable=$(uci get mptun.$1.enable)
+
+    status=$(ubus call network.interface.$1 status 2>/dev/null)
+    [ -z "$status" ] && return
+
+    online=$(echo $status|jsonfilter -e '@.up')
+    [ "$online" = "false" ] && return
+
+    netdev=$(echo $status|jsonfilter -e '@.device' 2>/dev/null)
+    [ -z $netdev ] && return
+
+    if [ "$enable" = "0" ]; then
+        if [ -z "$offline_devlist" ]; then
+            offline_devlist="$netdev"
+        else
+            offline_devlist="$offline_devlist ""$netdev"
+        fi
+    else
+        if [ -z "$netdev_list" ]; then
+            netdev_list="$netdev"
+        else
+            netdev_list="$netdev_list ""$netdev"
+        fi
+    fi
+}
+
+start()
+{
+    config_load mptun
+    config_get enable global enable "0"
+    [ "$enable" = "0"  ] && return
+
+    [ -e $FILE ] || insmod gl-mpflow
+
+    config_foreach get_netdev interface
+    [  -z "$netdev_list" ] && return
+
+    [ -n "$netdev_list" ] && echo -n "a $netdev_list" > $FILE
+    [ -n "$offline_devlist" ] && echo -n "d $offline_devlist" > $FILE
+
+}
+
+stop()
+{
+    local mptun_enable=$(uci get mptun.global.enable)
+    [ "$mptun_enable" = "0" ] && echo -n "c" > $FILE
+}
+

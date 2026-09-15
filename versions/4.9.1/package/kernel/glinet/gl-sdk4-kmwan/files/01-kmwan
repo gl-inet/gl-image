@@ -1,0 +1,22 @@
+#!/bin/sh
+
+[ "$(uci -q get kmwan.global.enable)" = "1" ] || exit 0
+
+. /lib/functions/kmwan.sh
+
+[ ifup = "$ACTION" ] && {
+    [ -n "$(uci show kmwan|grep interface|grep $INTERFACE)" ] || return
+
+    [ ! -f /usr/bin/cellular_manager ] && del_unuse_modem_cfg "$INTERFACE"
+
+    add_netcell "$INTERFACE"
+    gen_weight_route
+}
+
+[ ifdown = "$ACTION" ] && {
+    [ -n "$(uci show kmwan|grep interface|grep $INTERFACE)" -o -n "$(echo $INTERFACE|grep modem)" ] || return
+
+    gen_weight_route
+    remove_netcell "$INTERFACE"
+}
+
