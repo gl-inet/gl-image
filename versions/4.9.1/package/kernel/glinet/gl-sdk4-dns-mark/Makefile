@@ -3,7 +3,8 @@ include ./version.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=gl-sdk4-dns-mark
-PKG_VERSION:=$(strip $(call findrev))
+# Source snapshot: c80883038a1f0dfec5ab7e37fe85ffd1b15f75bb
+PKG_VERSION:=git-2025.325.38811-c808830
 PKG_RELEASE:=1
 
 include $(INCLUDE_DIR)/package.mk

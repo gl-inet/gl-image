@@ -1,0 +1,169 @@
+{
+  "model": "BE14000",
+  "version": "4.9.1",
+  "files": [
+    {
+      "openwrt_source": "package/base-files/files/bin/config_generate",
+      "shipping_source": "package/base-files/files/bin/config_generate",
+      "shipping_rootfs_path": "/bin/config_generate",
+      "original_sha256": "beb310ee4d5b7ffd71d9408b3cfe1f7385a78cc32a4d8cac7aebeea18382b5c5",
+      "shipping_source_sha256": "f92636f57a1c1fad61485513ea53c5d198d78eb75e8073dedc2bc48739575a0d",
+      "shipping_rootfs_sha256": "f92636f57a1c1fad61485513ea53c5d198d78eb75e8073dedc2bc48739575a0d",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/base-files/files/etc/init.d/boot",
+      "shipping_source": "package/base-files/files/etc/init.d/boot",
+      "shipping_rootfs_path": "/etc/init.d/boot",
+      "original_sha256": "0ee86e3166c3a119592876824f7cab6e38a756c5b1e886e777709bafda2aa2b3",
+      "shipping_source_sha256": "9ff49bbafdb7cef867ac18b4c634d645a9245b32bdfb7495be221da967ee5ae5",
+      "shipping_rootfs_sha256": "9ff49bbafdb7cef867ac18b4c634d645a9245b32bdfb7495be221da967ee5ae5",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/base-files/files/lib/functions/system.sh",
+      "shipping_source": "package/base-files/files/lib/functions/system.sh",
+      "shipping_rootfs_path": "/lib/functions/system.sh",
+      "original_sha256": "a61d8ebf87f78be1bee0b63b9eb5972d0ec32e6327c542e935cbbb0a411e05c4",
+      "shipping_source_sha256": "172d9451efae647f51fbebc85992d79f0d792bd685e00cf55dae0e45c8f1b426",
+      "shipping_rootfs_sha256": "172d9451efae647f51fbebc85992d79f0d792bd685e00cf55dae0e45c8f1b426",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/base-files/files/lib/functions.sh",
+      "shipping_source": "package/base-files/files/lib/functions.sh",
+      "shipping_rootfs_path": "/lib/functions.sh",
+      "original_sha256": "b2b07ca83222f8677f8117e4ed8bff162ef9e6ad0aadaa42d6248c5865831406",
+      "shipping_source_sha256": "66d33c8ac9e5154734f8b3ec5f23a315e6ce94a3f7274a0aedc7f9eb41b4aab8",
+      "shipping_rootfs_sha256": "66d33c8ac9e5154734f8b3ec5f23a315e6ce94a3f7274a0aedc7f9eb41b4aab8",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/base-files/files/etc/profile",
+      "shipping_source": "package/base-files/files/etc/profile",
+      "shipping_rootfs_path": "/etc/profile",
+      "original_sha256": "e54cc63c8aad2a141c89c544c3f837fdc9f0d8ffa7a3bf44a6b0985404e935d8",
+      "shipping_source_sha256": "5afea92ececd3e798cc4b838c8254993b7d106d0e89248ba970c9af7dc377c17",
+      "shipping_rootfs_sha256": "08446fe9619ebeca514fdc0d0ae5f8f5e0834f97cdeb35e06a389e9400e7c1ac",
+      "source_matches_shipping_rootfs": false
+    },
+    {
+      "openwrt_source": "package/base-files/files/lib/upgrade/stage2",
+      "shipping_source": "package/base-files/files/lib/upgrade/stage2",
+      "shipping_rootfs_path": "/lib/upgrade/stage2",
+      "original_sha256": "5a380e22e36e7bf3bebe835acc800b9ab447255943b63258031b4b85ad9e4000",
+      "shipping_source_sha256": "232cbfce146eec699af06153e2082c5779e6b9df812ae206be2575f944b4706c",
+      "shipping_rootfs_sha256": "232cbfce146eec699af06153e2082c5779e6b9df812ae206be2575f944b4706c",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/base-files/files/sbin/sysupgrade",
+      "shipping_source": "feeds/glinet/gl-sdk4-base-files/files/sbin/sysupgrade",
+      "shipping_rootfs_path": "/sbin/sysupgrade",
+      "original_sha256": "639edd69a987c7b3d5604c67a174196e5c2c0e47cbb7a7bfd4027fcf08c24aa0",
+      "shipping_source_sha256": "6069c1e95baa5553be6618706fb34411c3939c90576fd566b6c1b47e1b87e94d",
+      "shipping_rootfs_sha256": "6069c1e95baa5553be6618706fb34411c3939c90576fd566b6c1b47e1b87e94d",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/base-files/files/etc/rc.local",
+      "shipping_source": "feeds/glinet/gl-sdk4-base-files/files/etc/rc.local",
+      "shipping_rootfs_path": "/etc/rc.local",
+      "original_sha256": "515018aa94eb4937dade12dc0d69890b352af35a5ab5fb8203f9ed10990ac06f",
+      "shipping_source_sha256": "7e6d8c471f66b74cbd8b5a7089782c5a354282dc1b87de62a04364e216440a7b",
+      "shipping_rootfs_sha256": "7e6d8c471f66b74cbd8b5a7089782c5a354282dc1b87de62a04364e216440a7b",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/base-files/files/etc/rc.button/reset",
+      "shipping_source": "feeds/glinet/gl-sdk4-base-files/files/etc/rc.button/reset",
+      "shipping_rootfs_path": "/etc/rc.button/reset",
+      "original_sha256": "f58a639fd649767572f345b628960d5694ff51cd4dc829474d2651ad63a51adb",
+      "shipping_source_sha256": "11cdcc8952086e3fcde273eeb31f41901f92a1e75abeeffd7b2a7a5f1b213270",
+      "shipping_rootfs_sha256": "11cdcc8952086e3fcde273eeb31f41901f92a1e75abeeffd7b2a7a5f1b213270",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/network/services/ppp/files/lib/netifd/ppp-up",
+      "shipping_source": "feeds/glinet/gl-sdk4-base-files/files/lib/netifd/ppp-up",
+      "shipping_rootfs_path": "/lib/netifd/ppp-up",
+      "original_sha256": "db55b4544043a84312c8b23c4ccb279601dca626422e6cd0eb92839cfb7222d1",
+      "shipping_source_sha256": "dac6acd49f33ef2db96e872d80162df8e2d99c88c5a07acd541e30a00413b1d4",
+      "shipping_rootfs_sha256": "dac6acd49f33ef2db96e872d80162df8e2d99c88c5a07acd541e30a00413b1d4",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/network/services/ppp/files/lib/netifd/ppp6-up",
+      "shipping_source": "feeds/glinet/gl-sdk4-base-files/files/lib/netifd/ppp6-up",
+      "shipping_rootfs_path": "/lib/netifd/ppp6-up",
+      "original_sha256": "a65e67725946ef4b5d6a11c90fdff05db7e6a48a97838ea48950d3fd8b599af9",
+      "shipping_source_sha256": "38f4995500bd5a98256dc1b6bf2c1882704f0baee83e1b4b2db48470fce57017",
+      "shipping_rootfs_sha256": "38f4995500bd5a98256dc1b6bf2c1882704f0baee83e1b4b2db48470fce57017",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/network/utils/uqmi/files/lib/netifd/proto/qmi.sh",
+      "shipping_source": "feeds/glinet/gl-sdk4-cellular/cellular/platform/OpenWRT/files/lib/netifd/proto/qmi.sh",
+      "shipping_rootfs_path": "/lib/netifd/proto/qmi.sh",
+      "original_sha256": "03507c294c2a414ff7fbcc9ac5fc9e43447d3b16432d8f4530cdbc4b84b37822",
+      "shipping_source_sha256": "45d7fc816198ab721485ec27a613e6cb83e0ac87a01817b30ba6ad6775e65ddb",
+      "shipping_rootfs_sha256": "45d7fc816198ab721485ec27a613e6cb83e0ac87a01817b30ba6ad6775e65ddb",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/network/config/netifd/files/etc/init.d/network",
+      "shipping_source": "package/network/config/netifd/files/etc/init.d/network",
+      "shipping_rootfs_path": "/etc/init.d/network",
+      "original_sha256": "60318b8f56dec9484069ba83771d6cea58f7490a21968598327c20efba0e02f3",
+      "shipping_source_sha256": "a0d1eb3495e17629beaf1016e5da03cedc4029820dc2e8741d245674c6c827c9",
+      "shipping_rootfs_sha256": "a0d1eb3495e17629beaf1016e5da03cedc4029820dc2e8741d245674c6c827c9",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/system/fstools/files/mount.hotplug",
+      "shipping_source": "feeds/glinet/gl-sdk4-base-files/files/etc/hotplug.d/block/10-mount",
+      "shipping_rootfs_path": "/etc/hotplug.d/block/10-mount",
+      "original_sha256": "813b089ab1c966c724c9508236e302b81d9e4bcfd6c5572484e1d135db2f2499",
+      "shipping_source_sha256": "50e249b12651e6d09c82c4ed9d15bda58c5a2ae1721182a6de98e3d761c08b2e",
+      "shipping_rootfs_sha256": "50e249b12651e6d09c82c4ed9d15bda58c5a2ae1721182a6de98e3d761c08b2e",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/network/config/firewall/files/firewall.hotplug",
+      "shipping_source": "feeds/glinet/gl-sdk4-base-files/files/etc/hotplug.d/iface/20-firewall",
+      "shipping_rootfs_path": "/etc/hotplug.d/iface/20-firewall",
+      "original_sha256": "cf6b57a6d71ece80908e26d44430b9eef452f2e1ee02ae0bc47c8e2a1e2c1122",
+      "shipping_source_sha256": "7c897a634729d926a29e061e5d6afbe5e5a7eb3fabf0f1eaefdf34c180699791",
+      "shipping_rootfs_sha256": "7c897a634729d926a29e061e5d6afbe5e5a7eb3fabf0f1eaefdf34c180699791",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/network/utils/comgt/files/3g.sh",
+      "shipping_source": "feeds/glinet/gl-sdk4-cellular/cellular/platform/OpenWRT/files/lib/netifd/proto/3g.sh",
+      "shipping_rootfs_path": "/lib/netifd/proto/3g.sh",
+      "original_sha256": "6e0f47992fec74cf8deab29ae30cc3b1ce0dd367ed46b3bbce525dd512f49c9b",
+      "shipping_source_sha256": "662e3f00e81a09482c1477f5d4fef2aa2edbe9ff9da296b293fc54c29d84d584",
+      "shipping_rootfs_sha256": "662e3f00e81a09482c1477f5d4fef2aa2edbe9ff9da296b293fc54c29d84d584",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "package/network/utils/comgt/files/ncm.sh",
+      "shipping_source": "feeds/glinet/gl-sdk4-cellular/cellular/platform/OpenWRT/files/lib/netifd/proto/ncm.sh",
+      "shipping_rootfs_path": "/lib/netifd/proto/ncm.sh",
+      "original_sha256": "1705a3d6caa4e022d20850e48dfd07aa42bde7112e4e9ca116389ffe13b4d1c6",
+      "shipping_source_sha256": "12ad1c1f7a74da1a7619763e7b239a191d64349fbeed0399cfc753829028126f",
+      "shipping_rootfs_sha256": "12ad1c1f7a74da1a7619763e7b239a191d64349fbeed0399cfc753829028126f",
+      "source_matches_shipping_rootfs": true
+    },
+    {
+      "openwrt_source": "dl/smstools3-3.1.21.tar.gz:smstools3/scripts/sendsms",
+      "shipping_source": "feeds/glinet/gl-sdk4-cellular/cellular/platform/OpenWRT/files/usr/bin/sendsms",
+      "shipping_rootfs_path": "/usr/bin/sendsms",
+      "patch_adds_source_at": "package/utils/smstools3/shipping/scripts/sendsms",
+      "original_sha256_after_public_package_patches": "eee2452c47f0277d25698c8a1bad0f91e1ab7c6146567c10fffd13631c15288f",
+      "shipping_source_sha256": "2b8e4ed1cbee3ad7b36fb05a0a5c29e303bfdbc6ccf096b3b17199bfc2d03e89",
+      "shipping_rootfs_sha256": "2b8e4ed1cbee3ad7b36fb05a0a5c29e303bfdbc6ccf096b3b17199bfc2d03e89",
+      "source_matches_shipping_rootfs": true
+    }
+  ]
+}

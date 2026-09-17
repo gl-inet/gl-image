@@ -1,0 +1,132 @@
+{
+  "changes": {
+    "package/system/fstools/patches/0102-mount-options.patch": {
+      "before": null,
+      "after": "b363e879795eed56733149888e3b3019a58f8b48c324becbe12ad35307a686d1"
+    },
+    "package/system/fstools/patches/0100-automount.patch": {
+      "before": null,
+      "after": "83858df86bb770782aa5f6c54bc0cc80f008ea4660530a7d9b343b8200745cd7"
+    },
+    "package/network/utils/iw/patches/999-mtk-001-fix-mcs-set.patch": {
+      "before": null,
+      "after": "f45f7a6e2b1eca655101eb448ab152091129729abd1c7f3c4a878ba12d3f79ac"
+    },
+    "package/network/utils/iwinfo/patches/0001-Compatible-with-EHT.patch": {
+      "before": "ca89fce6217eca686a2531ba2f9b8266c5b5a93d4231fe9cf7f4050c15cd46a2",
+      "after": null
+    },
+    "package/network/utils/iwinfo/patches/0002-add-iwinfo-htmode-function.patch": {
+      "before": "722e70977e1db4bcee50c1b237ee8ac3be5273797b7a96dada6e16d16f6b0bdc",
+      "after": null
+    },
+    "package/network/utils/iwinfo/patches/0002-add-support-EHT320M.patch": {
+      "before": null,
+      "after": "06d0f6b898a54f93f8fa27a76ab020e54960f9654e3554dcec8b1f741abf6a7e"
+    },
+    "package/network/utils/iwinfo/patches/0001-add-iwinfo-support-for-be10000.patch": {
+      "before": null,
+      "after": "093501efb62ed3e9e6538fdbd9b73c9542372401517e55b285d8c1a978a288ce"
+    },
+    "package/network/config/netifd/patches/0003-set-wireless-iface-isolate-to-0.patch": {
+      "before": null,
+      "after": "77d8b9403d1ccfebd20b69db38d966d3324faf3eaa92285a1622b9ccd1f39436"
+    },
+    "package/network/config/swconfig/patches/001-support-2500-5000-10000-link-speed.patch": {
+      "before": "09991115bcb4156c1fbed1effa013609fa7ab6bccd58ed84870c6c3216e40891",
+      "after": null
+    },
+    "package/network/config/swconfig/patches/001-be14000-shipping-link-speed.patch": {
+      "before": null,
+      "after": "e3046b1a1d53a2e48ae5c91670ab73421d6fe9057bb1dba8d9cd2c23716fe65f"
+    },
+    "corresponding-source/userspace-shipping/100-swconfig-switch-script.patch": {
+      "before": null,
+      "after": "d7543697be79870ede1c84841c7db9f031d12e986948dd87cecace562e7bb588"
+    },
+    "package/network/utils/wireless-tools/patches/007-iwconfig_cannot_show_32_bytes_ssid.patch": {
+      "before": null,
+      "after": "0a9e4c61fc3091bf641fb5be0b2387f0a78ec6df21dd939c073d7507e9323e94"
+    },
+    "corresponding-source/userspace-shipping/101-wireless-tools-install.patch": {
+      "before": null,
+      "after": "baccb12e407560900527575303509ca88b36d007835b731ec365ea9b4e0cf283"
+    },
+    "corresponding-source/userspace-shipping/0103-mtk-ntfs-mount-by-ufsd.patch": {
+      "before": null,
+      "after": "ae7daf1a785e9f9029c52d19a581c441af30dd95b9f9d20eb289c1cf40a29a75"
+    }
+  },
+  "ufsd_default_enabled": false,
+  "validation": "Isolated patch replay against pinned archives; no make or prepare",
+  "packages": [
+    {
+      "package": "system/fstools",
+      "source_files_verified": [
+        "CMakeLists.txt",
+        "block.c",
+        "boot_param.c",
+        "boot_param.h",
+        "libfstools/libfstools.h",
+        "libfstools/mtd.c",
+        "libfstools/rootdisk.c",
+        "mount_root.c"
+      ],
+      "archive": "fstools-2021-01-04-c53b1882.tar.xz"
+    },
+    {
+      "package": "network/utils/iw",
+      "source_files_verified": [
+        "Makefile",
+        "event.c",
+        "info.c",
+        "interface.c",
+        "phy.c",
+        "scan.c",
+        "station.c",
+        "survey.c",
+        "util.c"
+      ],
+      "archive": "iw-5.19.tar.xz"
+    },
+    {
+      "package": "network/utils/iwinfo",
+      "source_files_verified": [
+        "api/nl80211.h",
+        "include/iwinfo.h",
+        "iwinfo_lib.c",
+        "iwinfo_lua.c",
+        "iwinfo_nl80211.c"
+      ],
+      "archive": "libiwinfo-2024-03-08-8ffb8bfd.tar.xz"
+    },
+    {
+      "package": "network/config/netifd",
+      "source_files_verified": [
+        "interface.c",
+        "system-linux.c"
+      ],
+      "archive": "netifd-2021-10-30-8f82742c.tar.xz"
+    },
+    {
+      "package": "network/config/swconfig",
+      "source_files_verified": [
+        "cli.c"
+      ],
+      "archive": null
+    },
+    {
+      "package": "network/utils/wireless-tools",
+      "source_files_verified": [
+        "Makefile",
+        "iwconfig.c",
+        "iwlib.c",
+        "iwlib.h",
+        "iwlist.c",
+        "iwmulticall.c",
+        "wireless.21.h"
+      ],
+      "archive": "wireless_tools.29.tar.gz"
+    }
+  ]
+}

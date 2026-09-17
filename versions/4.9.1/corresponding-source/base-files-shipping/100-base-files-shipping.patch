@@ -1,0 +1,120 @@
+--- a/bin/config_generate
++++ b/bin/config_generate
+@@ -305,7 +305,7 @@
+ 		set system.@system[-1].hostname='OpenWrt'
+ 		set system.@system[-1].timezone='UTC'
+ 		set system.@system[-1].ttylogin='0'
+-		set system.@system[-1].log_size='512'
++		set system.@system[-1].log_size='64'
+ 		set system.@system[-1].urandom_seed='0'
+ 
+ 		delete system.ntp
+--- a/etc/init.d/boot
++++ b/etc/init.d/boot
+@@ -41,8 +41,6 @@
+ 	grep -q pstore /proc/filesystems && /bin/mount -o noatime -t pstore pstore /sys/fs/pstore
+ 	[ "$FAILSAFE" = "true" ] && touch /tmp/.failsafe
+ 
+-	#先检查mtkwifi的默认配置是否正常
+-	/sbin/wifi check
+ 	/sbin/kmodloader
+ 
+ 	[ ! -f /etc/config/wireless ] && {
+@@ -55,6 +53,14 @@
+ 	/bin/config_generate
+ 	uci_apply_defaults
+ 	sync
++
++	if [ -e /sys/devices/platform/11200000.xhci/RG_USB20_DISCTH ]; then
++		echo "2 0 4b0101" > /sys/devices/platform/11200000.xhci/RG_USB20_DISCTH
++	fi
++
++	if [ -e /sys/devices/platform/11190000.xhci/RG_USB20_DISCTH ]; then
++		echo "2 0 4b0101" > /sys/devices/platform/11190000.xhci/RG_USB20_DISCTH
++	fi
+ 	
+ 	# temporary hack until configd exists
+ 	/sbin/reload_config
+--- a/lib/functions/system.sh
++++ b/lib/functions/system.sh
+@@ -102,6 +102,15 @@
+ 	[ -n "$mac_dirty" ] && macaddr_canonicalize "$mac_dirty"
+ }
+ 
++mmc_get_mac_binary() {
++	local part_name="$1"
++	local offset="$2"
++	local part
++
++	part=$(find_mmc_part "$part_name")
++	get_mac_binary "$part" "$offset"
++}
++
+ mtd_get_mac_binary() {
+ 	local mtdname="$1"
+ 	local offset="$2"
+--- a/lib/functions.sh
++++ b/lib/functions.sh
+@@ -313,6 +313,25 @@
+ 	echo "${INDEX:+$PREFIX$INDEX}"
+ }
+ 
++find_mmc_part() {
++	local DEVNAME PARTNAME ROOTDEV
++
++	if grep -q "$1" /proc/mtd; then
++		echo "" && return 0
++	fi
++
++	if [ -n "$2" ]; then
++		ROOTDEV="$2"
++	else
++		ROOTDEV="mmcblk*"
++	fi
++
++	for DEVNAME in /sys/block/$ROOTDEV/mmcblk*p*; do
++		PARTNAME="$(grep PARTNAME ${DEVNAME}/uevent | cut -f2 -d'=')"
++		[ "$PARTNAME" = "$1" ] && echo "/dev/$(basename $DEVNAME)" && return 0
++	done
++}
++
+ group_add() {
+ 	local name="$1"
+ 	local gid="$2"
+--- a/etc/profile
++++ b/etc/profile
+@@ -2,6 +2,7 @@
+ 
+ [ -f /etc/banner ] && cat /etc/banner
+ [ -n "$FAILSAFE" ] && cat /etc/banner.failsafe
++[ -e /tmp/.testmode ] && echo -e "\033[1;31m" &&  cat /etc/banner.testmode && echo -e "\033[0m"
+ 
+ fgrep -sq '/ overlay ro,' /proc/mounts && {
+ 	echo 'Your JFFS2-partition seems full and overlayfs is mounted read-only.'
+@@ -12,6 +13,7 @@
+ export HOME=$(grep -e "^${USER:-root}:" /etc/passwd | cut -d ":" -f 6)
+ export HOME=${HOME:-/root}
+ export PS1='\u@\h:\w\$ '
++[ -e /tmp/.testmode ] && export PS1='\[\033[1;35;40m\]\u@TestMode:\w\$ \[\033[1;37;40m\]'
+ export ENV=/etc/shinit
+ 
+ case "$TERM" in
+--- a/lib/upgrade/stage2
++++ b/lib/upgrade/stage2
+@@ -73,6 +73,7 @@
+ 	local loop="${2:-0}"
+ 	local run=true
+ 	local stat
++	local check_screen
+ 	local proc_ppid=$(cut -d' ' -f4  /proc/$$/stat)
+ 
+ 	vn "Sending $sig to remaining processes ..."
+@@ -94,6 +95,8 @@
+ 
+ 			# Skip kernel threads
+ 			[ -n "$cmdline" ] || continue
++			check_screen=$(echo "$cmdline" | grep "/usr/bin/gl_screen")
++			[ "$check_screen" != "" ] && continue
+ 
+ 			_vn " $name"
+ 			kill -$sig $pid 2>/dev/null

@@ -4,7 +4,8 @@ include ./version.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=gl-sdk4-mpflow_statistics
-PKG_VERSION:=$(strip $(call findrev))
+# Source snapshot: ddc056ac1470d9c403e13d495ced14a07ff9c7fc
+PKG_VERSION:=git-2024.352.34343-ddc056a
 PKG_RELEASE:=1
 
 include $(INCLUDE_DIR)/package.mk

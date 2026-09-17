@@ -1,0 +1,17 @@
+1b2f6e2b360ad6369c1dcfa24e85075f8b7d905ab174515e5c1d2e8f176092fb  feed/kernel/crypto-eip/Config.in
+780f02da2213afee8a5d73bc6108303db4e487cdb6984bdf49a58fadbebbc7fe  feed/kernel/crypto-eip/Makefile
+c438588de04c49d932a41df80cd5d8c69a4ad7764554208fa3aa26d64be9c394  feed/kernel/crypto-eip/crypto-eip.mk
+a55d94495402101fe8a5a67c67ffddf420422a8fdfa42750b6f261a6474add5e  feed/kernel/crypto-eip/src/Makefile
+fc78254214551f892d064c442dd6d6086ccac44e38fc73ec4723757cf822f37c  feed/kernel/crypto-eip/src/ddk-wrapper.c
+6a652460accc744450ddf0ca0a10041108776affd396aa692c095969c829297c  feed/kernel/crypto-eip/src/ddk/app/da_gc_drbg.c
+c53f275cb8ec110a2575bf3a5de4117aabf68d7c19d3cf7403e978e09602c083  feed/kernel/crypto-eip/src/ddk/device/lkm/of/lkm.c
+7a8113167e237f776f5b7f33fcafe65376040dfc7afbcb503a40a6b9c86ec84b  feed/kernel/crypto-eip/src/ddk/device/shdevxs/shdevxs_dmapool.c
+a28978666cec45dfeac5069a884ef825a7e4dad7a2b7787228337f8f7299a9dc  feed/kernel/crypto-eip/src/ddk/device/shdevxs/shdevxs_irq.c
+e778227165075a95c124ec0d964fff5aa1ebda9f84b070c2b7bb47d58771f0d4  feed/kernel/crypto-eip/src/ddk/inc/crypto-eip/ddk/basic_defs.h
+8dbcfba064bf1487748f9c5f3c713943d8bb557f7ab1a7a3819fc271b1c9ef96  feed/kernel/crypto-eip/src/debugfs.c
+049de9eff991b3c59453408a0bdb552476055def514c6d56e69e5c3acc318f6b  feed/kernel/crypto-eip/src/inc/crypto-eip/ddk-wrapper.h
+c497057c50d0ce85dec464f96a494884ce69ed5d66c0c2d609d7a1263053d5b3  feed/kernel/crypto-eip/src/inc/crypto-eip/debugfs.h
+2346828919586bc1e300ea043a6bb4ed863c5237ac6153ae98014ff1204e7d0c  feed/kernel/crypto-eip/src/init.c
+53794008fc5b3d1abbe6933af852c1c3795ade53a42d8c7fdcb23f2d48139a14  feed/kernel/crypto-eip/src/xfrm-offload.c
+c7a2effd90d72d07f0d29e4a6e737ba0014e32ce7a3f9073b5025e58b9fc74c6  feed/kernel/pce/src/dipfilter.c
+e0e46e11f98f49f271aa6bd31744c9f2c938fba68833c2e66e11b7a61e551813  feed/kernel/pce/src/init.c

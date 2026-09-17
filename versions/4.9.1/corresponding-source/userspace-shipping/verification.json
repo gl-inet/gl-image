@@ -1,0 +1,152 @@
+[
+  {
+    "package": "system/fstools",
+    "verified_files": [
+      "CMakeLists.txt",
+      "block.c",
+      "boot_param.c",
+      "boot_param.h",
+      "libfstools/libfstools.h",
+      "libfstools/mtd.c",
+      "libfstools/rootdisk.c",
+      "mount_root.c"
+    ],
+    "public_default_sha256": {
+      "CMakeLists.txt": "4c48830d055e103d138cdcf2047c56a5d998b7ab3dda9fe2600667ad0cb18760",
+      "block.c": "97ea034e07cd566dd7f4fbe0b69ecc813b6cd1bd24108185176b6498c2b918e1",
+      "boot_param.c": "5c962e4c21e52e5eb9021d8b6fcff9e0dd985f0801d4d6d2dbb7966ea861dc4b",
+      "boot_param.h": "311689fbb9e8e8dc8e5eedff4c435330ef0e6ff1d48d8ada22860c571cb8ef3c",
+      "libfstools/libfstools.h": "c67360e8074c02902fce32c62eba96f07548a587dd2dd96bb0f1fa4c415df511",
+      "libfstools/mtd.c": "bda5efe4c8c128e70b9ac571a467a5acdbf9fadc3846751b609c1bb6f9e15532",
+      "libfstools/rootdisk.c": "9b0366d17e26a5d7410055daad591aaf73bd284ba122bce9e6fa00ce880821f3",
+      "mount_root.c": "5f2f5b869b37066886fdd113be0ae9a55858b20caeaeeb21e16cb2aadf9360b4"
+    },
+    "shipping_replay_sha256": {
+      "CMakeLists.txt": "4c48830d055e103d138cdcf2047c56a5d998b7ab3dda9fe2600667ad0cb18760",
+      "block.c": "f52f8976c3cd3ecc23a742e8690bb21c0632bf13e01f4ead22cc5f992e49886e",
+      "boot_param.c": "5c962e4c21e52e5eb9021d8b6fcff9e0dd985f0801d4d6d2dbb7966ea861dc4b",
+      "boot_param.h": "311689fbb9e8e8dc8e5eedff4c435330ef0e6ff1d48d8ada22860c571cb8ef3c",
+      "libfstools/libfstools.h": "c67360e8074c02902fce32c62eba96f07548a587dd2dd96bb0f1fa4c415df511",
+      "libfstools/mtd.c": "bda5efe4c8c128e70b9ac571a467a5acdbf9fadc3846751b609c1bb6f9e15532",
+      "libfstools/rootdisk.c": "9b0366d17e26a5d7410055daad591aaf73bd284ba122bce9e6fa00ce880821f3",
+      "mount_root.c": "5f2f5b869b37066886fdd113be0ae9a55858b20caeaeeb21e16cb2aadf9360b4"
+    }
+  },
+  {
+    "package": "network/utils/iw",
+    "verified_files": [
+      "Makefile",
+      "event.c",
+      "info.c",
+      "interface.c",
+      "phy.c",
+      "scan.c",
+      "station.c",
+      "survey.c",
+      "util.c"
+    ],
+    "public_default_sha256": {
+      "Makefile": "b1a0cbbaa5bf98c4f5616cbb30aee9db099406430c42d5355011c0569b43a9cd",
+      "event.c": "ce29b606334ae60466899a18a75e0adb3888502b82f3748c7a9388cbba915db6",
+      "info.c": "f044ea4d145a1432aefaa64e385e97fcce92a78c1256363e407242df69b6978b",
+      "interface.c": "992bb5077ee5f5af26a8244961be28fe21bba3b6f1ab17792dc1ad391ee1d82c",
+      "phy.c": "cc8b6f944be2c6e582eec439545a52f0bc78d97845331f8c69b61994e2924493",
+      "scan.c": "161506ad22d33d274807bec5c8d75386d4f91ef0ee6771e31581021bf9fa1e67",
+      "station.c": "7390359085e7dee88eac7533bd869f3da5eafd2dc8975daf768fcceeee0de9ab",
+      "survey.c": "bee499c27fb1171089e7a6c31d425c5bab555f8baba9ad180a9ea960b88b76c7",
+      "util.c": "9ac6f55fef5bb0ce0c5291dfb8be270aa2a21336bc650660ef7df66ee99cc45a"
+    },
+    "shipping_replay_sha256": {
+      "Makefile": "b1a0cbbaa5bf98c4f5616cbb30aee9db099406430c42d5355011c0569b43a9cd",
+      "event.c": "ce29b606334ae60466899a18a75e0adb3888502b82f3748c7a9388cbba915db6",
+      "info.c": "f044ea4d145a1432aefaa64e385e97fcce92a78c1256363e407242df69b6978b",
+      "interface.c": "992bb5077ee5f5af26a8244961be28fe21bba3b6f1ab17792dc1ad391ee1d82c",
+      "phy.c": "cc8b6f944be2c6e582eec439545a52f0bc78d97845331f8c69b61994e2924493",
+      "scan.c": "161506ad22d33d274807bec5c8d75386d4f91ef0ee6771e31581021bf9fa1e67",
+      "station.c": "7390359085e7dee88eac7533bd869f3da5eafd2dc8975daf768fcceeee0de9ab",
+      "survey.c": "bee499c27fb1171089e7a6c31d425c5bab555f8baba9ad180a9ea960b88b76c7",
+      "util.c": "9ac6f55fef5bb0ce0c5291dfb8be270aa2a21336bc650660ef7df66ee99cc45a"
+    }
+  },
+  {
+    "package": "network/utils/iwinfo",
+    "verified_files": [
+      "api/nl80211.h",
+      "include/iwinfo.h",
+      "iwinfo_lib.c",
+      "iwinfo_lua.c",
+      "iwinfo_nl80211.c"
+    ],
+    "public_default_sha256": {
+      "api/nl80211.h": "499c4ff7d67abb9d87999297e154741cd05b11ed111da86219b66d5fd2569131",
+      "include/iwinfo.h": "a0869222f748762be3783f2ea80c317562b8737792df47aa83c70b4b359ada70",
+      "iwinfo_lib.c": "1906da85597f915d1b26bde69aa200efcf64d7c8bbd6999e94560c6716b21954",
+      "iwinfo_lua.c": "42c29a09223bd6d645d2a8c92c5b9ebfb19a00c5ea5211fec11c7880a8af9eec",
+      "iwinfo_nl80211.c": "c3812924ae9b2c0c34af2e3c409ccfc2fa4c865f469f2870c790ee6dcc4ca5b1"
+    },
+    "shipping_replay_sha256": {
+      "api/nl80211.h": "499c4ff7d67abb9d87999297e154741cd05b11ed111da86219b66d5fd2569131",
+      "include/iwinfo.h": "a0869222f748762be3783f2ea80c317562b8737792df47aa83c70b4b359ada70",
+      "iwinfo_lib.c": "1906da85597f915d1b26bde69aa200efcf64d7c8bbd6999e94560c6716b21954",
+      "iwinfo_lua.c": "42c29a09223bd6d645d2a8c92c5b9ebfb19a00c5ea5211fec11c7880a8af9eec",
+      "iwinfo_nl80211.c": "c3812924ae9b2c0c34af2e3c409ccfc2fa4c865f469f2870c790ee6dcc4ca5b1"
+    }
+  },
+  {
+    "package": "network/config/netifd",
+    "verified_files": [
+      "interface.c",
+      "system-linux.c"
+    ],
+    "public_default_sha256": {
+      "interface.c": "6124071997b67451b6f3cf5e2e6401b8a6a2d8c01ddfb0ebe465fd5d36331a52",
+      "system-linux.c": "fcd2dfdce886d0ae8b53a02f03f488aecd02ff8ed56a9eb749300d742572e612"
+    },
+    "shipping_replay_sha256": {
+      "interface.c": "6124071997b67451b6f3cf5e2e6401b8a6a2d8c01ddfb0ebe465fd5d36331a52",
+      "system-linux.c": "fcd2dfdce886d0ae8b53a02f03f488aecd02ff8ed56a9eb749300d742572e612"
+    }
+  },
+  {
+    "package": "network/config/swconfig",
+    "verified_files": [
+      "cli.c"
+    ],
+    "public_default_sha256": {
+      "cli.c": "83470d4fbe0da2b2a4c85398d8445777043389d6b2311502dd8e8cff74b59809"
+    },
+    "shipping_replay_sha256": {
+      "cli.c": "83470d4fbe0da2b2a4c85398d8445777043389d6b2311502dd8e8cff74b59809"
+    }
+  },
+  {
+    "package": "network/utils/wireless-tools",
+    "verified_files": [
+      "Makefile",
+      "iwconfig.c",
+      "iwlib.c",
+      "iwlib.h",
+      "iwlist.c",
+      "iwmulticall.c",
+      "wireless.21.h"
+    ],
+    "public_default_sha256": {
+      "Makefile": "6271da7fb583a9297dbbac6998f9fd5f499282e336dd44c19797a1685de849bf",
+      "iwconfig.c": "f63d28756495b505b78afb0f9104819c50ec6013aa6e7ddfd616b610f3d34c86",
+      "iwlib.c": "c841a70d1c0e192e4c4d369146cb213d4333fa6da39c70f0e2be3484d49ba9f9",
+      "iwlib.h": "b8443865b0c21d9f90ac1fb86414e8c615aa121222c51614c8796933118abbf0",
+      "iwlist.c": "8522ff1d3018211bd0624a0790c15b8fa88303708f15a3b153a92a026f7af2a0",
+      "iwmulticall.c": "b6e64ca05a6142cbf99afef6fa323bd530295f85ea6a117204affb495d5dbb58",
+      "wireless.21.h": "cb52f2b98c27d071e2faa4e78de9e6146331b6a605d12060a5be6209f58d8cb5"
+    },
+    "shipping_replay_sha256": {
+      "Makefile": "6271da7fb583a9297dbbac6998f9fd5f499282e336dd44c19797a1685de849bf",
+      "iwconfig.c": "f63d28756495b505b78afb0f9104819c50ec6013aa6e7ddfd616b610f3d34c86",
+      "iwlib.c": "c841a70d1c0e192e4c4d369146cb213d4333fa6da39c70f0e2be3484d49ba9f9",
+      "iwlib.h": "b8443865b0c21d9f90ac1fb86414e8c615aa121222c51614c8796933118abbf0",
+      "iwlist.c": "8522ff1d3018211bd0624a0790c15b8fa88303708f15a3b153a92a026f7af2a0",
+      "iwmulticall.c": "b6e64ca05a6142cbf99afef6fa323bd530295f85ea6a117204affb495d5dbb58",
+      "wireless.21.h": "cb52f2b98c27d071e2faa4e78de9e6146331b6a605d12060a5be6209f58d8cb5"
+    }
+  }
+]

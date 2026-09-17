@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 use Getopt::Std;
+use JSON::PP qw(decode_json);
 use FindBin;
 use Cwd;
 use lib "$FindBin::Bin";
@@ -35,6 +36,19 @@ my %installed;
 my %installed_pkg;
 my %installed_targets;
 my %feed_cache;
+my $release_sources = {};
+my $release_sources_file = "$FindBin::Bin/../configs/feed-package-sources.json";
+if (-f $release_sources_file) {
+	open my $fh, '<', $release_sources_file or die "Cannot read $release_sources_file: $!\n";
+	local $/;
+	$release_sources = decode_json(<$fh>);
+	close $fh;
+	die "Invalid package source mapping\n" unless ref($release_sources) eq 'HASH';
+	for my $name (keys %$release_sources) {
+		die "Invalid package source entry: $name\n"
+			unless $name =~ /^[A-Za-z0-9_.+-]+$/ && $release_sources->{$name} =~ /^[A-Za-z0-9_.-]+$/;
+	}
+}
 
 my $feed_package = {};
 my $feed_src = {};
@@ -454,6 +468,15 @@ sub lookup_src($$) {
 	my $feed = shift;
 	my $src = shift;
 
+	if (!$feed && exists $release_sources->{$src}) {
+		foreach my $candidate (@feeds) {
+			next unless $candidate->[1] eq $release_sources->{$src};
+			next unless $feed_cache{$candidate->[1]};
+			return $candidate if $feed_cache{$candidate->[1]}->[1]->{$src};
+		}
+		die "Release source $src requires feed $release_sources->{$src}; update feeds first\n";
+	}
+
 	foreach my $feed ($feed, @feeds) {
 		next unless $feed->[1];
 		next unless $feed_cache{$feed->[1]};
@@ -518,6 +541,9 @@ sub install_src {
 	my $ret = 0;
 
 	my $select_feed = lookup_src($feed, $name);
+	my $release_selected = !$feed && exists $release_sources->{$name}
+		&& $select_feed && $select_feed->[1] eq $release_sources->{$name};
+	$force = 1 if $release_selected;
 	unless ($select_feed) {
 		$installed{$name} and return 0;
 		$feed_src->{$name} or warn "WARNING: No feed for source package '$name' found\n";
@@ -543,6 +569,22 @@ sub install_src {
 			return 0;
 		}
 		$override = 1;
+	}
+
+	if ($release_selected && ref($installed{$name})
+		&& $installed{$name}->{makefile} ne "package/feeds/$select_feed->[1]/$name/Makefile") {
+		my $old_makefile = $installed{$name}->{makefile};
+		if ($old_makefile =~ m{^package/feeds/([A-Za-z0-9_.-]+)/\Q$name\E/Makefile$}) {
+			my $old_feed = $1;
+			my $old_link = "./package/feeds/$old_feed/$name";
+			my $actual = readlink($old_link);
+			die "Unexpected source for $name at $old_link\n"
+				unless defined($actual) && $actual =~ m{^\.\./\.\./\.\./feeds/\Q$old_feed\E/(?:[A-Za-z0-9_.+-]+/)*\Q$name\E$};
+			unlink($old_link) or die "Cannot replace $old_link: $!\n";
+			delete $installed{$name};
+		} elsif (!$override) {
+			die "Unexpected installed source for $name: $old_makefile\n";
+		}
 	}
 
 	if ($installed{$name}) {
@@ -793,6 +835,10 @@ sub update_feed($$$$$)
 			return 1;
 		};
 	};
+	if ($name eq 'mtk_openwrt_feed') {
+		system('sh', "$FindBin::Bin/apply-be14000-gpl-feed-patches.sh", $ENV{TOPDIR}) == 0
+			or return 1;
+	}
 	warn "Create index file './feeds/$name.index' \n";
 	update_index($name) == 0 or do {
 		warn "failed.\n";
@@ -844,7 +890,9 @@ sub update {
 		}
 	}
 
-	refresh_config();
+	# Feed definitions may not be installed yet. Preserve .config until the
+	# caller runs make defconfig after feeds install; only invalidate metadata.
+	unlink "tmp/.packageinfo";
 
 	return $failed;
 }

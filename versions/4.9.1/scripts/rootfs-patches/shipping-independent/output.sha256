@@ -1,0 +1,4 @@
+f92636f57a1c1fad61485513ea53c5d198d78eb75e8073dedc2bc48739575a0d  bin/config_generate
+9ff49bbafdb7cef867ac18b4c634d645a9245b32bdfb7495be221da967ee5ae5  etc/init.d/boot
+172d9451efae647f51fbebc85992d79f0d792bd685e00cf55dae0e45c8f1b426  lib/functions/system.sh
+66d33c8ac9e5154734f8b3ec5f23a315e6ce94a3f7274a0aedc7f9eb41b4aab8  lib/functions.sh

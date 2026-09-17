@@ -1,0 +1,109 @@
+--- a/package/network/config/swconfig/files/switch.sh
++++ b/package/network/config/swconfig/files/switch.sh
+@@ -1,15 +1,99 @@
+ #!/bin/sh
+ # Copyright (C) 2009 OpenWrt.org
+ 
++
++CURRENT_SWITCH="switch0"
++CURRENT_VLANS=""
++
+ setup_switch_dev() {
+-	local name
+-	config_get name "$1" name
+-	name="${name:-$1}"
+-	[ -d "/sys/class/net/$name" ] && ip link set dev "$name" up
+-	swconfig dev "$name" load network
++        local name
++        config_get name "$1" name
++        name="${name:-$1}"
++
++        CURRENT_SWITCH="$name"
++
++        [ -d "/sys/class/net/$name" ] && ip link set dev "$name" up
++
++        swconfig dev "$name" load network
++}
++
++reconnect_switch_port() {
++    switch_chip="$(cat /sys/class/mdio_bus/mdio-bus/mdio-bus:1d/of_node/compatible)"
++    local seq_range="$(seq 0 4)"
++    local wan_ports
++    if [ "$switch_chip" == "motorcomm,yt922x" ]; then
++        # Collect switch0 ports configured as WAN in eth_ports_config_map, skip them.
++        wan_ports="$(
++            uci -q show eth_ports_config_map 2>/dev/null | awk -F"'" '
++                /^eth_ports_config_map\.[^.]+=.port$/ { sid=$1; sw=""; p=""; m=""; next }
++                /\.switch=/ { sw=$2; next }
++                /\.port=/ { p=$2; next }
++                /\.mode=/ { m=$2; next }
++                sw=="switch0" && m=="wan" && p!="" { print p; sw=""; p=""; m="" }
++            ' | tr '\n' ' '
++        )"
++
++        for i in $seq_range; do
++            case " $wan_ports " in
++                *" $i "*)
++                    continue
++                    ;;
++            esac
++            swconfig dev switch0 port "$i" set enable_port 0
++            sleep 1
++            swconfig dev switch0 port "$i" set enable_port 1
++            sleep 1
++        done
++    fi
++}
++
++setup_switch_vlan() {
++        local vlan ports device
++
++        config_get device "$1" device
++        config_get vlan "$1" vlan
++        config_get ports "$1" ports
++
++        [ -z "$device" ] && device="$CURRENT_SWITCH"
++
++        CURRENT_VLANS="$CURRENT_VLANS $vlan"
++
++        [ -z "$ports" ] && ports=""
++
++        swconfig dev "$device" vlan "$vlan" set ports "$ports"
++}
++
++cleanup_removed_vlans() {
++        local vid
++
++        OLD_VLANS=$(cat /tmp/switch_vlan_state 2>/dev/null)
++
++        for vid in $OLD_VLANS; do
++                echo "$CURRENT_VLANS" | grep -w "$vid" >/dev/null || {
++                        swconfig dev "$CURRENT_SWITCH" vlan "$vid" set ports ""
++                }
++        done
++
++        echo "$CURRENT_VLANS" > /tmp/switch_vlan_state
+ }
+ 
+ setup_switch() {
+-	config_load network
+-	config_foreach setup_switch_dev switch
++        config_load network
++
++        config_foreach setup_switch_dev switch
++
++        config_foreach setup_switch_vlan switch_vlan
++
++        cleanup_removed_vlans
++
++        local lan_reconnect
++        if [ -f /tmp/lan_reconnect ]; then
++                lan_reconnect=$(cat /tmp/lan_reconnect)
++                if [ "$lan_reconnect" = '1' ]; then
++                        reconnect_switch_port
++                        rm /tmp/lan_reconnect
++                fi
++        fi
++
++        swconfig dev "$CURRENT_SWITCH" set apply
+ }

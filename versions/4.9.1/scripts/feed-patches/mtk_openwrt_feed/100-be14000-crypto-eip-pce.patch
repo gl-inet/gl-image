@@ -1,0 +1,1678 @@
+--- a/feed/kernel/crypto-eip/Config.in
++++ b/feed/kernel/crypto-eip/Config.in
+@@ -34,4 +34,10 @@
+ 	bool "Enable MTK PCE XFRM Offload"
+ endchoice
+ 
++config CRYPTO_MTK_DDK_LOOKASIDE
++	bool "Enable ddk look-aside mode"
++	default n
++	help
++	  select y to enable ddk look-aside mode
++
+ endmenu
+--- a/feed/kernel/crypto-eip/Makefile
++++ b/feed/kernel/crypto-eip/Makefile
+@@ -25,7 +25,7 @@
+ 	$(patsubst CONFIG_%, -DCONFIG_%=1, $(patsubst %=m,%,$(filter %=m,$(EXTRA_KCONFIG)))) \
+ 	$(patsubst CONFIG_%, -DCONFIG_%=1, $(patsubst %=y,%,$(filter %=y,$(EXTRA_KCONFIG))))
+ 
+-EXTRA_CFLAGS+= -Wall -Werror
++EXTRA_CFLAGS+=	-Wall -Werror
+ 
+ define Build/Prepare
+ 	mkdir -p $(PKG_BUILD_DIR)/firmware
+--- a/feed/kernel/crypto-eip/crypto-eip.mk
++++ b/feed/kernel/crypto-eip/crypto-eip.mk
+@@ -20,7 +20,8 @@
+ EXTRA_KCONFIG+= \
+ 	CONFIG_MTK_CRYPTO_EIP_INLINE=m \
+ 	CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE=$(CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE) \
+-	CONFIG_MTK_TOPS_CAPWAP_DTLS=$(CONFIG_MTK_TOPS_CAPWAP_DTLS)
++	CONFIG_MTK_TOPS_CAPWAP_DTLS=$(CONFIG_MTK_TOPS_CAPWAP_DTLS) \
++	CONFIG_CRYPTO_MTK_DDK_LOOKASIDE=$(CONFIG_CRYPTO_MTK_DDK_LOOKASIDE)
+ 
+ EXTRA_CFLAGS+= \
+ 	-I$(LINUX_DIR)/drivers/net/ethernet/mediatek/ \
+--- a/feed/kernel/crypto-eip/src/Makefile
++++ b/feed/kernel/crypto-eip/src/Makefile
+@@ -11,12 +11,13 @@
+ 
+ crypto-eip-inline-y += init.o
+ crypto-eip-inline-y += ddk-wrapper.o
+-crypto-eip-inline-y += lookaside.o
+-crypto-eip-inline-y += lookaside-cipher.o
+-crypto-eip-inline-y += lookaside-hash.o
+ crypto-eip-inline-y += debugfs.o
+ crypto-eip-inline-y += crypto_hook.o
+ 
++crypto-eip-inline-$(CONFIG_CRYPTO_MTK_DDK_LOOKASIDE) += lookaside.o
++crypto-eip-inline-$(CONFIG_CRYPTO_MTK_DDK_LOOKASIDE) += lookaside-cipher.o
++crypto-eip-inline-$(CONFIG_CRYPTO_MTK_DDK_LOOKASIDE) += lookaside-hash.o
++
+ crypto-eip-inline-$(CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE) += xfrm-offload.o
+ crypto-eip-inline-$(CONFIG_MTK_TOPS_CAPWAP_DTLS) += capwap-dtls-offload.o
+ 
+--- a/feed/kernel/crypto-eip/src/ddk-wrapper.c
++++ b/feed/kernel/crypto-eip/src/ddk-wrapper.c
+@@ -11,6 +11,7 @@
+ #include <crypto/hash.h>
+ #include <crypto/hmac.h>
+ #include <crypto/md5.h>
++#include <crypto/skcipher.h>
+ #include <linux/delay.h>
+ #include <linux/jiffies.h>
+ #include <crypto/internal/hash.h>
+@@ -99,7 +100,7 @@
+ 	return true;
+ }
+ 
+-unsigned int crypto_pe_busy_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
++static unsigned int crypto_pe_busy_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
+ 			       u32 *OutTokenData_p,
+ 			       PEC_ResultDescriptor_t *RD_p, int ring)
+ {
+@@ -119,6 +120,8 @@
+ 
+ 		pecres = PEC_Packet_Get(ring, RD_p, 1, &Counter);
+ 		if (pecres != PEC_STATUS_OK) {
++			if (pecres == PEC_STATUS_BUSY)
++				goto wait;
+ 			/* IO error */
+ 			CRYPTO_ERR("PEC_Packet_Get error %d\n", pecres);
+ 			return 0;
+@@ -143,8 +146,9 @@
+ 			return Counter;
+ 		}
+ 
++wait:
+ 		/* Wait for MTK_EIP197_PKT_GET_TIMEOUT_MS milliseconds */
+-		udelay(MTK_EIP197_PKT_GET_TIMEOUT_MS);
++		udelay(MTK_EIP197_PKT_GET_TIMEOUT_MS * 1000);
+ 		LoopCounter--;
+ 	}
+ 
+@@ -152,7 +156,7 @@
+ 	return 0;
+ }
+ 
+-unsigned int crypto_pe_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
++static unsigned int crypto_pe_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
+ 			       u32 *OutTokenData_p,
+ 			       PEC_ResultDescriptor_t *RD_p, int ring)
+ {
+@@ -194,7 +198,7 @@
+ 	return 0;
+ }
+ 
+-SABuilder_Crypto_Mode_t lookaside_match_alg_mode(enum mtk_crypto_cipher_mode mode)
++static SABuilder_Crypto_Mode_t lookaside_match_alg_mode(enum mtk_crypto_cipher_mode mode)
+ {
+ 	switch (mode) {
+ 	case MTK_CRYPTO_MODE_CBC:
+@@ -218,7 +222,7 @@
+ 	}
+ }
+ 
+-SABuilder_Crypto_t lookaside_match_alg_name(enum mtk_crypto_alg alg)
++static SABuilder_Crypto_t lookaside_match_alg_name(enum mtk_crypto_alg alg)
+ {
+ 	switch (alg) {
+ 	case MTK_CRYPTO_AES:
+@@ -232,7 +236,7 @@
+ 	}
+ }
+ 
+-SABuilder_Auth_t aead_hash_match(enum mtk_crypto_alg alg)
++static SABuilder_Auth_t aead_hash_match(enum mtk_crypto_alg alg)
+ {
+ 	switch (alg) {
+ 	case MTK_CRYPTO_ALG_SHA1:
+@@ -258,7 +262,7 @@
+ 	}
+ }
+ 
+-void mtk_crypto_ring3_handler(void)
++static void mtk_crypto_ring3_handler(void)
+ {
+ 	struct mtk_crypto_result *rd;
+ 	struct mtk_crypto_context *ctx;
+@@ -282,7 +286,7 @@
+ 
+ 			CBFunc = mtk_crypto_ring3_handler;
+ 			if (OutTokenDscr.ErrorCode == 0)
+-				ret = 0;
++				continue;
+ 			else if (OutTokenDscr.ErrorCode & BIT(9))
+ 				ret = -EBADMSG;
+ 			else if (OutTokenDscr.ErrorCode == 0x4003)
+@@ -302,7 +306,7 @@
+ 	}
+ }
+ 
+-void mtk_crypto_ring2_handler(void)
++static void mtk_crypto_ring2_handler(void)
+ {
+ 	struct mtk_crypto_result *rd;
+ 	struct mtk_crypto_context *ctx;
+@@ -326,7 +330,7 @@
+ 
+ 			CBFunc = mtk_crypto_ring2_handler;
+ 			if (OutTokenDscr.ErrorCode == 0)
+-				ret = 0;
++				continue;
+ 			else if (OutTokenDscr.ErrorCode & BIT(9))
+ 				ret = -EBADMSG;
+ 			else if (OutTokenDscr.ErrorCode == 0x4003)
+@@ -346,7 +350,7 @@
+ 	}
+ }
+ 
+-void mtk_crypto_ring1_handler(void)
++static void mtk_crypto_ring1_handler(void)
+ {
+ 	struct mtk_crypto_result *rd;
+ 	struct mtk_crypto_context *ctx;
+@@ -370,7 +374,7 @@
+ 
+ 			CBFunc = mtk_crypto_ring1_handler;
+ 			if (OutTokenDscr.ErrorCode == 0)
+-				ret = 0;
++				continue;
+ 			else if (OutTokenDscr.ErrorCode & BIT(9))
+ 				ret = -EBADMSG;
+ 			else if (OutTokenDscr.ErrorCode == 0x4003)
+@@ -390,7 +394,7 @@
+ 	}
+ }
+ 
+-void mtk_crypto_ring0_handler(void)
++static void mtk_crypto_ring0_handler(void)
+ {
+ 	struct mtk_crypto_result *rd;
+ 	struct mtk_crypto_context *ctx;
+@@ -414,7 +418,7 @@
+ 
+ 			CBFunc = mtk_crypto_ring0_handler;
+ 			if (OutTokenDscr.ErrorCode == 0)
+-				ret = 0;
++				continue;
+ 			else if (OutTokenDscr.ErrorCode & BIT(9))
+ 				ret = -EBADMSG;
+ 			else if (OutTokenDscr.ErrorCode == 0x4003)
+@@ -879,7 +883,10 @@
+ 		goto error_remove_sg;
+ 	}
+ 
+-	rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
++	do {
++		rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
++	} while (rc == PEC_STATUS_BUSY);
++
+ 	if (rc != PEC_STATUS_OK && count != 1) {
+ 		goto error_remove_sg;
+ 	}
+@@ -934,7 +941,7 @@
+ 	return rc;
+ }
+ 
+-SABuilder_Auth_t lookaside_match_hash(enum mtk_crypto_alg alg)
++static SABuilder_Auth_t lookaside_match_hash(enum mtk_crypto_alg alg)
+ {
+ 	switch (alg) {
+ 	case MTK_CRYPTO_ALG_SHA1:
+@@ -1075,7 +1082,10 @@
+ 		goto error_exit_unregister;
+ 	}
+ 
+-	rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
++	do {
++		rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
++	} while (rc == PEC_STATUS_BUSY);
++
+ 	if (rc != PEC_STATUS_OK && count != 1) {
+ 		rc = 1;
+ 		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
+@@ -1302,7 +1312,10 @@
+ 		goto error_exit_unregister;
+ 	}
+ 
+-	rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
++	do {
++		rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
++	} while (rc == PEC_STATUS_BUSY);
++
+ 	if (rc != PEC_STATUS_OK && count != 1) {
+ 		rc = 1;
+ 		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
+@@ -1555,7 +1568,10 @@
+ 		goto error_exit_unregister;
+ 	}
+ 
+-	rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
++	do {
++		rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
++	} while (rc == PEC_STATUS_BUSY);
++
+ 	if (rc != PEC_STATUS_OK && count != 1) {
+ 		rc = 1;
+ 		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
+@@ -1597,213 +1613,77 @@
+ 	return rc;
+ }
+ 
+-bool crypto_basic_hash(SABuilder_Auth_t HashAlgo, uint8_t *Input_p,
+-				unsigned int InputByteCount, uint8_t *Output_p,
+-				unsigned int OutputByteCount, bool fFinalize)
++static bool crypto_basic_hash(struct ahash_request *areq, uint8_t *input,
++				unsigned int input_length, uint8_t *output, bool final)
+ {
+-	SABuilder_Params_Basic_t ProtocolParams;
+-	SABuilder_Params_t params;
+-	unsigned int SAWords = 0;
+-	static uint8_t DummyAuthKey[64];
+-	int rc;
+-
+-	DMABuf_Properties_t DMAProperties = {0, 0, 0, 0};
+-	DMABuf_HostAddress_t TokenHostAddress;
+-	DMABuf_HostAddress_t PktHostAddress;
+-	DMABuf_HostAddress_t SAHostAddress;
+-	DMABuf_Status_t DMAStatus;
+-
+-	DMABuf_Handle_t TokenHandle = {0};
+-	DMABuf_Handle_t PktHandle = {0};
+-	DMABuf_Handle_t SAHandle = {0};
+-
+-	unsigned int TokenMaxWords = 0;
+-	unsigned int TokenHeaderWord;
+-	unsigned int TokenWords = 0;
+-	unsigned int TCRWords = 0;
+-	void *TCRData = 0;
+-
+-	TokenBuilder_Params_t TokenParams;
+-	PEC_CommandDescriptor_t Cmd;
+-	PEC_ResultDescriptor_t Res;
+-	unsigned int count;
+-
+-	u32 OutputToken[IOTOKEN_IN_WORD_COUNT];
+-	u32 InputToken[IOTOKEN_IN_WORD_COUNT];
+-	IOToken_Output_Dscr_t OutTokenDscr;
+-	IOToken_Input_Dscr_t InTokenDscr;
+-	void *InTokenDscrExt_p = NULL;
+-
+-#ifdef CRYPTO_IOTOKEN_EXT
+-	IOToken_Input_Dscr_Ext_t InTokenDscrExt;
+-
+-	ZEROINIT(InTokenDscrExt);
+-	InTokenDscrExt_p = &InTokenDscrExt;
+-#endif
+-	ZEROINIT(InTokenDscr);
+-	ZEROINIT(OutTokenDscr);
+-
+-	rc = SABuilder_Init_Basic(&params, &ProtocolParams, SAB_DIRECTION_OUTBOUND);
+-	if (rc) {
+-		CRYPTO_ERR("SABuilder_Init_Basic failed: %d\n", rc);
+-		goto error_exit;
+-	}
+-
+-	params.AuthAlgo = HashAlgo;
+-	params.AuthKey1_p = DummyAuthKey;
+-
+-	if (!fFinalize)
+-		params.flags |= SAB_FLAG_HASH_SAVE | SAB_FLAG_HASH_INTERMEDIATE;
+-	params.flags |= SAB_FLAG_SUPPRESS_PAYLOAD;
+-	ProtocolParams.ICVByteCount = OutputByteCount;
+-
+-	rc = SABuilder_GetSizes(&params, &SAWords, NULL, NULL);
+-	if (rc) {
+-		CRYPTO_ERR("SA not created because of size errors: %d\n", rc);
+-		goto error_exit;
+-	}
+-
+-	DMAProperties.fCached = true;
+-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
+-	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_TRANSFORM;
+-	DMAProperties.Size = MAX(4*SAWords, 256);
+-
+-	DMAStatus = DMABuf_Alloc(DMAProperties, &SAHostAddress, &SAHandle);
+-	if (DMAStatus != DMABUF_STATUS_OK) {
+-		rc = 1;
+-		CRYPTO_ERR("Allocation of SA failed: %d\n", DMAStatus);
+-		goto error_exit;
+-	}
+-
+-	rc = SABuilder_BuildSA(&params, (u32 *)SAHostAddress.p, NULL, NULL);
+-	if (rc) {
+-		CRYPTO_ERR("SA not created because of errors: %d\n", rc);
+-		goto error_exit;
+-	}
+-
+-	rc = TokenBuilder_GetContextSize(&params, &TCRWords);
+-	if (rc) {
+-		CRYPTO_ERR("TokenBuilder_GetContextSize returned errors: %d\n", rc);
+-		goto error_exit;
+-	}
+-
+-	TCRData = kmalloc(4 * TCRWords, GFP_KERNEL);
+-	if (!TCRData) {
+-		rc = 1;
+-		CRYPTO_ERR("Allocation of TCR failed\n");
+-		goto error_exit;
+-	}
+-
+-	rc = TokenBuilder_BuildContext(&params, TCRData);
+-	if (rc) {
+-		CRYPTO_ERR("TokenBuilder_BuildContext failed: %d\n", rc);
+-		goto error_exit;
+-	}
+-
+-	rc = TokenBuilder_GetSize(TCRData, &TokenMaxWords);
+-	if (rc) {
+-		CRYPTO_ERR("TokenBuilder_GetSize failed: %d\n", rc);
+-		goto error_exit;
+-	}
+-
+-	DMAProperties.fCached = true;
+-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
+-	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_TOKEN;
+-	DMAProperties.Size = 4*TokenMaxWords;
+-
+-	DMAStatus = DMABuf_Alloc(DMAProperties, &TokenHostAddress, &TokenHandle);
+-	if (DMAStatus != DMABUF_STATUS_OK) {
+-		rc = 1;
+-		CRYPTO_ERR("Allocation of token builder failed: %d\n", DMAStatus);
+-		goto error_exit;
+-	}
+-
+-	DMAProperties.fCached = true;
+-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
+-	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_PACKET;
+-	DMAProperties.Size = MAX(InputByteCount, OutputByteCount);
+-
+-	DMAStatus = DMABuf_Alloc(DMAProperties, &PktHostAddress, &PktHandle);
+-	if (DMAStatus != DMABUF_STATUS_OK) {
+-		rc = 1;
+-		CRYPTO_ERR("Allocation of source packet buffer failed: %d\n",
+-			   DMAStatus);
+-		goto error_exit;
+-	}
+-
+-	rc = PEC_SA_Register(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
+-				DMABuf_NULLHandle);
+-	if (rc != PEC_STATUS_OK) {
+-		CRYPTO_ERR("PEC_SA_Register failed: %d\n", rc);
+-		goto error_exit;
+-	}
++	DECLARE_CRYPTO_WAIT(wait);
++	struct scatterlist sg;
++	int ret;
++
++	ahash_request_set_callback(areq, CRYPTO_TFM_REQ_MAY_BACKLOG, crypto_req_done, &wait);
++	sg_init_one(&sg, input, input_length);
++	ahash_request_set_crypt(areq, &sg, output, input_length);
++
++	if (final) {
++		ret = crypto_ahash_digest(areq);
++		if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
++			pr_notice("%s: hash update failed: %d\n", __func__, ret);
++			return false;
++		}
++		ret = crypto_wait_req(ret, &wait);
++		if (ret) {
++			pr_notice("%s: hash failed: %d\n", __func__, ret);
++			return false;
++		}
++	} else {
++		ret = crypto_ahash_init(areq);
++		if (ret) {
++			pr_notice("%s: hash init failed: %d\n", __func__, ret);
++			return false;
++		}
+ 
+-	memcpy(PktHostAddress.p, Input_p, InputByteCount);
++		ret = crypto_ahash_update(areq);
++		if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
++			pr_notice("%s: hash update failed: %d\n", __func__, ret);
++			return false;
++		}
+ 
+-	ZEROINIT(TokenParams);
+-	TokenParams.PacketFlags |= (TKB_PACKET_FLAG_HASHFIRST
+-				    | TKB_PACKET_FLAG_HASHAPPEND);
+-	if (fFinalize)
+-		TokenParams.PacketFlags |= TKB_PACKET_FLAG_HASHFINAL;
++		ret = crypto_wait_req(ret, &wait);
++		if (ret) {
++			pr_notice("%s: hash failed: %d\n", __func__, ret);
++			return false;
++		}
+ 
+-	rc = TokenBuilder_BuildToken(TCRData, (u8 *) PktHostAddress.p,
+-				     InputByteCount, &TokenParams,
+-				     (u32 *) TokenHostAddress.p,
+-				     &TokenWords, &TokenHeaderWord);
+-	if (rc != TKB_STATUS_OK) {
+-		CRYPTO_ERR("Token builder failed: %d\n", rc);
+-		goto error_exit_unregister;
++		ret = crypto_ahash_export(areq, output);
++		if (ret) {
++			pr_notice("%s: hash export failed: %d\n", __func__, ret);
++			return false;
++		}
+ 	}
+ 
+-	ZEROINIT(Cmd);
+-	Cmd.Token_Handle = TokenHandle;
+-	Cmd.Token_WordCount = TokenWords;
+-	Cmd.SrcPkt_Handle = PktHandle;
+-	Cmd.SrcPkt_ByteCount = InputByteCount;
+-	Cmd.DstPkt_Handle = PktHandle;
+-	Cmd.SA_Handle1 = SAHandle;
+-	Cmd.SA_Handle2 = DMABuf_NULLHandle;
+-
+-#if defined(CRYPTO_IOTOKEN_EXT)
+-	InTokenDscrExt.HW_Services  = IOTOKEN_CMD_PKT_LAC;
+-#endif
+-	InTokenDscr.TknHdrWordInit = TokenHeaderWord;
++	return true;
++}
+ 
+-	if (!crypto_iotoken_create(&InTokenDscr,
+-				   InTokenDscrExt_p,
+-				   InputToken,
+-				   &Cmd)) {
+-		rc = 1;
+-		goto error_exit_unregister;
+-	}
++static void mtk_crypto_hash_byteswap(SABuilder_Auth_t algo, uint8_t *input, unsigned int length)
++{
++	int i;
++	u32 temp;
+ 
+-	rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
+-	if (rc != PEC_STATUS_OK && count != 1) {
+-		rc = 1;
+-		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
+-		goto error_exit_unregister;
+-	}
++	if (algo == SAB_AUTH_HMAC_MD5)
++		return;
+ 
+-	if (crypto_pe_busy_get_one(&OutTokenDscr, OutputToken, &Res, PEC_INTERFACE_ID) < 1) {
+-		rc = 1;
+-		CRYPTO_ERR("error from crypto_pe_busy_get_one\n");
+-		goto error_exit_unregister;
++	/* Byte swapping for 32-bit word hash (ex. sha1, sha256) */
++	for (i = 0; i < (length / 4); i++)
++		((__be32 *)input)[i] = cpu_to_be32(((__le32 *)input)[i]);
++
++	/* Extra swap for 64-bit word hash (ex. sha384, sha512) */
++	if (algo == SAB_AUTH_HMAC_SHA2_384 || algo == SAB_AUTH_HMAC_SHA2_512) {
++		for (i = 0; i < (length / 4); i = i + 2) {
++			temp = ((u32 *)input)[i];
++			((u32 *)input)[i] = ((u32 *)input)[i + 1];
++			((u32 *)input)[i + 1] = temp;
++		}
+ 	}
+-	memcpy(Output_p, PktHostAddress.p, OutputByteCount);
+-
+-error_exit_unregister:
+-	PEC_SA_UnRegister(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
+-				DMABuf_NULLHandle);
+-
+-error_exit:
+-	DMABuf_Release(SAHandle);
+-	DMABuf_Release(TokenHandle);
+-	DMABuf_Release(PktHandle);
+-
+-	if (TCRData != NULL)
+-		kfree(TCRData);
+-
+-	return rc == 0;
+ }
+ 
+ bool crypto_hmac_precompute(SABuilder_Auth_t AuthAlgo,
+@@ -1812,46 +1692,42 @@
+ 			    uint8_t *Inner_p,
+ 			    uint8_t *Outer_p)
+ {
+-	SABuilder_Auth_t HashAlgo;
+-	unsigned int blocksize, hashsize, digestsize;
+-	static uint8_t pad_block[128], hashed_key[128];
++	unsigned int blocksize, digestsize;
++	uint8_t pad_block[128], hashed_key[128];
+ 	unsigned int i;
++	struct ahash_request *areq = NULL;
++	struct crypto_ahash *atfm = NULL;
++	bool ret = false;
++	uint8_t *state = NULL;
+ 
+ 	switch (AuthAlgo) {
+ 	case SAB_AUTH_HMAC_MD5:
+-		HashAlgo = SAB_AUTH_HASH_MD5;
+-		blocksize = 64;
+-		hashsize = 16;
++		atfm = crypto_alloc_ahash("md5-generic", 0, 0);
+ 		digestsize = 16;
+ 		break;
+ 	case SAB_AUTH_HMAC_SHA1:
+-		HashAlgo = SAB_AUTH_HASH_SHA1;
+-		blocksize = 64;
+-		hashsize = 20;
++		atfm = crypto_alloc_ahash("sha1-generic", 0, 0);
+ 		digestsize = 20;
+ 		break;
+ 	case SAB_AUTH_HMAC_SHA2_224:
+-		HashAlgo = SAB_AUTH_HASH_SHA2_224;
+-		blocksize = 64;
+-		hashsize = 28;
++		atfm = crypto_alloc_ahash("sha224-generic", 0, 0);
++		/*
++		 * The final hash size of sha224 is 28 bytes, but for intermediate calculate
++		 * the digest size is same as sha256, so it's 32 bytes.
++		 */
+ 		digestsize = 32;
+ 		break;
+ 	case SAB_AUTH_HMAC_SHA2_256:
+-		HashAlgo = SAB_AUTH_HASH_SHA2_256;
+-		blocksize = 64;
+-		hashsize = 32;
++		atfm = crypto_alloc_ahash("sha256-generic", 0, 0);
+ 		digestsize = 32;
+ 		break;
+ 	case SAB_AUTH_HMAC_SHA2_384:
+-		HashAlgo = SAB_AUTH_HASH_SHA2_384;
+-		blocksize = 128;
+-		hashsize = 48;
++		atfm = crypto_alloc_ahash("sha384-generic", 0, 0);
++		/* As sha224, the digest size of sha384 is the size of sha512 */
+ 		digestsize = 64;
+ 		break;
+ 	case SAB_AUTH_HMAC_SHA2_512:
+-		HashAlgo = SAB_AUTH_HASH_SHA2_512;
+-		blocksize = 128;
+-		hashsize = 64;
++		atfm = crypto_alloc_ahash("sha512-generic", 0, 0);
+ 		digestsize = 64;
+ 		break;
+ 	default:
+@@ -1859,253 +1735,104 @@
+ 		return false;
+ 	}
+ 
++	if (IS_ERR(atfm)) {
++		pr_err("%s: hash: failed to allocate atfm\n", __func__);
++		return false;
++	}
++
++	blocksize = crypto_ahash_blocksize(atfm);
++	state = kzalloc(crypto_ahash_statesize(atfm), GFP_KERNEL);
++	if (!state)
++		goto free_ahash;
++
++	areq = ahash_request_alloc(atfm, GFP_KERNEL);
++	if (!areq)
++		goto free_ahash;
++
++	crypto_ahash_clear_flags(atfm, ~0);
++
+ 	memset(hashed_key, 0, blocksize);
+ 	if (AuthKeyByteCount <= blocksize) {
+ 		memcpy(hashed_key, AuthKey_p, AuthKeyByteCount);
+ 	} else {
+-		if (!crypto_basic_hash(HashAlgo, AuthKey_p, AuthKeyByteCount,
+-				       hashed_key, hashsize, true))
+-			return false;
++		if (!crypto_basic_hash(areq, AuthKey_p, AuthKeyByteCount, hashed_key, true))
++			goto free_request;
+ 	}
+ 
+ 	for (i = 0; i < blocksize; i++)
+ 		pad_block[i] = hashed_key[i] ^ 0x36;
+ 
+-	if (!crypto_basic_hash(HashAlgo, pad_block, blocksize,
+-			       Inner_p, digestsize, false))
+-		return false;
++	if (!crypto_basic_hash(areq, pad_block, blocksize, state, false))
++		goto free_request;
++	memcpy(Inner_p, state, digestsize);
++	mtk_crypto_hash_byteswap(AuthAlgo, Inner_p, digestsize);
+ 
+ 	for (i = 0; i < blocksize; i++)
+ 		pad_block[i] = hashed_key[i] ^ 0x5c;
+ 
+-	if (!crypto_basic_hash(HashAlgo, pad_block, blocksize,
+-			       Outer_p, digestsize, false))
+-		return false;
+-
+-	return true;
+-}
+-
+-bool
+-mtk_ddk_aes_block_encrypt(uint8_t *Key_p,
+-							 unsigned int KeyByteCount,
+-							 uint8_t *InData_p,
+-							 uint8_t *OutData_p)
+-{
+-	int rc;
+-	SABuilder_Params_t params;
+-	SABuilder_Params_Basic_t ProtocolParams;
+-	unsigned int SAWords = 0;
+-
+-	DMABuf_Status_t DMAStatus;
+-	DMABuf_Properties_t DMAProperties = {0, 0, 0, 0};
+-	DMABuf_HostAddress_t SAHostAddress;
+-	DMABuf_HostAddress_t TokenHostAddress;
+-	DMABuf_HostAddress_t PktHostAddress;
+-
+-	DMABuf_Handle_t SAHandle = {0};
+-	DMABuf_Handle_t TokenHandle = {0};
+-	DMABuf_Handle_t PktHandle = {0};
+-
+-	unsigned int TCRWords = 0;
+-	void *TCRData = 0;
+-	unsigned int TokenWords = 0;
+-	unsigned int TokenHeaderWord;
+-	unsigned int TokenMaxWords = 0;
+-
+-	TokenBuilder_Params_t TokenParams;
+-	PEC_CommandDescriptor_t Cmd;
+-	PEC_ResultDescriptor_t Res;
+-	unsigned int count;
+-
+-	IOToken_Input_Dscr_t InTokenDscr;
+-	IOToken_Output_Dscr_t OutTokenDscr;
+-	uint32_t InputToken[IOTOKEN_IN_WORD_COUNT];
+-	uint32_t OutputToken[IOTOKEN_OUT_WORD_COUNT];
+-	IOToken_Output_Dscr_Ext_t OutTokenDscrExt;
+-	IOToken_Input_Dscr_Ext_t InTokenDscrExt;
+-
+-	ZEROINIT(InTokenDscrExt);
+-	ZEROINIT(OutTokenDscrExt);
++	if (!crypto_basic_hash(areq, pad_block, blocksize, state, false))
++		goto free_request;
++	memcpy(Outer_p, state, digestsize);
++	mtk_crypto_hash_byteswap(AuthAlgo, Outer_p, digestsize);
+ 
+-	ZEROINIT(InTokenDscr);
+-	ZEROINIT(OutTokenDscr);
++	ret = true;
+ 
+-	rc = SABuilder_Init_Basic(&params, &ProtocolParams, SAB_DIRECTION_OUTBOUND);
+-	if (rc != 0) {
+-		CRYPTO_ERR("SABuilder_Init_Basic failed\n");
+-		goto error_exit;
+-	}
+-	// Add crypto key and parameters.
+-	params.CryptoAlgo = SAB_CRYPTO_AES;
+-	params.CryptoMode = SAB_CRYPTO_MODE_ECB;
+-	params.KeyByteCount = KeyByteCount;
+-	params.Key_p = Key_p;
+-
+-	rc = SABuilder_GetSizes(&params, &SAWords, NULL, NULL);
+-
+-	if (rc != 0) {
+-		CRYPTO_ERR("SA not created because of errors\n");
+-		goto error_exit;
+-	}
+-
+-	DMAProperties.fCached   = true;
+-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
+-	DMAProperties.Bank	    = MTK_EIP197_INLINE_BANK_TRANSFORM;
+-	DMAProperties.Size	    = 4*SAWords;
++free_request:
++	ahash_request_free(areq);
++free_ahash:
++	crypto_free_ahash(atfm);
++	kfree(state);
+ 
+-	DMAStatus = DMABuf_Alloc(DMAProperties, &SAHostAddress, &SAHandle);
+-	if (DMAStatus != DMABUF_STATUS_OK) {
+-		rc = 1;
+-		CRYPTO_ERR("Allocation of SA failed\n");
+-		goto error_exit;
+-	}
+-
+-	rc = SABuilder_BuildSA(&params, (uint32_t *)SAHostAddress.p, NULL, NULL);
+-
+-	if (rc != 0) {
+-		LOG_CRIT("SA not created because of errors\n");
+-		goto error_exit;
+-	}
+-
+-	rc = TokenBuilder_GetContextSize(&params, &TCRWords);
+-
+-	if (rc != 0) {
+-		CRYPTO_ERR("TokenBuilder_GetContextSize returned errors\n");
+-		goto error_exit;
+-	}
+-
+-	// The Token Context Record does not need to be allocated
+-	// in a DMA-safe buffer.
+-	TCRData = kcalloc(4*TCRWords, sizeof(uint8_t), GFP_KERNEL);
+-	if (!TCRData) {
+-		rc = 1;
+-		CRYPTO_ERR("Allocation of TCR failed\n");
+-		goto error_exit;
+-	}
+-
+-	rc = TokenBuilder_BuildContext(&params, TCRData);
+-
+-	if (rc != 0) {
+-		CRYPTO_ERR("TokenBuilder_BuildContext failed\n");
+-		goto error_exit;
+-	}
+-
+-	rc = TokenBuilder_GetSize(TCRData, &TokenMaxWords);
+-	if (rc != 0) {
+-		CRYPTO_ERR("TokenBuilder_GetSize failed\n");
+-		goto error_exit;
+-	}
+-
+-	// Allocate one buffer for the token and two packet buffers.
+-
+-	DMAProperties.fCached   = true;
+-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
+-	DMAProperties.Bank      = MTK_EIP197_INLINE_BANK_PACKET;
+-	DMAProperties.Size      = 4*TokenMaxWords;
+-
+-	DMAStatus = DMABuf_Alloc(DMAProperties, &TokenHostAddress, &TokenHandle);
+-	if (DMAStatus != DMABUF_STATUS_OK) {
+-		rc = 1;
+-		CRYPTO_ERR("Allocation of token buffer failed.\n");
+-		goto error_exit;
+-	}
+-
+-	DMAProperties.fCached   = true;
+-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
+-	DMAProperties.Bank      = MTK_EIP197_INLINE_BANK_PACKET;
+-	DMAProperties.Size      = 16;
++	return ret;
++}
+ 
+-	DMAStatus = DMABuf_Alloc(DMAProperties, &PktHostAddress,
+-							 &PktHandle);
+-	if (DMAStatus != DMABUF_STATUS_OK) {
+-		rc = 1;
+-		CRYPTO_ERR("Allocation of source packet buffer failed.\n");
+-		goto error_exit;
+-	}
++static bool
++mtk_ddk_aes_block_encrypt(uint8_t *key,  unsigned int klen, uint8_t *input, uint8_t *output)
++{
++	struct crypto_skcipher *tfm;
++	struct skcipher_request *req = NULL;
++	struct scatterlist src, dst;
++	int ret = 0;
++	void *iv = NULL;
++	bool val = false;
++	DECLARE_CRYPTO_WAIT(wait);
+ 
+-	// Register the SA
+-	rc = PEC_SA_Register(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
+-					  DMABuf_NULLHandle);
+-	if (rc != PEC_STATUS_OK) {
+-		CRYPTO_ERR("PEC_SA_Register failed\n");
+-		goto error_exit;
++	tfm = crypto_alloc_skcipher("ecb(aes)", 0, 0);
++	if (IS_ERR(tfm)) {
++		pr_err("skcipher: failed to allocate tfm\n");
++		return PTR_ERR(tfm);
+ 	}
+ 
+-	// Copy input packet into source packet buffer.
+-	memcpy(PktHostAddress.p, InData_p, 16);
+-
+-	// Set Token Parameters if specified in test vector.
+-	ZEROINIT(TokenParams);
+-
+-
+-	// Prepare a token to process the packet.
+-	rc = TokenBuilder_BuildToken(TCRData,
+-								 (uint8_t *)PktHostAddress.p,
+-								 16,
+-								 &TokenParams,
+-								 (uint32_t *)TokenHostAddress.p,
+-								 &TokenWords,
+-								 &TokenHeaderWord);
+-	if (rc != TKB_STATUS_OK) {
+-		if (rc == TKB_BAD_PACKET)
+-			CRYPTO_ERR("Token not created because packet size is invalid\n");
+-		else
+-			CRYPTO_ERR("Token builder failed\n");
+-		goto error_exit_unregister;
++	req = skcipher_request_alloc(tfm, GFP_KERNEL);
++	if (!req) {
++		pr_err("skcipher: failed to allocate request\n");
++		goto out;
+ 	}
+ 
+-	ZEROINIT(Cmd);
+-	Cmd.Token_Handle = TokenHandle;
+-	Cmd.Token_WordCount = TokenWords;
+-	Cmd.SrcPkt_Handle = PktHandle;
+-	Cmd.SrcPkt_ByteCount = 16;
+-	Cmd.DstPkt_Handle = PktHandle;
+-	Cmd.SA_Handle1 = SAHandle;
+-	Cmd.SA_Handle2 = DMABuf_NULLHandle;
+-
+-	InTokenDscrExt.HW_Services  = IOTOKEN_CMD_PKT_LAC;
+-	InTokenDscr.TknHdrWordInit = TokenHeaderWord;
+-
+-	if (!crypto_iotoken_create(&InTokenDscr,
+-							   &InTokenDscrExt,
+-							   InputToken,
+-							   &Cmd)) {
+-		rc = 1;
+-		goto error_exit_unregister;
++	ret = crypto_skcipher_setkey(tfm, key, klen);
++	if (ret) {
++		pr_err("skcipher: setkey failed\n");
++		goto out;
+ 	}
+ 
+-	rc = PEC_Packet_Put(PEC_INTERFACE_ID,
+-						&Cmd,
+-						1,
+-						&count);
+-	if (rc != PEC_STATUS_OK && count != 1) {
+-		rc = 1;
+-		CRYPTO_ERR("PEC_Packet_Put error\n");
+-		goto error_exit_unregister;
+-	}
++	sg_init_one(&src, input, AES_BLOCK_SIZE);
++	sg_init_one(&dst, output, AES_BLOCK_SIZE);
+ 
+-	if (crypto_pe_busy_get_one(&OutTokenDscr, OutputToken, &Res, PEC_INTERFACE_ID) < 1) {
+-		rc = 1;
+-		CRYPTO_ERR("error from crypto_pe_busy_get_one\n");
+-		goto error_exit_unregister;
++	skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG, crypto_req_done, &wait);
++	skcipher_request_set_crypt(req, &src, &dst, AES_BLOCK_SIZE, iv);
++	ret = crypto_skcipher_encrypt(req);
++	ret = crypto_wait_req(ret, &wait);
++	if (ret) {
++		pr_notice("aead failed to encrypt/decrypt: %d\n", ret);
++		goto out;
+ 	}
+-	memcpy(OutData_p, PktHostAddress.p, 16);
+-
+-
+-error_exit_unregister:
+-	PEC_SA_UnRegister(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
+-					  DMABuf_NULLHandle);
+ 
+-error_exit:
+-	DMABuf_Release(SAHandle);
+-	DMABuf_Release(TokenHandle);
+-	DMABuf_Release(PktHandle);
+-
+-	if (TCRData != NULL)
+-		kfree(TCRData);
+-
+-	return rc == 0;
++	val = true;
++out:
++	skcipher_request_free(req);
++	crypto_free_skcipher(tfm);
+ 
++	return val;
+ }
+ 
+ static bool set_crypto_aead(struct xfrm_algo_aead *aead, SABuilder_Params_t *params)
+@@ -2214,8 +1941,8 @@
+ 		xfrm_params->tr_type = EIP197_SMALL_TR;
+ 	} else if (strcmp(aalg->alg_name, "hmac(sha384)") == 0) {
+ 		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_384;
+-		inner = kcalloc(SHA384_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+-		outer = kcalloc(SHA384_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
++		inner = kcalloc(SHA512_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
++		outer = kcalloc(SHA512_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+ 		crypto_hmac_precompute(SAB_AUTH_HMAC_SHA2_384, &aalg->alg_key[0],
+ 					aalg->alg_key_len / 8, inner, outer);
+ 		params->AuthKey1_p = inner;
+@@ -2517,10 +2244,10 @@
+ 		return false;
+ 
+ 	// Issue command
+-	PEC_Rc = PEC_Packet_Put(PEC_INTERFACE_ID,
+-							&Cmd,
+-							1,
+-							&count);
++	do {
++		PEC_Rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
++	} while (PEC_Rc == PEC_STATUS_BUSY);
++
+ 	if (PEC_Rc != PEC_STATUS_OK || count != 1) {
+ 		CRYPTO_ERR("%s: PEC_Packet_Put() error %d, count %d\n",
+ 				 __func__,
+@@ -2538,7 +2265,7 @@
+ 	return true;
+ }
+ 
+-void set_capwap_algo(SABuilder_Params_t *params, uint8_t mode)
++static void set_capwap_algo(SABuilder_Params_t *params, uint8_t mode)
+ {
+ 	params->CryptoAlgo = SAB_CRYPTO_AES;
+ 	params->CryptoMode = SAB_CRYPTO_MODE_CBC;
+--- a/feed/kernel/crypto-eip/src/ddk/app/da_gc_drbg.c
++++ b/feed/kernel/crypto-eip/src/ddk/app/da_gc_drbg.c
+@@ -27,7 +27,7 @@
+ 
+ // Demo Application Classification Engine Module API
+ #include "da_gc_ce.h"
+-
++#include "da_gc_drbg.h"
+ 
+ /*----------------------------------------------------------------------------
+  * This module uses (requires) the following interface(s):
+--- a/feed/kernel/crypto-eip/src/ddk/device/lkm/of/lkm.c
++++ b/feed/kernel/crypto-eip/src/ddk/device/lkm/of/lkm.c
+@@ -61,6 +61,8 @@
+ #include <linux/fs.h>
+ #include <linux/moduleparam.h>
+ #include <linux/clk.h>              // clk_*
++#include <linux/of.h>
++#include <linux/platform_device.h>
+ 
+ 
+ /*----------------------------------------------------------------------------
+@@ -260,8 +262,9 @@
+ /*----------------------------------------------------------------------------
+  * LKM_Remove
+  */
+-static int
+-LKM_Remove(
++
++static void
++LKM_Remove_new(
+         struct platform_device * Platform_Device_p)
+ {
+     LKM_Admin_t * p = &LKM_Admin;
+@@ -273,7 +276,6 @@
+         LOG_CRIT(LKM_LOG_PREFIX
+                  "%s: failed, missing or wrong platform device\n",
+                  __func__);
+-        return -ENODEV;
+     }
+ 
+     LOG_INFO(LKM_LOG_PREFIX
+@@ -294,10 +296,18 @@
+     }
+ 
+     LOG_INFO(LKM_LOG_PREFIX "%s: left\n", __func__);
+-
+-    return 0;
+ }
+ 
++#if KERNEL_VERSION(6, 1, 30) > LINUX_VERSION_CODE
++static int
++LKM_Remove(
++	struct platform_device * Platform_Device_p)
++{
++	LKM_Remove_new(Platform_Device_p);
++
++	return 0;
++}
++#endif
+ 
+ /*-----------------------------------------------------------------------------
+  * LKM_Init
+@@ -329,8 +339,16 @@
+     p->ResId                         = InitData_p->ResId; // not used
+ 
+     p->Platform_Driver.probe         = LKM_Probe;
+-    p->Platform_Driver.remove        = LKM_Remove;
+-
++#if KERNEL_VERSION(6, 1, 30) > LINUX_VERSION_CODE
++	// Only .remove(int) is supported
++	p->Platform_Driver.remove = LKM_Remove;
++#elif KERNEL_VERSION(6, 13, 0) > LINUX_VERSION_CODE
++	// Both remove(int) and remove_new(void) are supported, use the new one
++	p->Platform_Driver.remove_new = LKM_Remove_new;
++#else
++	// Only .remove(void) is supported
++	p->Platform_Driver.remove = LKM_Remove_new;
++#endif
+     p->Platform_Driver.driver.name            = InitData_p->DriverName_p;
+     p->Platform_Driver.driver.owner           = THIS_MODULE;
+     p->Platform_Driver.driver.pm              = InitData_p->PM_p;
+--- a/feed/kernel/crypto-eip/src/ddk/device/shdevxs/shdevxs_dmapool.c
++++ b/feed/kernel/crypto-eip/src/ddk/device/shdevxs/shdevxs_dmapool.c
+@@ -169,14 +169,15 @@
+ 
+     // Initialize the locks
+     Descriptor_Lock = SHDevXS_Internal_Lock_Alloc();
+-    if (Descriptor_Lock == NULL)
+-    {
+-        LOG_CRIT("SHDevXS_Internal_DMAPool_Initialize: lock allocation failed\n");
+-        SHDevXS_Internal_DMAPool_UnInitialize();
+-        return -1;
+-    }
+-    else
+-        LOG_INFO("SHDevXS_Internal_DMAPool_Initialize: Lock obtained\n");
++
++	if (Descriptor_Lock == NULL)
++	{
++		LOG_CRIT("SHDevXS_Internal_DMAPool_Initialize: lock allocation failed\n");
++		SHDevXS_Internal_DMAPool_UnInitialize();
++		return -1;
++	} else {
++		LOG_INFO("SHDevXS_Internal_DMAPool_Initialize: Lock obtained\n");
++	}
+ 
+     return 0;
+ }
+--- a/feed/kernel/crypto-eip/src/ddk/device/shdevxs/shdevxs_irq.c
++++ b/feed/kernel/crypto-eip/src/ddk/device/shdevxs/shdevxs_irq.c
+@@ -67,6 +67,8 @@
+ // Runtime Power Management Device Macros API
+ #include "rpm_device_macros.h"  // RPM_*
+ 
++#include <linux/platform_device.h>
++
+ 
+ /*----------------------------------------------------------------------------
+  * Definitions and macros
+--- a/feed/kernel/crypto-eip/src/ddk/inc/crypto-eip/ddk/basic_defs.h
++++ b/feed/kernel/crypto-eip/src/ddk/inc/crypto-eip/ddk/basic_defs.h
+@@ -99,12 +99,21 @@
+ #endif
+ 
+ /* ============ MIN, MAX ============ */
+-
+ // warning for side-effects on the following two macros since the arguments
+ // are evaluated twice changing this to inline functions is problematic
+ // because of type incompatibilities
++#include <linux/version.h>
++
++#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
++#include <linux/minmax.h>
++#endif /* KERNEL_VERSION(5.10.0) */
++
++#ifndef MIN
+ #define MIN(_x, _y) ((_x) < (_y) ? (_x) : (_y))
++#endif
++#ifndef MAX
+ #define MAX(_x, _y) ((_x) > (_y) ? (_x) : (_y))
++#endif
+ 
+ /* ============ BIT_n ============ */
+ 
+--- a/feed/kernel/crypto-eip/src/debugfs.c
++++ b/feed/kernel/crypto-eip/src/debugfs.c
+@@ -12,6 +12,7 @@
+ #include <pce/cdrt.h>
+ 
+ #include "crypto-eip/crypto-eip.h"
++#include "crypto-eip/debugfs.h"
+ 
+ struct dentry *mtk_crypto_debugfs_root;
+ 
+--- a/feed/kernel/crypto-eip/src/inc/crypto-eip/ddk-wrapper.h
++++ b/feed/kernel/crypto-eip/src/inc/crypto-eip/ddk-wrapper.h
+@@ -13,7 +13,7 @@
+ #include "lookaside.h"
+ #include "crypto-eip197-inline-ddk.h"
+ 
+-#define REQ_PKT_NUM 10
++#define REQ_PKT_NUM 100
+ 
+ void *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mod);
+ int mtk_crypto_ddk_alloc_buff(struct mtk_crypto_cipher_ctx *ctx, int dir, unsigned int digestsize,
+--- a/feed/kernel/crypto-eip/src/inc/crypto-eip/debugfs.h
++++ b/feed/kernel/crypto-eip/src/inc/crypto-eip/debugfs.h
+@@ -9,5 +9,5 @@
+ #define _CRYPTO_EIP_DEBUGFS_H_
+ 
+ int mtk_crypto_debugfs_init(void);
+-void mtk_crypto_debugfs_eixt(void);
++void mtk_crypto_debugfs_exit(void);
+ #endif /* _CRYPTO_EIP_DEBUGFS_H_ */
+--- a/feed/kernel/crypto-eip/src/init.c
++++ b/feed/kernel/crypto-eip/src/init.c
+@@ -25,7 +25,11 @@
+ 
+ #include "crypto-eip/crypto-eip.h"
+ #include "crypto-eip/ddk-wrapper.h"
++
++#if defined(CONFIG_CRYPTO_MTK_DDK_LOOKASIDE)
+ #include "crypto-eip/lookaside.h"
++#endif
++
+ #include "crypto-eip/internal.h"
+ #include "crypto-eip/debugfs.h"
+ 
+@@ -36,6 +40,7 @@
+ struct device *crypto_dev;
+ struct mtk_crypto_priv *priv;
+ 
++#if defined(CONFIG_CRYPTO_MTK_DDK_LOOKASIDE)
+ static struct mtk_crypto_alg_template *mtk_crypto_algs[] = {
+ 	&mtk_crypto_cbc_aes,
+ 	&mtk_crypto_ecb_aes,
+@@ -85,6 +90,109 @@
+ 	&mtk_crypto_rfc4309_ccm,
+ };
+ 
++static int mtk_crypto_register_algorithms(struct mtk_crypto_priv *priv)
++{
++	int i;
++	int j;
++	int ret;
++
++	for (i = 0; i < ARRAY_SIZE(mtk_crypto_algs); i++) {
++		mtk_crypto_algs[i]->priv = priv;
++
++		if (mtk_crypto_algs[i]->type == MTK_CRYPTO_ALG_TYPE_SKCIPHER)
++			ret = crypto_register_skcipher(&mtk_crypto_algs[i]->alg.skcipher);
++		else if (mtk_crypto_algs[i]->type == MTK_CRYPTO_ALG_TYPE_AEAD)
++			ret = crypto_register_aead(&mtk_crypto_algs[i]->alg.aead);
++		else
++			ret = crypto_register_ahash(&mtk_crypto_algs[i]->alg.ahash);
++
++		if (ret)
++			goto fail;
++	}
++
++	return 0;
++
++fail:
++	for (j = 0; j < i; j++) {
++		if (mtk_crypto_algs[j]->type == MTK_CRYPTO_ALG_TYPE_SKCIPHER)
++			crypto_unregister_skcipher(&mtk_crypto_algs[j]->alg.skcipher);
++		else if (mtk_crypto_algs[j]->type == MTK_CRYPTO_ALG_TYPE_AEAD)
++			crypto_unregister_aead(&mtk_crypto_algs[j]->alg.aead);
++		else
++			crypto_unregister_ahash(&mtk_crypto_algs[j]->alg.ahash);
++	}
++
++	return ret;
++}
++
++static void mtk_crypto_unregister_algorithms(void)
++{
++	int i;
++
++	for (i = 0; i < ARRAY_SIZE(mtk_crypto_algs); i++) {
++		if (mtk_crypto_algs[i]->type == MTK_CRYPTO_ALG_TYPE_SKCIPHER)
++			crypto_unregister_skcipher(&mtk_crypto_algs[i]->alg.skcipher);
++		else if (mtk_crypto_algs[i]->type == MTK_CRYPTO_ALG_TYPE_AEAD)
++			crypto_unregister_aead(&mtk_crypto_algs[i]->alg.aead);
++		else
++			crypto_unregister_ahash(&mtk_crypto_algs[i]->alg.ahash);
++	}
++}
++
++static int __init mtk_crypto_lookaside_data_init(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	int i;
++
++	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
++	if (!priv)
++		return -ENOMEM;
++
++	platform_set_drvdata(pdev, priv);
++
++	priv->mtk_eip_ring = devm_kcalloc(dev, PEC_MAX_INTERFACE_NUM,
++							sizeof(*priv->mtk_eip_ring), GFP_KERNEL);
++	if (!priv->mtk_eip_ring)
++		return -ENOMEM;
++
++	for (i = 0; i < PEC_MAX_INTERFACE_NUM; i++) {
++		char wq_name[17] = {0};
++		char irq_name[6] = {0};
++		int irq, cpu;
++
++		// init workqueue for all rings
++		priv->mtk_eip_ring[i].work_data.priv = priv;
++		priv->mtk_eip_ring[i].work_data.ring = i;
++		INIT_WORK(&priv->mtk_eip_ring[i].work_data.work, mtk_crypto_dequeue_work);
++
++		if (snprintf(wq_name, 17, "mtk_crypto_work%d", i) >= 17)
++			return -EINVAL;
++		priv->mtk_eip_ring[i].workqueue = create_singlethread_workqueue(wq_name);
++		if (!priv->mtk_eip_ring[i].workqueue)
++			return -ENOMEM;
++
++		crypto_init_queue(&priv->mtk_eip_ring[i].queue, EIP197_DEFAULT_RING_SIZE);
++		INIT_LIST_HEAD(&priv->mtk_eip_ring[i].list);
++
++		spin_lock_init(&priv->mtk_eip_ring[i].ring_lock);
++		spin_lock_init(&priv->mtk_eip_ring[i].queue_lock);
++
++		// setup irq affinity
++		if (snprintf(irq_name, 6, "ring%d", i) >= 6)
++			return -EINVAL;
++		irq = platform_get_irq_byname(pdev,  irq_name);
++		if (irq < 0)
++			return irq;
++
++		cpu = cpumask_local_spread(i, NUMA_NO_NODE);
++		irq_set_affinity_hint(irq, get_cpu_mask(cpu));
++	}
++
++	return 0;
++};
++
++#endif /* CONFIG_CRYPTO_MTK_DDK_LOOKASIDE */
++
+ inline void crypto_eth_write(u32 reg, u32 val)
+ {
+ 	writel(val, mcrypto.eth_base + reg);
+@@ -167,54 +275,6 @@
+ 	rtnl_unlock();
+ }
+ 
+-static int mtk_crypto_register_algorithms(struct mtk_crypto_priv *priv)
+-{
+-	int i;
+-	int j;
+-	int ret;
+-
+-	for (i = 0; i < ARRAY_SIZE(mtk_crypto_algs); i++) {
+-		mtk_crypto_algs[i]->priv = priv;
+-
+-		if (mtk_crypto_algs[i]->type == MTK_CRYPTO_ALG_TYPE_SKCIPHER)
+-			ret = crypto_register_skcipher(&mtk_crypto_algs[i]->alg.skcipher);
+-		else if (mtk_crypto_algs[i]->type == MTK_CRYPTO_ALG_TYPE_AEAD)
+-			ret = crypto_register_aead(&mtk_crypto_algs[i]->alg.aead);
+-		else
+-			ret = crypto_register_ahash(&mtk_crypto_algs[i]->alg.ahash);
+-
+-		if (ret)
+-			goto fail;
+-	}
+-
+-	return 0;
+-
+-fail:
+-	for (j = 0; j < i; j++) {
+-		if (mtk_crypto_algs[j]->type == MTK_CRYPTO_ALG_TYPE_SKCIPHER)
+-			crypto_unregister_skcipher(&mtk_crypto_algs[j]->alg.skcipher);
+-		else if (mtk_crypto_algs[j]->type == MTK_CRYPTO_ALG_TYPE_AEAD)
+-			crypto_unregister_aead(&mtk_crypto_algs[j]->alg.aead);
+-		else
+-			crypto_unregister_ahash(&mtk_crypto_algs[j]->alg.ahash);
+-	}
+-
+-	return ret;
+-}
+-
+-static void mtk_crypto_unregister_algorithms(void)
+-{
+-	int i;
+-
+-	for (i = 0; i < ARRAY_SIZE(mtk_crypto_algs); i++) {
+-		if (mtk_crypto_algs[i]->type == MTK_CRYPTO_ALG_TYPE_SKCIPHER)
+-			crypto_unregister_skcipher(&mtk_crypto_algs[i]->alg.skcipher);
+-		else if (mtk_crypto_algs[i]->type == MTK_CRYPTO_ALG_TYPE_AEAD)
+-			crypto_unregister_aead(&mtk_crypto_algs[i]->alg.aead);
+-		else
+-			crypto_unregister_ahash(&mtk_crypto_algs[i]->alg.ahash);
+-	}
+-}
+ 
+ static void mtk_crypto_xfrm_offload_deinit(struct mtk_eth *eth)
+ {
+@@ -308,58 +368,6 @@
+ 	return 0;
+ }
+ 
+-static int __init mtk_crypto_lookaside_data_init(struct platform_device *pdev)
+-{
+-	struct device *dev = &pdev->dev;
+-	int i;
+-
+-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+-	if (!priv)
+-		return -ENOMEM;
+-
+-	platform_set_drvdata(pdev, priv);
+-
+-	priv->mtk_eip_ring = devm_kcalloc(dev, PEC_MAX_INTERFACE_NUM,
+-							sizeof(*priv->mtk_eip_ring), GFP_KERNEL);
+-	if (!priv->mtk_eip_ring)
+-		return -ENOMEM;
+-
+-	for (i = 0; i < PEC_MAX_INTERFACE_NUM; i++) {
+-		char wq_name[17] = {0};
+-		char irq_name[6] = {0};
+-		int irq, cpu;
+-
+-		// init workqueue for all rings
+-		priv->mtk_eip_ring[i].work_data.priv = priv;
+-		priv->mtk_eip_ring[i].work_data.ring = i;
+-		INIT_WORK(&priv->mtk_eip_ring[i].work_data.work, mtk_crypto_dequeue_work);
+-
+-		if (snprintf(wq_name, 17, "mtk_crypto_work%d", i) >= 17)
+-			return -EINVAL;
+-		priv->mtk_eip_ring[i].workqueue = create_singlethread_workqueue(wq_name);
+-		if (!priv->mtk_eip_ring[i].workqueue)
+-			return -ENOMEM;
+-
+-		crypto_init_queue(&priv->mtk_eip_ring[i].queue, EIP197_DEFAULT_RING_SIZE);
+-		INIT_LIST_HEAD(&priv->mtk_eip_ring[i].list);
+-
+-		spin_lock_init(&priv->mtk_eip_ring[i].ring_lock);
+-		spin_lock_init(&priv->mtk_eip_ring[i].queue_lock);
+-
+-		// setup irq affinity
+-		if (snprintf(irq_name, 6, "ring%d", i) >= 6)
+-			return -EINVAL;
+-		irq = platform_get_irq_byname(pdev,  irq_name);
+-		if (irq < 0)
+-			return irq;
+-
+-		cpu = cpumask_local_spread(i, NUMA_NO_NODE);
+-		irq_set_affinity_hint(irq, get_cpu_mask(cpu));
+-	}
+-
+-	return 0;
+-};
+-
+ static int __init mtk_crypto_eip_dts_init(void)
+ {
+ 	struct platform_device *crypto_pdev;
+@@ -399,9 +407,12 @@
+ 	if (ret)
+ 		goto out;
+ 
++
++#if defined(CONFIG_CRYPTO_MTK_DDK_LOOKASIDE)
+ 	ret = mtk_crypto_lookaside_data_init(crypto_pdev);
+ 	if (ret)
+ 		goto out;
++#endif /* CONFIG_CRYPTO_MTK_DDK_LOOKASIDE */
+ 
+ out:
+ 	of_node_put(crypto_node);
+@@ -453,7 +464,11 @@
+ 
+ 	mtk_crypto_xfrm_offload_init(mcrypto.eth);
+ 	mtk_crypto_debugfs_init();
++
++#if defined(CONFIG_CRYPTO_MTK_DDK_LOOKASIDE)
+ 	mtk_crypto_register_algorithms(priv);
++#endif /* CONFIG_CRYPTO_MTK_DDK_LOOKASIDE */
++
+ #if defined(CONFIG_MTK_TOPS_CAPWAP_DTLS)
+ 	mtk_dtls_capwap_init();
+ #endif
+@@ -469,7 +484,12 @@
+ #if defined(CONFIG_MTK_TOPS_CAPWAP_DTLS)
+ 	mtk_dtls_capwap_deinit();
+ #endif
++
++#if defined(CONFIG_CRYPTO_MTK_DDK_LOOKASIDE)
+ 	mtk_crypto_unregister_algorithms();
++#endif /* CONFIG_CRYPTO_MTK_DDK_LOOKASIDE */
++
++	mtk_crypto_debugfs_exit();
+ 	mtk_crypto_xfrm_offload_deinit(mcrypto.eth);
+ 
+ 	mtk_crypto_unregister_nf_hooks();
+@@ -485,4 +505,4 @@
+ MODULE_AUTHOR(DRIVER_AUTHOR);
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+ MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+-#endif
+\ No newline at end of file
++#endif
+--- a/feed/kernel/crypto-eip/src/xfrm-offload.c
++++ b/feed/kernel/crypto-eip/src/xfrm-offload.c
+@@ -8,6 +8,7 @@
+ 
+ #include <linux/bitops.h>
+ #include <linux/spinlock.h>
++#include <linux/netdevice.h>
+ #include <net/ip6_route.h>
+ 
+ #include <mtk_eth_soc.h>
+@@ -270,7 +271,11 @@
+ 	xfrm_params->xs = xs;
+ 	INIT_LIST_HEAD(&xfrm_params->node);
+ 
++#if KERNEL_VERSION(6, 3, 0) < LINUX_VERSION_CODE
++	if (xs->xso.dir == XFRM_DEV_OFFLOAD_IN)
++#else
+ 	if (xs->xso.flags & XFRM_OFFLOAD_INBOUND)
++#endif
+ 		/* rx path */
+ 		ret = mtk_xfrm_offload_state_add_inbound(xs, xfrm_params);
+ 	else
+@@ -312,7 +317,11 @@
+ 	list_del(&xfrm_params->node);
+ 	spin_unlock_bh(&xfrm_params_list.lock);
+ 
++#if KERNEL_VERSION(6, 3, 0) < LINUX_VERSION_CODE
++	if (xs->xso.dir == XFRM_DEV_OFFLOAD_IN)
++#else
+ 	if (xs->xso.flags & XFRM_OFFLOAD_INBOUND)
++#endif
+ 		mtk_xfrm_offload_cls_entry_tear_down(xfrm_params);
+ 
+ 	if (xfrm_params->cdrt)
+@@ -388,15 +397,24 @@
+ 	struct neighbour *neigh;
+ 	struct dst_entry *dst = skb_dst(skb);
+ 	struct rt6_info *rt = (struct rt6_info *) dst;
++	struct sk_buff *skbn;
+ 	const struct in6_addr *nexthop;
+ 
++	if (!netif_carrier_ok(dst->dev) || !(dst->dev->flags & IFF_UP))
++		return NULL;
++
+ 	nexthop = rt6_nexthop(rt, (struct in6_addr *) &xs->id.daddr.a6);
+ 	neigh = __ipv6_neigh_lookup_noref(dst->dev, nexthop);
+ 	if (unlikely(!neigh)) {
+ 		CRYPTO_INFO("%s: %s No neigh (daddr=%pI6)\n", __func__, dst->dev->name,
+ 				nexthop);
+ 		neigh = __neigh_create(&nd_tbl, nexthop, dst->dev, false);
+-		neigh_output(neigh, skb, false);
++		if (IS_ERR(neigh))
++			return NULL;
++
++		skbn = skb_clone(skb, GFP_ATOMIC);
++		if (skbn)
++			neigh_output(neigh, skbn, false);
+ 		return NULL;
+ 	}
+ 
+@@ -406,12 +424,20 @@
+ 			CRYPTO_INFO("%s: %s No neigh (daddr=%pI6)\n", __func__, dst->dev->name,
+ 					&xs->id.daddr.a6);
+ 			neigh = __neigh_create(&nd_tbl, &xs->id.daddr.a6, dst->dev, false);
+-			neigh_output(neigh, skb, false);
++			if (IS_ERR(neigh))
++				return NULL;
++
++			skbn = skb_clone(skb, GFP_ATOMIC);
++			if (skbn)
++				neigh_output(neigh, skbn, false);
+ 			return NULL;
+ 		}
+-		if (is_zero_ether_addr(neigh->ha))
+-			return NULL;
+ 	}
++
++	/* For the case that neighbour is found, but no MAC address is set */
++	if (is_zero_ether_addr(neigh->ha))
++		return NULL;
++
+ 	return neigh;
+ }
+ 
+@@ -421,8 +447,12 @@
+ 	struct neighbour *neigh;
+ 	struct dst_entry *dst = skb_dst(skb);
+ 	struct rtable *rt = (struct rtable *) dst;
++	struct sk_buff *skbn;
+ 	__be32 nexthop;
+ 
++	if (!netif_carrier_ok(dst->dev) || !(dst->dev->flags & IFF_UP))
++		return NULL;
++
+ 	/*
+ 	 * First get the nexthop from the routing table.
+ 	 * Then try to get neighbour for MAC address.
+@@ -433,7 +463,12 @@
+ 		CRYPTO_INFO("%s: %s No neigh (nexthop=%pI4)\n", __func__, dst->dev->name,
+ 			&nexthop);
+ 		neigh = __neigh_create(&arp_tbl, &nexthop, dst->dev, false);
+-		neigh_output(neigh, skb, false);
++		if (IS_ERR(neigh))
++			return NULL;
++
++		skbn = skb_clone(skb, GFP_ATOMIC);
++		if (skbn)
++			neigh_output(neigh, skbn, false);
+ 		return NULL;
+ 	}
+ 
+@@ -447,12 +482,20 @@
+ 			CRYPTO_INFO("%s: %s No neigh (nexthop=%pI4)\n", __func__, dst->dev->name,
+ 						&xs->id.daddr.a4);
+ 			neigh = __neigh_create(&arp_tbl, &xs->id.daddr.a4, dst->dev, false);
+-			neigh_output(neigh, skb, false);
++			if (IS_ERR(neigh))
++				return NULL;
++
++			skbn = skb_clone(skb, GFP_ATOMIC);
++			if (skbn)
++				neigh_output(neigh, skbn, false);
+ 			return NULL;
+ 		}
+-		if (is_zero_ether_addr(neigh->ha))
+-			return NULL;
+ 	}
++
++	/* For the case that neighbour is found, but no MAC address is set */
++	if (is_zero_ether_addr(neigh->ha))
++		return NULL;
++
+ 	return neigh;
+ }
+ 
+@@ -473,6 +516,8 @@
+ 			neigh = mtk_crypto_find_ipv6_dst_mac(skb, xs);
+ 		if (!neigh) {
+ 			rcu_read_unlock_bh();
++			/* This is just a workaround to mark the packet which needs to be free */
++			skb->inner_protocol = IPPROTO_RSVP;
+ 			return true;
+ 		}
+ 
+@@ -519,9 +564,6 @@
+ 	atomic64_add(skb->len - ETH_HLEN, &xfrm_params->bytes);
+ 	atomic64_inc(&xfrm_params->packets);
+ 
+-	/* Since we're going to tx directly, set skb->dev to dst->dev */
+-	skb->dev = dst->dev;
+-
+ 	/*
+ 	 * Since skb headroom may not be copy when segment, we cannot rely on
+ 	 * headroom data (ex. cdrt) to decide packets should send to EIP197.
+@@ -529,6 +571,10 @@
+ 	 * be sent to EIP197.
+ 	 */
+ 	skb->inner_protocol = IPPROTO_ESP;
++
++	/* Since we're going to tx directly, set skb->dev to dst->dev */
++	skb->dev = dst->dev;
++
+ 	/*
+ 	 * Tx packet to EIP197.
+ 	 * To avoid conflict of SW and HW sequence number
+--- a/feed/kernel/pce/src/dipfilter.c
++++ b/feed/kernel/pce/src/dipfilter.c
+@@ -176,7 +176,7 @@
+ 	struct fe_mem_msg fmsg;
+ 	struct dipfilter_entry *dip_entry;
+ 	unsigned long flag;
+-	int ret;
++	int ret = 0;
+ 
+ 	if (!ddesc)
+ 		return 0;
+@@ -189,7 +189,7 @@
+ 
+ 	if (!refcount_dec_and_test(&dip_entry->refcnt))
+ 		/* dipfilter descriptor is still in use */
+-		return 0;
++		goto unlock;
+ 
+ 	mtk_pce_fe_mem_msg_config(&fmsg, FE_MEM_CMD_WRITE, FE_MEM_TYPE_DIPFILTER,
+ 				  dip_entry->index);
+@@ -198,7 +198,7 @@
+ 	ret = mtk_pce_fe_mem_msg_send(&fmsg);
+ 	if (ret) {
+ 		PCE_NOTICE("fe_mem send dipfilter desc failed\n");
+-		return ret;
++		goto unlock;
+ 	}
+ 
+ 	memset(&dip_entry->ddesc, 0, sizeof(struct dip_desc));
+@@ -207,7 +207,7 @@
+ unlock:
+ 	spin_unlock_irqrestore(&dip_hw.lock, flag);
+ 
+-	return 0;
++	return ret;
+ }
+ EXPORT_SYMBOL(mtk_pce_dipfilter_entry_del);
+ 
+--- a/feed/kernel/pce/src/init.c
++++ b/feed/kernel/pce/src/init.c
+@@ -11,6 +11,7 @@
+ #include <linux/of.h>
+ #include <linux/of_platform.h>
+ #include <linux/platform_device.h>
++#include <linux/version.h>
+ 
+ #include "pce/cdrt.h"
+ #include "pce/cls.h"
+@@ -72,7 +73,7 @@
+ 	return ret;
+ }
+ 
+-static int mtk_pce_remove(struct platform_device *pdev)
++static void mtk_pce_remove_new(struct platform_device *pdev)
+ {
+ 	mtk_pce_disable();
+ 
+@@ -85,9 +86,16 @@
+ 	mtk_pce_cls_deinit(pdev);
+ 
+ 	mtk_pce_netsys_deinit(pdev);
++}
++
++#if KERNEL_VERSION(6, 3, 0) > LINUX_VERSION_CODE
++static int mtk_pce_remove(struct platform_device *pdev)
++{
++	mtk_pce_remove_new(pdev);
+ 
+ 	return 0;
+ }
++#endif
+ 
+ static const struct of_device_id mtk_pce_match[] = {
+ 	{ .compatible = "mediatek,pce", },
+@@ -97,7 +105,16 @@
+ 
+ static struct platform_driver mtk_pce_driver = {
+ 	.probe = mtk_pce_probe,
++#if KERNEL_VERSION(6, 3, 0) > LINUX_VERSION_CODE
++	// Only .remove(int) is supported
+ 	.remove = mtk_pce_remove,
++#elif KERNEL_VERSION(6, 13, 0) > LINUX_VERSION_CODE
++	// Both remove(int) and remove_new(void) are supported, use the new one
++	.remove_new = mtk_pce_remove_new,
++#else
++	// Only .remove(void) is supported
++	.remove = mtk_pce_remove_new,
++#endif
+ 	.driver = {
+ 		.name = "mediatek,pce",
+ 		.owner = THIS_MODULE,

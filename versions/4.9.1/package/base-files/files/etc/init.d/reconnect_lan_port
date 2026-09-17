@@ -1,0 +1,31 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+
+MT7530_DRIVER="/sys/bus/mdio_bus/drivers/mt7530"
+MDIO_BUS="/sys/devices/platform/15100000.ethernet/mdio_bus/mdio-bus/mdio-bus:1f/net"
+
+find_mdio_netifs() {
+    local iface_path
+    for iface_path in "$MDIO_BUS"/*; do
+        [ -d "$iface_path" ] || continue
+        echo "${iface_path##*/}"
+    done
+}
+
+boot() {
+    local iface
+
+    [ -d "$MT7530_DRIVER" ] || return 0
+    [ -d "$MDIO_BUS" ] || return 0
+
+    for iface in $(find_mdio_netifs); do
+        ifconfig "$iface" down
+    done
+
+    sleep 1
+
+    for iface in $(find_mdio_netifs); do
+        ifconfig "$iface" up
+    done
+}

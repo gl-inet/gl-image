@@ -1,0 +1,31 @@
+From 4c2a727287fe60406ddc11804d8a434b04b7e878 Mon Sep 17 00:00:00 2001
+From: huatai <hua.tai@gl-inet.com>
+Date: Fri, 29 May 2026 16:55:22 +0800
+Subject: [PATCH] fix: avoid applying bridge isolated to MTK Wi-Fi interfaces
+ during AP isolation handling. #SDK-22838
+
+*none
+
+Change-Id: If5d5fb4760e4485090ab18395f4ff0d266f4a80e
+Signed-off-by: huatai <hua.tai@gl-inet.com>
+---
+ system-linux.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/system-linux.c b/system-linux.c
+index cfafab7..da3922c 100644
+--- a/system-linux.c
++++ b/system-linux.c
+@@ -941,7 +941,8 @@ retry:
+ 	    !dev->settings.unicast_flood)
+ 		system_bridge_set_unicast_flood(dev, "0");
+ 
+-	if (dev->settings.flags & DEV_OPT_ISOLATE &&
++	/* MTK Wi-Fi iface keep them at default isolated=0 */
++	if (dev->settings.flags & DEV_OPT_ISOLATE && strncmp(dev->ifname, "ra", 2) != 0 &&
+ 	    dev->settings.isolate)
+ 		system_bridge_set_isolated(dev, "1");
+ 
+-- 
+2.34.1
+

@@ -4,7 +4,8 @@ include ./version.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=gl-sdk4-kmwan
-PKG_VERSION:=$(strip $(call findrev))
+# Source snapshot: c882b9c294604726bbddfc9b7d9e749842d062ea
+PKG_VERSION:=git-2026.131.32969-c882b9c
 PKG_RELEASE:=1
 
 PKG_BUILD_DEPENDS:=lua/host

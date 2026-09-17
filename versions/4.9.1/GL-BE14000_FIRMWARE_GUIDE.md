@@ -1,8 +1,8 @@
 # GL-BE14000 Firmware Guide
 
-This guide applies to the source release for GL-BE14000 firmware 4.9.1.
+This guide covers the GL-BE14000 source tree under `versions/4.9.1/`.
 
-## Release mapping
+## Release Reference
 
 ```text
 Version:   4.9.1 release2
@@ -11,12 +11,12 @@ SHA256:    77d314e7bbeaa92b0fc5272be18e630550b062e88b7f5a91a76af2fd1965e460
 Download:  https://fw.gl-inet.com/firmware/be14000/release/be14000-4.9.1_release2-1053-0722-1784729880.bin
 ```
 
-The public source tree does not include independent GL.iNet proprietary
-applications or the GL.iNet web interface. MediaTek Wi-Fi, PHY and network
-components that are not distributed as source are packaged as version-pinned,
-ABI-locked runtime IPKs.
+The public build includes OpenWrt and LuCI. Independent GL.iNet proprietary
+applications and GL.iNet Web UI are excluded. MediaTek Wi-Fi, PHY and network
+runtime IPKs are included for Linux 5.4.281. The public build therefore has a
+different feature and package selection from the commercial firmware above.
 
-## Build environment
+## Build Environment
 
 Use a 64-bit, case-sensitive GNU/Linux filesystem and build as a regular user.
 The reference environment is Ubuntu 22.04 with GCC/G++ 9, GNU Make 4.3 and
@@ -51,37 +51,58 @@ sudo apt install -y \
   xz-utils zstd time xsltproc
 ```
 
-## Build the firmware
+## Build the Firmware
 
-Run from the repository root, either on the native host or inside the Docker
-container:
+From the repository root, either on the host or inside the container:
 
 ```sh
 cd versions/4.9.1
 ./scripts/feeds update -a
 ./scripts/feeds install -a
-cp configs/gl-be14000-open-source.config .config
 make defconfig
 make prereq
 make -j"$(nproc)"
 ```
 
-The sysupgrade image is generated at:
+The included `.config` is the default. Normal builds do not require copying
+a template or running `menuconfig`. Feeds are pinned in `feeds.conf.default`;
+install them before running `make defconfig`.
+
+The resulting sysupgrade image is:
 
 ```text
 bin/targets/mediatek/mt7988/openwrt-mediatek-mt7988-gl-be14000-squashfs-sysupgrade.bin
 ```
 
-Do not change the Linux 5.4.281 kernel ABI unless matching MediaTek runtime
-modules are supplied and validated for the new ABI.
+The target directory also contains the package manifest and build metadata.
+To record the image checksum:
 
-## Install the firmware
+```sh
+sha256sum bin/targets/mediatek/mt7988/*-sysupgrade.bin
+```
 
-When the router is still running GL.iNet firmware, open
-`http://192.168.8.1`, select **System > Upgrade > Local Upgrade**, upload the
-generated sysupgrade image and do not retain settings.
+The bundled kernel modules require the Linux 5.4.281 ABI. Changing the kernel
+or ABI-relevant options requires matching runtime modules.
 
-Alternatively, upload and install it over SSH:
+### Configuration Files
+
+| File | Purpose |
+| --- | --- |
+| `.config` | Default selection for the public firmware build. |
+| `configs/gl-be14000-baseline.config` | Commercial-build reference. May name proprietary packages absent from this tree; it is not a public-build template. |
+| `configs/gl-be14000-open-source.config` | Public firmware template, excluding independent proprietary applications and GL.iNet Web UI. |
+| `configs/gl-be14000-ccs-validation.config` | Template for building available GPL/copyleft components and retained kernel modules. |
+
+Use the included `.config` with the build commands above. No configuration
+copy step is required.
+
+## Install the Firmware
+
+From GL.iNet Web UI, open `http://192.168.8.1` and select
+**System > Upgrade > Local Upgrade**. Upload the generated sysupgrade image
+and disable keeping settings.
+
+Alternatively, from the version directory on the build host:
 
 ```sh
 scp -O \
@@ -92,69 +113,52 @@ ssh root@192.168.8.1
 sysupgrade -n /tmp/firmware.bin
 ```
 
-Do not interrupt power during the upgrade. After the open-source firmware
-boots, its default LAN address is `192.168.1.1`. LuCI is included in the public
-configuration. The proprietary GL.iNet web interface is not included.
+`sysupgrade -n` resets the previous settings. Do not interrupt power during
+the upgrade. After boot, the public firmware's default LAN address is
+`192.168.1.1`. LuCI is included; GL.iNet Web UI is not.
 
-## Build Configuration Files
+## Source and Runtime Layout
 
-Three configurations are included for distinct purposes:
+| Path | Contents and use |
+| --- | --- |
+| `feeds.conf.default` | Fixed OpenWrt, MediaTek, GL public, VPN and MPTCP feed revisions. |
+| `configs/feed-package-sources.json` | Source selection when multiple feeds supply the same package. |
+| `target/linux/mediatek/` | Kernel patches, DTS, board support and image definitions. |
+| `package/kernel/glinet/` | Included GL kernel-module sources. |
+| `package/kernel/mac80211/patches/` | Backports/cfg80211 patches. |
+| `scripts/feed-patches/mtk_openwrt_feed/` | EIP/PCE patches applied by `feeds update` before package indexing. |
+| `scripts/rootfs-patches/shipping-independent/` | Base-files patch applied automatically during rootfs assembly. |
+| `package/firmware/mtk-be14000-binary-runtime/` | Wi-Fi, PHY and network runtime IPKs and license notices. |
+| `corresponding-source/` | Additional source patches, manifests and component instructions. |
 
-- `configs/gl-be14000-baseline.config`: captured from the internal shipping build for audit and comparison only. It may name proprietary packages that are not present in this source release, so it is not a standalone customer-buildable configuration.
-- `configs/gl-be14000-open-source.config`: builds the public open-source image without independent GL.iNet proprietary applications or Web UI.
-- `configs/gl-be14000-ccs-validation.config`: enables the GPL/copyleft components corresponding to the distributed firmware, including retained GL.iNet kernel modules, public MTK modules, VPN modules, `wifidog-ng`, `chacha20poly1305`, and `port_forward`. Proprietary applications and Web UI remain excluded.
+### Wpad
 
-## CCS validation build
+The default image uses the wpad binary in the MTK Wi-Fi runtime.
+The `be14000-mtk-wifi-runtime` package supplies hostapd/wpad; the default
+configuration does not build the hostapd source package.
 
-After updating and installing the pinned feeds in the public build section,
-build the CCS validation firmware:
+The Wi-Fi runtime also installs the bundled `mwctl` executable and Wi-Fi
+profile files from the supplied IPKs. These are not built as separate source
+packages in the public configuration.
 
-```sh
-cp configs/gl-be14000-ccs-validation.config .config
-make defconfig
-make prereq
-make -j"$(nproc)"
-```
+### Userspace Patches
 
-Build the CCS validation firmware:
+The `fstools`, `iw`, `iwinfo`, `netifd`, `swconfig` and `wireless-tools`
+patches in their package directories are applied by the normal build process.
+The public image uses ntfs-3g. The UFSD-specific NTFS mount patch, the
+GL-dependent switch port-reset script and the `iwpriv -> mwctl` installation
+rule are supplied separately rather than applied to the default image.
 
-```sh
-cp configs/gl-be14000-ccs-validation.config .config
-make defconfig
-make prereq
-make -j"$(nproc)"
-```
+See [Userspace Shipping Sources](corresponding-source/userspace-shipping/README.md)
+for patch application paths and order.
 
-The CCS validation image is used to verify that the GPL/copyleft kernel modules in the distributed firmware are buildable from the published source. It is not intended to restore GL.iNet proprietary applications or the commercial Web UI.
+### Additional Script Sources
 
-## Feed and Patch Mapping
+[OpenWrt Shipping Scripts](corresponding-source/openwrt-shipping/README.md)
+describes the consolidated script patch and its manifest. Some scripts depend
+on GL services excluded from the public image. Apply these source-reconstruction
+patches to a separate copy of the source tree; they are not default runtime
+overlays.
 
-The public build uses the exact revisions in `feeds.conf.default`. The release includes:
-
-- OpenWrt, LuCI, routing and telephony feeds.
-- MediaTek's pinned public feed.
-- GL.iNet public `gl_feed_common` and `gl_feed_21_02`.
-- Public VPN and MPTCP feeds at pinned revisions.
-- Kernel patches under `target/linux/mediatek/patches-5.4/`.
-- The OpenWrt kernel package definition for `chacha20poly1305.ko`.
-- Retained GL.iNet kernel-module source under `package/kernel/glinet/`, including `gl-sdk4-port-forward`.
-
-## CCS Validation Result
-
-On 2026-09-15, the CCS configuration produced a complete image and the shipping-firmware kernel-module comparison reported:
-
-```text
-Shipping kernel modules: 245
-Comparison failures:      0
-```
-
-This result validates kernel-module source/build correspondence. User-space license and source review remains a separate release checklist item.
-
-## Source layout
-
-- `configs/`: baseline, public-build and CCS-validation configurations.
-- `feeds.conf.default`: pinned feed URLs and revisions.
-- `package/kernel/glinet/`: retained GL.iNet kernel-module source.
-- `package/kernel/linux/modules/`: OpenWrt kernel module package definitions.
-- `package/firmware/mtk-be14000-binary-runtime/`: ABI-locked MediaTek runtime IPKs.
-- `target/linux/mediatek/`: kernel, DTS, board support, image definitions and patches.
+The six-file patch in `corresponding-source/base-files-shipping/` is a subset
+of the consolidated patch. Do not apply both to the same files.
