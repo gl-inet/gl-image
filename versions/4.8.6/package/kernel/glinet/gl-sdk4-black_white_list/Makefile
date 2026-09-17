@@ -3,7 +3,7 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=gl-sdk4-black_white_list
-PKG_VERSION:=8be39661955f
+PKG_VERSION:=git-2025.351.25761-8be3966
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-only
 

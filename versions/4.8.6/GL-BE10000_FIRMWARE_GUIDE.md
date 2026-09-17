@@ -24,13 +24,17 @@ review status below and `RELEASE-MANIFEST.json` for the recorded build results.
 The mapfilter, mtfwd, mtqos, mt_wifi, mt_wifi_osal and mtk_hwifi module payloads
 are imported from the exact shipping image above. Their hashes are recorded in
 `package/firmware/mtk-binary-runtime/manifests/shipping-modules-sha256.txt`.
-The runtime package preserves these six files without stripping them again;
-other payloads continue through the existing stripping process. PHY packages
-are unchanged by this replacement.
+The runtime package preserves these six files, plus connac_if, mt7990,
+mt7990_dbg, mt7991, mt_spectrum, mtk_pci, mtk_warp and mtk_wed, without
+stripping them again. Other kernel modules retain the existing stripping
+process. Prebuilt user-space payloads are not stripped a second time.
 
 ## Build Configuration Files
 
-This source release provides three configuration files for different purposes:
+The version directory includes a ready-to-use `.config` with the CCS-validation
+settings. The default build does not require copying a configuration file.
+Independent GL.iNet proprietary applications and Web UI remain excluded.
+The named configurations below are retained for audit, recovery and compatibility.
 
 ### `configs/gl-be10000-baseline.config`
 
@@ -41,17 +45,16 @@ and comparison only.
 
 ### `configs/gl-be10000-open-source.config`
 
-Configuration for the public open-source firmware image. GL.iNet proprietary
-applications and Web UI components are excluded. Public GPL source components,
-including the source-built AN8811HB driver, are retained according to the
-public build policy.
+Compatibility template for the public firmware image. Its configuration options
+are currently identical to the CCS-validation template. It is not a separate,
+smaller build profile in this release.
 
 ### `configs/gl-be10000-ccs-validation.config`
 
-Configuration for CCS verification. It is based on the public configuration and
-selects the public GL GPL kernel modules as optional modules (`=m`) so their
-source can be compiled and checked without installing them into the normal
-firmware image. Proprietary applications and Web UI components are excluded.
+Release template for the default build and CCS verification. The GL kernel modules listed below are
+selected with `=y` in both this configuration and the public configuration,
+so they are built and installed into the firmware image. Proprietary
+applications and Web UI components are excluded.
 
 ## Build environment
 
@@ -90,19 +93,22 @@ sudo apt install -y \
 
 ## Build the firmware
 
-Run from the repository root, either on the native host or inside the Docker
-container:
+Start from the repository root, either on the native host or inside the Docker
+container. The included `.config` already selects the default CCS-validation build.
+
+Update and install feeds successfully before running `make defconfig`.
+The build system must first discover the feed
+packages; otherwise, selections such as `kmod-amneziawg` and `amneziawg-tools`
+can be removed from `.config`. If feeds were unavailable during an earlier
+`make defconfig`, install them, restore the release defaults as described below
+and rerun `make defconfig`.
+
+For the default public firmware and CCS validation, run in this order:
 
 ```sh
 cd versions/4.8.6
 ./scripts/feeds update -a
 ./scripts/feeds install -a
-```
-
-For the public open-source firmware:
-
-```sh
-cp configs/gl-be10000-open-source.config .config
 make defconfig
 make prereq
 make -j"$(nproc)"
@@ -111,18 +117,21 @@ make -j"$(nproc)"
 The `configs/gl-be10000-baseline.config` file is for internal shipping-build
 audit and comparison only. It references proprietary packages that are not
 included in this public source release, so it is not a standalone build
-configuration and must not be used with the build commands below.
+configuration and must not be used for the default build.
 
-For CCS validation of public GL GPL modules:
+### Restore release defaults (optional)
+
+This is only needed after deleting or customizing `.config`, or after a
+`make defconfig` run with unavailable feeds. `make distclean` also removes
+`.config` and the installed feeds. Complete feed setup first, then run from
+the version directory:
 
 ```sh
 cp configs/gl-be10000-ccs-validation.config .config
 make defconfig
-make prereq
-make -j"$(nproc)"
 ```
 
-The `cp` command replaces local configuration changes. Preserve a custom
+This recovery `cp` command replaces local configuration changes. Preserve a custom
 `.config` before restoring the release defaults. For a logged build, use Bash
 with `set -o pipefail` before piping `make` output to `tee`, so a failed build
 does not appear successful.
@@ -159,8 +168,21 @@ The earlier public tree's dnsmasq 2.92 is retained in Git history. This source
 release reproduces historical package inputs; it is not a statement that those
 versions contain every later security fix.
 
-The `wpa-cli` package is rebuilt from the shipping hostapd source. Its duplicate
-executable is omitted from the bundled Wi-Fi runtime during assembly.
+The `hostapd-common`, `hostapd-utils`, `wpa-cli` and `wpad-openssl` packages
+are built from the release hostapd source. The matching bundled hostapd/wpad
+IPKs are not installed by the Wi-Fi runtime, avoiding duplicate files.
+
+Both build configurations enable Samba, OpenVPN, nginx and the release's
+other retained public applications. `mtk-tools-runtime` supplies the retained
+MediaTek mesh and diagnostic payloads. Its source-image mapping, file hashes
+and discovered license notices are recorded under
+`package/firmware/mtk-binary-runtime`. The GPL scripts and original recipe
+for `mtk-base-files` are also retained there in editable form. Binary packaging
+does not replace source or notice obligations for covered components.
+
+The release `version.date` and OpenSSL optimization setting preserve the
+shipping build inputs. Restoring historical inputs does not guarantee
+byte-identical output across different build paths or toolchain environments.
 
 ### Shipping kernel configuration
 
@@ -181,30 +203,54 @@ debugfs implementation without installing mac80211 into the rootfs.
 The GPL exFAT library and utilities are rebuilt from
 `package/libs/gl-sdk4-nas-exfat`, separately from proprietary NAS applications.
 
-### Optional GL kernel modules
+### GL kernel modules
 
 The repeater, mpflow statistics, tertf, black/white-list, DNS marking, kmwan
-and parental-control module sources are
-available under `package/kernel/glinet` and can be selected in menuconfig.
-They are not enabled by default. Existing fan, hardware information and USB
-control selections are retained; fan and hardware information use the pinned
-GL common feed. Proprietary application companions are not included.
+and parental-control module sources are available under `package/kernel/glinet`.
+These seven modules, together with the fan and hardware information modules
+from the pinned GL common feed, are selected with `=y` in both build
+configurations. AmneziaWG, OpenVPN DCO, wifidog-ng and full-cone NAT kernel
+modules are also selected from their pinned feeds.
 
-The optional mpflow module currently cannot link because the supplied kernel
-does not export `fib_info_devhash_bucket`. This is recorded as an unresolved
-issue; the module remains disabled and no new export patch is applied.
+The GL common fan package also installs its fan-control program and support
+files. Selecting a kernel package installs any companion files defined by its
+package recipe. The GL.iNet proprietary application suite is not restored by
+these selections.
+
+The source tree includes the mpflow kernel symbol export patch. These
+configuration selections do not establish successful compilation, module
+loading or device boot; verify those after rebuilding the image.
 
 `package/kernel/glinet/SOURCES.json` records the imported module revisions.
 Original shipping boot/network/upgrade scripts that differ from the public
 integration are retained in `corresponding-source/shipping-integration`.
 
+### Shipping script integration
+
+`corresponding-source/shipping-script-overlay` contains the full nine-file
+shipping script patch and its source mapping. This full patch is not applied
+by default because several scripts require omitted GL application services.
+
+The normal build automatically applies the independent subset in
+`scripts/rootfs-patches/shipping-independent` after package post-installation
+and before image creation. It restores the shipping boot and firewall-default
+scripts, the upgrade RAM filesystem tools, and the independent sysupgrade
+changes. No extra build command or feeds update is needed for this patch.
+
+Public reset, automount and cellular protocol implementations remain in use.
+GL screen, session and cellular services are not added. Input and output file
+hashes guard the runtime patch: if an affected package or a custom `files/`
+overlay changes these scripts, review and update the patch and hashes instead
+of bypassing the check. Script restoration is not a claim of device-tested
+upgrade, reset, wireless or cellular functionality.
+
 ### NTFS mounting
 
-The original UFSD mount attempt is preserved. Only `ENODEV` triggers a retry
-using the detected filesystem type; if that driver is also unavailable, the
-existing helper flow can use `mount.ntfs`, linked to the included ntfs-3g.
-Other errors do not trigger this fallback. Actual disk mounting and read/write
-operation require device testing.
+The fstools source and patches retain the shipping UFSD mount behavior.
+The additional public-tree ENODEV fallback has been removed to match the
+release inputs. The public configuration includes ntfs-3g, but this alone
+does not establish that the shipping automount path works without UFSD.
+Automatic mounting and disk read/write operation require device testing.
 
 ### PHY source status
 
@@ -245,8 +291,9 @@ without retained settings, as shown above.
 ## Source layout
 
 - `configs/gl-be10000-baseline.config`: internal shipping-build configuration.
-- `configs/gl-be10000-open-source.config`: public device configuration.
-- `configs/gl-be10000-ccs-validation.config`: CCS module source-validation configuration.
+- `.config`: ready-to-use default CCS-validation configuration.
+- `configs/gl-be10000-open-source.config`: compatibility template with the same options as the default profile.
+- `configs/gl-be10000-ccs-validation.config`: template for restoring the default CCS-validation configuration.
 - `configs/gl-be10000-shipping-kernel.config`: kernel configuration extracted from the shipping image.
 - `feeds.conf.default`: pinned feed revisions.
 - `package/firmware/mtk-binary-runtime`: MediaTek runtime IPKs and manifests.
@@ -278,10 +325,10 @@ It has not been flashed or tested for boot, Wi-Fi/PHY operation, module loading
 or disk read/write behavior. The installation instructions describe the intended
 procedure; they are not evidence that this candidate passed a device test.
 
-There are 227 common kernel modules: 219 match byte for byte and eight match
-after standard stripping. Seven optional GL modules are not installed by
-default; six were built separately, while mpflow remains deferred. The public
-image also carries the separate AN8811HB module under the existing PHY policy.
+The latest checked image contained all 234 shipping kernel modules with
+matching file hashes. The current source tree also includes subsequent
+user-space changes that have not yet been rebuilt and compared. Configuration
+validation alone does not confirm the contents of the next firmware image.
 
 Other outstanding reviews are the libguci license authorization, the LGPL
 WireGuard code embedded in the omitted s2s plugin, and the GPL declaration in

@@ -1,0 +1,101 @@
+--- a/etc/init.d/boot
++++ b/etc/init.d/boot
+@@ -41,8 +41,7 @@
+ 	grep -q pstore /proc/filesystems && /bin/mount -o noatime -t pstore pstore /sys/fs/pstore
+ 	[ "$FAILSAFE" = "true" ] && touch /tmp/.failsafe
+ 
+-	#先检查mtkwifi的默认配置是否正常
+-	/sbin/wifi check
++	sync
+ 	/sbin/kmodloader
+ 
+ 	[ ! -f /etc/config/wireless ] && {
+--- a/etc/uci-defaults/99-firewall
++++ b/etc/uci-defaults/99-firewall
+@@ -1,3 +1,44 @@
+-echo "iptables -I OUTPUT -t raw -p tcp --dport 1723 -j CT  --helper pptp" >> /etc/firewall.user
++. /lib/functions.sh
+ 
+-exit 0
++delete_ipv4_ping() {
++    config_get name "$1" name
++
++    [ "$name" = "Allow-Ping" ] && {
++        uci delete firewall.$1
++    }
++}
++
++delete_ipv6_ping() {
++    config_get name "$1" name
++
++    [ "$name" = "Allow-ICMPv6-Input" ] && {
++        config_get icmp_types "$1" icmp_type
++
++        [ "$icmp_types" != "" ] && uci delete firewall.$1.icmp_type
++        for type in $icmp_types; do
++            [ "$type" != "echo-request" ] && [ "$type" != "echo-reply" ] && uci add_list firewall.$1.icmp_type="$type"
++        done
++    }
++}
++
++delete_specific_character() {
++    config_get name "$1" name
++    if echo "$name" | grep -q '["%]'; then
++        name=$(echo "$name" | tr -d '"%')
++        uci set firewall.$1.name=$name
++    fi
++}
++
++config_load firewall
++config_foreach delete_ipv4_ping rule
++
++config_load firewall
++config_foreach delete_ipv6_ping rule
++
++config_load firewall
++config_foreach delete_specific_character rule
++
++config_load firewall
++config_foreach delete_specific_character redirect
++
++uci commit
+--- a/lib/upgrade/stage2
++++ b/lib/upgrade/stage2
+@@ -36,7 +36,7 @@
+ 	for binary in \
+ 		/bin/busybox /bin/ash /bin/sh /bin/mount /bin/umount	\
+ 		pivot_root mount_root reboot sync kill sleep		\
+-		md5sum hexdump cat zcat bzcat dd tar			\
++		md5sum hexdump cat zcat bzcat dd tar pidof xargs		\
+ 		ls basename find cp mv rm mkdir rmdir mknod touch chmod \
+ 		'[' printf wc grep awk sed cut				\
+ 		mtd partx losetup mkfs.ext4 nandwrite flash_erase	\
+--- a/sbin/sysupgrade
++++ b/sbin/sysupgrade
+@@ -248,7 +248,7 @@
+ 			\( -exec test -f /rom/{} \; -exec echo {} rom \; \) -o \
+ 			\( -exec test -f /overlay/upper/{} \; -exec echo {} overlay \; \) -o \
+ 			\( -exec echo {} unknown \; \) \
+-			\) | sed -e 's,.*/,,;s/\.control /\t/' > ${INSTALLED_PACKAGES}
++			\) | sed -e 's,.*/,,;s/\.control /\t/' | grep -v "rom$" | cut -f1 |tr "\n" " " > ${INSTALLED_PACKAGES}
+ 	fi
+ 
+ 	v "Saving config files..."
+@@ -357,10 +357,16 @@
+ 	exit 0
+ fi
+ 
++fw_printenv > /dev/null
++
+ install_bin /sbin/upgraded
+ v "Commencing upgrade. Closing all shell sessions."
+ 
+-COMMAND='/lib/upgrade/do_stage2'
++if [ -e /lib/upgrade/do_stage2 ];then
++	COMMAND='/lib/upgrade/do_stage2'
++else
++	COMMAND='. /lib/functions.sh; include /lib/upgrade; do_upgrade_stage2'
++fi
+ 
+ if [ -n "$FAILSAFE" ]; then
+ 	printf '%s\x00%s\x00%s' "$RAM_ROOT" "$IMAGE" "$COMMAND" >/tmp/sysupgrade

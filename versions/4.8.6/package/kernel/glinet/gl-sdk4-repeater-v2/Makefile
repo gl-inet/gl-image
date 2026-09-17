@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=gl-sdk4-repeater-v2
-PKG_VERSION:=30b50ac3622b
+PKG_VERSION:=git-2026.203.09877-30b50ac
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-only
 

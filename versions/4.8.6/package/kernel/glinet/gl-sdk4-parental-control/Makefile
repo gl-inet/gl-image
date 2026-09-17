@@ -3,7 +3,7 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=gl-sdk4-parental-control
-PKG_VERSION:=a0e240d7ddfb
+PKG_VERSION:=git-2025.331.26842-a0e240d
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-only
 

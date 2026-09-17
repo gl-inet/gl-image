@@ -19,14 +19,27 @@ proto_send_update "$PPP_IPPARAM"
 if [ -n "$AUTOIPV6" ]; then
 	ZONE=$(fw3 -q network $PPP_IPPARAM 2>/dev/null)
 
-	json_init
-	json_add_string name "${PPP_IPPARAM}_6"
-	json_add_string ifname "@$PPP_IPPARAM"
-	json_add_string proto "dhcpv6"
-	[ -n "$ZONE" ] && json_add_string zone "$ZONE"
-	[ -n "$EXTENDPREFIX" ] && json_add_string extendprefix 1
-	[ -n "$IP6TABLE" ] && json_add_string ip6table $IP6TABLE
-	[ -n "$PEERDNS" ] && json_add_boolean peerdns $PEERDNS
-	json_close_object
-	ubus call network add_dynamic "$(json_dump)"
+	[ ! $(echo "$PPP_IPPARAM" | grep modem) ] && {
+		json_init
+		json_add_string name "${PPP_IPPARAM}_6"
+		json_add_string ifname "@$PPP_IPPARAM"
+		json_add_string proto "dhcpv6"
+		[ -n "$ZONE" ] && json_add_string zone "$ZONE"
+		[ -n "$EXTENDPREFIX" ] && json_add_string extendprefix 1
+		[ -n "$IP6TABLE" ] && json_add_string ip6table $IP6TABLE
+		[ -n "$PEERDNS" ] && json_add_boolean peerdns $PEERDNS
+		json_close_object
+		ubus call network add_dynamic "$(json_dump)"
+	}
+
+	if [ "$(uci get glipv6.lan.mode)" = "relay" ] && [ "$(uci get dhcp.${PPP_IPPARAM}_6)" != "dhcp" ];then
+		uci set dhcp.${PPP_IPPARAM}_6='dhcp'
+		uci set dhcp.${PPP_IPPARAM}_6.interface="${PPP_IPPARAM}_6"
+		uci set dhcp.${PPP_IPPARAM}_6.dhcpv6="relay"
+		uci set dhcp.${PPP_IPPARAM}_6.ra="relay"
+		uci set dhcp.${PPP_IPPARAM}_6.ndp="relay"    
+		uci set dhcp.${PPP_IPPARAM}_6.master="1"     
+		uci commit dhcp
+		/etc/init.d/dnsmasq restart &
+	fi
 fi

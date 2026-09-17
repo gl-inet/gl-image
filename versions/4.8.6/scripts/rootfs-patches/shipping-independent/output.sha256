@@ -1,0 +1,4 @@
+b12fe4613f3bbafaa248807758c4db0991f51568935fbbe7dfbfd0d275616a71  etc/init.d/boot
+a029e8519b91d6eb33aa0f5e14c6ded5f688f777d7c92d70326ec2b065f0f019  etc/uci-defaults/99-firewall
+cfbca1a417f544516e3dd3fccc847551918ea1ec269bfdd929bd0b13f518c803  lib/upgrade/stage2
+accd2e9abe53e791b937d5f65432182507c9adbef0481d736d7ad0a6f34683d2  sbin/sysupgrade

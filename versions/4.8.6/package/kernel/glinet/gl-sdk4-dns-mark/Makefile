@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=gl-sdk4-dns-mark
-PKG_VERSION:=c80883038a1f
+PKG_VERSION:=git-2025.325.38811-c808830
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-only
 

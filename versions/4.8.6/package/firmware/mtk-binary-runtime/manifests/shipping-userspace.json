@@ -1,0 +1,922 @@
+{
+  "shipping_firmware_sha256": "ea53fc7dc71c80df659792005dffbc60bc095fa062486ff98c031afb66fa3892",
+  "packages": [
+    {
+      "package": "1905daemon",
+      "version": "1",
+      "reference_ipk": "/workspace/home/pan.li/test/be10000_4.8.6/mt7987a-8313/bin/packages/aarch64_cortex-a53/mt7987/1905daemon_1_aarch64_cortex-a53.ipk",
+      "reference_ipk_sha256": "925f0869c5ec7a15c473aa0a27d9403917721814c68f183c9b5b6be1ea87320c",
+      "output_ipk": "package/firmware/mtk-binary-runtime/blobs/tools/1905daemon_1_aarch64_cortex-a53.ipk",
+      "output_ipk_sha256": "5498f86fe3051168b0b5f4072629ef12375672ad448a06129ae203995f8da11d",
+      "files": [
+        {
+          "path": "/etc/ethernet_cfg.txt",
+          "sha256": "f95f2e1aa37e2c85e1db8c2b1df78cd7580208ff98c99f08f37cf3f32acf4d1f",
+          "mode": 493
+        },
+        {
+          "path": "/etc/map/1905_dpp_keys.txt",
+          "sha256": "9e0e0a6622efbde69c8973abf083f322970d10f062bcf98030fc2af95e789592",
+          "mode": 493
+        },
+        {
+          "path": "/etc/map/1905d.cfg",
+          "sha256": "d4fc209430d2ad17abaeaf203e8d01b7737284dc96ae4d9184b0fa2be82fce31",
+          "mode": 493
+        },
+        {
+          "path": "/usr/bin/1905ctrl",
+          "sha256": "3c1c7bf16edb567403a1edd80312c3c94475186d138cb75189462d3deaa15825",
+          "mode": 493
+        },
+        {
+          "path": "/usr/bin/p1905_managerd",
+          "sha256": "7374a973cfe1ac204ae2222d18d430f319cabd13e2e1ff0535380a621a2d8b2f",
+          "mode": 493
+        },
+        {
+          "path": "/usr/bin/tp_ts_switch.sh",
+          "sha256": "6f73894c4f46835f31766087363b1f03bbb1b946c113709c1fc659e19aa19c4e",
+          "mode": 493
+        },
+        {
+          "path": "/usr/lib/libeth_1905ops.so",
+          "sha256": "80d5309b5ebe99daa4f9b38185c21a1aaccff609618d0110ff1ff4d0a5027a24",
+          "mode": 493
+        }
+      ],
+      "reference_recipe": "package/feeds/mt7987/1905daemon/Makefile",
+      "recipe_license": "not declared in package metadata",
+      "license_files": [
+        "package/firmware/mtk-binary-runtime/files/tool-licenses/1905daemon/archive-LICENSE"
+      ],
+      "reference_source_archive": "1905daemon-f21506.tar.bz2",
+      "reference_source_archive_sha256": "4da3c985781f81b73fe9b3ffa272592e371b53f129b52779032b0acf81d6e8d0"
+    },
+    {
+      "package": "ated_ext",
+      "version": "2",
+      "reference_ipk": "/workspace/home/pan.li/test/be10000_4.8.6/mt7987a-8313/bin/packages/aarch64_cortex-a53/mt7987/ated_ext_2_aarch64_cortex-a53.ipk",
+      "reference_ipk_sha256": "ad34df1df71a808b38de5ffac09afe995d86fe92d40a293458aabc3ee2f84bdc",
+      "output_ipk": "package/firmware/mtk-binary-runtime/blobs/tools/ated_ext_2_aarch64_cortex-a53.ipk",
+      "output_ipk_sha256": "ef487e8b6529cba631bcdfa00bdfa1275c6ecf75857b27bd1d9aea113ba27863",
+      "files": [
+        {
+          "path": "/usr/bin/ated",
+          "sha256": "20f33389e5a6d8d3ced9b5aa0e14c72f162c87b9b9c44b17df143a5671a9b1ae",
+          "mode": 493
+        }
+      ],
+      "reference_recipe": "package/feeds/mt7987/ated_ext/Makefile",
+      "recipe_license": "not declared in package metadata",
+      "license_files": [],
+      "reference_source_archive": "ated_ext-6a6499.tar.bz2",
+      "reference_source_archive_sha256": "dfc9bf2bfab20478b8eb66877bf24563594d5439e1e9357812dc154e82c47747"
+    },
+    {
+      "package": "libmapd",
+      "version": "1",
+      "reference_ipk": "/workspace/home/pan.li/test/be10000_4.8.6/mt7987a-8313/bin/packages/aarch64_cortex-a53/mt7987/libmapd_1_aarch64_cortex-a53.ipk",
+      "reference_ipk_sha256": "f72e98f40fcf53077f4a5c9f5c1f62dd3685a9fbe94252c1db7adcc89d053d4d",
+      "output_ipk": "package/firmware/mtk-binary-runtime/blobs/tools/libmapd_1_aarch64_cortex-a53.ipk",
+      "output_ipk_sha256": "f4280bc76764bcd81c2ccf14bd0f3159edef2fa9114c62be2ff35663f812bba1",
+      "files": [
+        {
+          "path": "/usr/lib/libmapd_interface_client.so",
+          "sha256": "06d6196bd5de0b583ff885e03c8d383bb28916a4a0bcac85f51f535434dff278",
+          "mode": 493
+        }
+      ],
+      "reference_recipe": "package/feeds/mt7987/libmapd/Makefile",
+      "recipe_license": "not declared in package metadata",
+      "license_files": [],
+      "reference_source_archive": "libmapd-e1e011.tar.bz2",
+      "reference_source_archive_sha256": "07b6a78a67b37a07460eec387514bc37d27ab1d4ae0fa1f7d4cf94f2935ffbf2"
+    },
+    {
+      "package": "mapd",
+      "version": "1",
+      "reference_ipk": "/workspace/home/pan.li/test/be10000_4.8.6/mt7987a-8313/bin/packages/aarch64_cortex-a53/mt7987/mapd_1_aarch64_cortex-a53.ipk",
+      "reference_ipk_sha256": "bfb43669d03318b677a0cd37163553470fc0cceef89aca692641a59ce3e63e60",
+      "output_ipk": "package/firmware/mtk-binary-runtime/blobs/tools/mapd_1_aarch64_cortex-a53.ipk",
+      "output_ipk_sha256": "790c4fd4cd83aba996e14bf82dc50931014476f57a2816218c3996218a98542f",
+      "files": [
+        {
+          "path": "/etc/init.d/easymesh",
+          "sha256": "14ca1664e59406ecde3f9f3ab5624a56fc58e4d65d04db4c7eb7b485a3d0e87c",
+          "mode": 493
+        },
+        {
+          "path": "/etc/init.d/easymesh_bridge",
+          "sha256": "a61daa91693c8ceb6703340a2bd62c3cb8950b95e3c75f0852ce1e18313bbc8b",
+          "mode": 493
+        },
+        {
+          "path": "/etc/map/mapd_default.cfg",
+          "sha256": "67a4f32f27f09db86bcdbc2c0742bbebd88f9115e130969748d31230a2310d30",
+          "mode": 493
+        },
+        {
+          "path": "/etc/map/mapd_user.cfg",
+          "sha256": "34f1981c241204104d96b0c00dafcb144898f08504dac1569c981e1292c5ab30",
+          "mode": 420
+        },
+        {
+          "path": "/etc/map/wts_bss_info_config",
+          "sha256": "87ac78457a9fc15e22943476855e53a7e67c62e600ea30cffee30f519929a80f",
+          "mode": 420
+        },
+        {
+          "path": "/usr/bin/EasyMesh_openwrt.sh",
+          "sha256": "5bbd1ba4c8cefdf902ce3ebc9e81b3100e6ea3b62d102aecb160d6bef8bedd74",
+          "mode": 493
+        },
+        {
+          "path": "/usr/bin/brsw-del.sh",
+          "sha256": "ce76ab9bec24728fe0a0503229b7b0d63a7192d50e2ab6e23dd0aaeb7bef21c0",
+          "mode": 493
+        },
+        {
+          "path": "/usr/bin/bs20",
+          "sha256": "7cb438e948a2871b74a65231ef25755887e29555e48fe91864f55aa900dc1e72",
+          "mode": 493
+        },
+        {
+          "path": "/usr/bin/config_agent.lua",
+          "sha256": "c6317e18183aaec1e344b1cccba6dbffd7584cdf331a54e53430d59b85080422",
+          "mode": 493
+        },
+        {
+          "path": "/usr/bin/map_cert_script.sh",
+          "sha256": "fa91d646556acb793ab8e649032550a8babda54b41def34a558847724433c18c",
+          "mode": 493
+        },
+        {
+          "path": "/usr/bin/map_config_agent.lua",
+          "sha256": "60895a28bc60ccf2bbcd57d29d1fbab4d13f9c7b9f66bef16eb87a23008caca6",
+          "mode": 493
+        },
+        {
+          "path": "/usr/bin/mapd",
+          "sha256": "571ad4e08a60955667fad98d182e8a683a53dc10853514075108b550e42eaff5",
+          "mode": 493
+        },
+        {
+          "path": "/usr/bin/mapd_cli",
+          "sha256": "31dc66e03c6a0cd74912d710773f3edb06baa92935c4f8b8934b148a73007a76",
+          "mode": 493
+        },
+        {
+          "path": "/usr/bin/mapd_user_iface",
+          "sha256": "969ca480f8c4f81d9d47d303be3db46162eb78d205cfa271e306c60db5a36520",
+          "mode": 493
+        }
+      ],
+      "reference_recipe": "package/feeds/mt7987/mapd/Makefile",
+      "recipe_license": "not declared in package metadata",
+      "license_files": [],
+      "reference_source_archive": "mapd-ef6c98.tar.bz2",
+      "reference_source_archive_sha256": "eb99c4df87fbeacd9b744843b8878b064901c553e2f60739411c9b51e452c2b2"
+    },
+    {
+      "package": "qtt_daemon",
+      "version": "1.0",
+      "reference_ipk": "/workspace/home/pan.li/test/be10000_4.8.6/mt7987a-8313/bin/packages/aarch64_cortex-a53/mt7987/qtt_daemon_1.0_aarch64_cortex-a53.ipk",
+      "reference_ipk_sha256": "df416f99a2a8850d8257c91812f9060d821740515ec5111d245e38d0bd777c18",
+      "output_ipk": "package/firmware/mtk-binary-runtime/blobs/tools/qtt_daemon_1.0_aarch64_cortex-a53.ipk",
+      "output_ipk_sha256": "af80216fea4dd0cd49a4cac1edd3373e7a7844d496973a93ea2237afacb0ca54",
+      "files": [
+        {
+          "path": "/sbin/pin_checksum.sh",
+          "sha256": "fb1e95b7958ef5d7e2a31c7801f7b28351ddf74b93ce9749cad42013e507db76",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/qtt_create_mbss.sh",
+          "sha256": "6bd583dd92979c57b18979e0971c62cb580c209dee2f0b3974e4d747343e34a2",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/qtt_mtk_dut",
+          "sha256": "a21cb422bb81de233339995410f29802d4df8b3219ea661b669a66f2bc10630a",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/wsc_settings_APUT",
+          "sha256": "198338c380adcfc9a4d466190257f1df7231ed072a637dabb3117def53b18acd",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/wsc_settings_STAUT",
+          "sha256": "a0e6d5c0867748f30c636c1ac18175da8a8ec58214e435fcf4ec91e1a5c493e3",
+          "mode": 493
+        }
+      ],
+      "reference_recipe": "package/feeds/mt7987/qtt_daemon/Makefile",
+      "recipe_license": "not declared in package metadata",
+      "license_files": [],
+      "reference_source_archive": "qtt_daemon-4c7012.tar.bz2",
+      "reference_source_archive_sha256": "86b5f8a2f1b67bdc3e3d057d7bf5d8fdb5baf35084f23f21425d086cccb7eaaf"
+    },
+    {
+      "package": "sigma_daemon",
+      "version": "1",
+      "reference_ipk": "/workspace/home/pan.li/test/be10000_4.8.6/mt7987a-8313/bin/packages/aarch64_cortex-a53/mt7987/sigma_daemon_1_aarch64_cortex-a53.ipk",
+      "reference_ipk_sha256": "216b7108df8471b8d13d8c8beff879eb618cc835f8f552838e1a67ff4916c1ea",
+      "output_ipk": "package/firmware/mtk-binary-runtime/blobs/tools/sigma_daemon_1_aarch64_cortex-a53.ipk",
+      "output_ipk_sha256": "88816bdc6d77fff72e2fe4bdd03031f022b647b40b3bc50a59619ad2dadf83e2",
+      "files": [
+        {
+          "path": "/etc/init.d/mtk_dut",
+          "sha256": "82c014c6308dab8d5f773a271f4d28433cd5c1f93395a1d37eda157e1f92938d",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/mtk_dut",
+          "sha256": "f569b4791f213aa2c11883f357fa00851a61fdc486bb93d759e36f84a0edea92",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/mtk_dut_hostapd_start.sh",
+          "sha256": "6611b02479884cdea86ce41620f03fcf37a83b1d1dc76669c95b7df5ff94c77a",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/mtk_dut_jedi_hostapd_start.sh",
+          "sha256": "753b0cf183b1634a729b445fa0e652ab4402c0c1b0c34e34c2f288c81d013d65",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/mtk_dut_start.sh",
+          "sha256": "6611b02479884cdea86ce41620f03fcf37a83b1d1dc76669c95b7df5ff94c77a",
+          "mode": 493
+        }
+      ],
+      "reference_recipe": "package/feeds/mt7987/sigma_daemon/Makefile",
+      "recipe_license": "not declared in package metadata",
+      "license_files": [
+        "package/firmware/mtk-binary-runtime/files/tool-licenses/sigma_daemon/archive-LICENSE"
+      ],
+      "reference_source_archive": "sigma_daemon-f34370.tar.bz2",
+      "reference_source_archive_sha256": "ae1f61c4dc62c8fbc229707ea7a8c52ab2639c0cee506a0ed85cb1211f3ebf58"
+    },
+    {
+      "package": "sigma_dut",
+      "version": "1",
+      "reference_ipk": "/workspace/home/pan.li/test/be10000_4.8.6/mt7987a-8313/bin/packages/aarch64_cortex-a53/mt7987/sigma_dut_1_aarch64_cortex-a53.ipk",
+      "reference_ipk_sha256": "2d2f81684fa7454ed2e1720a5e3acb6dbf8465fc94893ffd61391e98c74f261e",
+      "output_ipk": "package/firmware/mtk-binary-runtime/blobs/tools/sigma_dut_1_aarch64_cortex-a53.ipk",
+      "output_ipk_sha256": "fa34bba7f7d20ef650335562641836a2301b7a2fdfa1f008994f1276acc90a7a",
+      "files": [
+        {
+          "path": "/etc/WfaEndpoint/wfa_cli.txt",
+          "sha256": "4eb8daeff22ba557916eefb4474dac2e9ba4092e1adaca79f6bcce3c5c4617d3",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/sigma_test/hostapd-phy0.conf",
+          "sha256": "343e131271f5d229fbe886d0d3bcf09c0c47a01a5b3892f4a4bf9f1dfe4aca07",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/sigma_test/hostapd-phy1.conf",
+          "sha256": "3ee8a63bc9fde5f07871f6187a5696e87bc459b89fbd3c1b3172d68a9873694d",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/sigma_test/hostapd-phy2.conf",
+          "sha256": "3b4e442e03aaba9bc7ff39d8e0d29131faa50ec142c2d740c83264f003d8f413",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/sigma_test/wifi_cert.1.dat",
+          "sha256": "506d18f92d218afb1ddc873da9ee949576f9496dad44f4672b0d02975250f489",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/sigma_test/wifi_cert.2.dat",
+          "sha256": "c399072d51754908ae6b569366c81385792842ecaf377c84a1e8cac473d5ce24",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/sigma_test/wifi_cert_b0.dat",
+          "sha256": "ee36086eaa3e752d277fb0b893a5cd4b781174f8765b5d933c44d56b4673bc01",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/sigma_test/wifi_cert_b1.dat",
+          "sha256": "f32379596f52b89ac0ee7ddffb4a0fdbd80aef182e3b014d327cb4a339f0aab7",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/sigma_test/wifi_cert_b2.dat",
+          "sha256": "acc33de71d05cd7eb3663fb190822a11f2599ac450d831712646428d2da0deed",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/arp_neigh_loop",
+          "sha256": "118790d54772048a3178f5f8a0e8a6e2c7c3b01c6929f5b388518623f55663e6",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/getipconfig.sh",
+          "sha256": "18d77e2f0780912a302642657bad0a01190cc6f4791d15af300f84bd71159828",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/getpid.sh",
+          "sha256": "db216c39b642a321f5d71c96c290effd1695d98ee78c34b60dac564aab1956a1",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/getpstats.sh",
+          "sha256": "cb8c54c389ed697423b91880edef45d94f626fda48f105857183cce72ae90515",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/gpstats.sh",
+          "sha256": "6a4135c6d2b761c2df3c55e064e433c63e9416db476eadb62b9d7b657ee115db",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/sigma",
+          "sha256": "45facd9e043bd42180967b9dba17a074f655051a7cef63cf471dc50e9b932394",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/sigma_dut.sh",
+          "sha256": "4896b19960ff4a9de684ae8fd75a41fbcc3d933ec37c6c86c5ba3173e4ac4292",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/stoping.sh",
+          "sha256": "7d829817686faca459ec710f1fc4bdbf06053cbbb2ff56ac174aae52c64cad74",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/updatepid.sh",
+          "sha256": "f2239c621985aa4c6103f15b709bb4c874620c1e0349b49deaed45a95776b88e",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/wfa_ca",
+          "sha256": "15f829cf0c6b18645b0435a0d6e4729a9325aef050dcc869952fcc9898c5960d",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/wfa_dut",
+          "sha256": "6d37a392af367a68c017feb230b5b670ed5e64fb19d90ba0b1ab1fa86e0d4577",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/wfa_test_cli.sh",
+          "sha256": "5b7ad409aa43335b3bfe24dafc58dc70e9d86a7f37c81bd1dd4bccd7cca24f41",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/wfaping.sh",
+          "sha256": "190f56a157adf3c6a5ae6b344c3609e3211c4bdee438f41279b5a33317dff056",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/wfaping6.sh",
+          "sha256": "814785caf2db807152db7600b6424c18ff541407759e6994c42ec95a50264798",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/wpa_cli_action.sh",
+          "sha256": "58258d14d323b6a117d1f3ddcae69a8daa60cc1cf81b7494c422f970351a4c84",
+          "mode": 493
+        }
+      ],
+      "reference_recipe": "package/feeds/mt7987/sigma_dut_v9.0.0/Makefile",
+      "recipe_license": "not declared in package metadata",
+      "license_files": [
+        "package/firmware/mtk-binary-runtime/files/tool-licenses/sigma_dut/archive-LICENSE.txt",
+        "package/firmware/mtk-binary-runtime/files/tool-licenses/sigma_dut/archive-NOTICE"
+      ],
+      "reference_source_archive": "sigma_dut-f9b00a.tar.bz2",
+      "reference_source_archive_sha256": "03c3462c98aef52de9d6801c10438e75036220fa847609070e7a563687e2fdf7"
+    },
+    {
+      "package": "luci-app-mtk",
+      "version": "git-26.203.14382-fa130f5",
+      "reference_ipk": "/workspace/home/pan.li/test/be10000_4.8.6/mt7987a-8313/bin/packages/aarch64_cortex-a53/mt7987/luci-app-mtk_git-26.203.14382-fa130f5_aarch64_cortex-a53.ipk",
+      "reference_ipk_sha256": "e62347953733b3bf00e6c0f0aeaf8866a45c00f724f347d4b143d031e8ac1ea4",
+      "output_ipk": "package/firmware/mtk-binary-runtime/blobs/tools/luci-app-mtk_git-26.203.14382-fa130f5_aarch64_cortex-a53.ipk",
+      "output_ipk_sha256": "90191b8a8838963f6316a843336aa78eb4e1c96de571da363f523ea88ab37a31",
+      "files": [
+        {
+          "path": "/sbin/l1dat",
+          "sha256": "62192339a0c9f4fa87181d2f66194d3155131ca8c0c55a2697bdb910c9e95f87",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/ioctl_helper.so",
+          "sha256": "f389b1fdc1437a638c26480085b4ccb3fd8b0d4b969dacc027b5071268b0acdd",
+          "mode": 493
+        },
+        {
+          "path": "/usr/lib/lua/l1dat_parser.lua",
+          "sha256": "2dc27a1b37faf1538a35fb40236976770f9f98fac64f46d800d7c91b1086582a",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/controller/hwnat.lua",
+          "sha256": "986d87cf6ebd5bb9198de54caf0223e3706caf407314051019532fa44a414cc4",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/controller/ipsec.lua",
+          "sha256": "493dc630d8bc597d3b65c440f97fb89450c1c06fa53e5ea63dbfab61447d6d49",
+          "mode": 436
+        },
+        {
+          "path": "/usr/lib/lua/luci/controller/mtkwifi.lua",
+          "sha256": "7d6eb2f4f8ea2ecbc37fa1817a5e8d33055147ae3a57b0f42f11fd6c482bae39",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/model/cbi/hwnat.lua",
+          "sha256": "7a0a8a3af0b6043a21e0855c985d0c6923210c5b2d8fabc5dab461653f16a968",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/model/cbi/ipsec.lua",
+          "sha256": "c64dd1a8024c44060e92ffb71d38e0bcba770aa75a70fd1474e39f3bcb680c13",
+          "mode": 436
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/hwnat_status.htm",
+          "sha256": "21d7bb2022689434abf0d49ab455ab87d3353434b788ace7a8f6488929dbcbdd",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_hwnat.htm",
+          "sha256": "f3ec6837434853757728d39d48e075e19af81e0065ba162004fa863c1e6bdb8a",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_ipsec_view.htm",
+          "sha256": "e3f8c82f94fbb97e2bbcbe32ab352f6f6f6e00960253520a45fd206d591c84fd",
+          "mode": 436
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_mld.htm",
+          "sha256": "382176a8ea81ffa91636843a5d35327ee2f8aa0fc36c7b620c154ac1aa7718a0",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_mld_single_wiphy.htm",
+          "sha256": "6026bff2ffa820c53fd6040dd86659063be557cb607b91eda0c277da23430fd8",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_web_console.htm",
+          "sha256": "ee6849809724ce6803fedb021d8149ff5407557c0b62629d9d5dee74c8bf9356",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_apcli.htm",
+          "sha256": "61d2a667a1860bf60bf43ba8f43ebb11e120dd52517f14984b37e98acb12fd87",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_apply_reboot.htm",
+          "sha256": "68b9c49a27b22bf23780f95ad3ccd924866ec05aad2eed09127fef8a128de1fb",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_chip_cfg.htm",
+          "sha256": "eaa5873c97c9162a7c59530b6b71d7640488f56fc7e26984c745fbc51a14dc5f",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_dev_cfg.htm",
+          "sha256": "c45acc9160f88ed5a95cae268517e5c537a72547029422a4f76a540864f1fd0c",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_dev_cfg_single_wiphy.htm",
+          "sha256": "1b2783a67c1e493431d0b3cfcfd3228c83d04fcb7e6ec8c343d9cb7c292f07eb",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_loading.htm",
+          "sha256": "799c7371d9933e2a088fc445bd0c3e1162fde3f6d09cc79aff53adb385fa14de",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_man.htm",
+          "sha256": "7e6e17906b7fc6eae11e7078873e91b5dbb457cbe6ec92bacc0d3b61aeb1c8ab",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_map_ap_capabilities.htm",
+          "sha256": "18cc405f63e9987760c3eac9aa9e3b48e57b0e1b27640b656167439255ee074a",
+          "mode": 436
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_map_bh_link_metrics.htm",
+          "sha256": "1f758a200b243b21459630b31d468fff3d0f2ecd480ff03990c768b989415d35",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_map_bh_sta_cfg_renew.htm",
+          "sha256": "4a862182149786a6d2daaa636260733fc7cc7651179d67db367b339a01c00dbd",
+          "mode": 436
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_map_bss_cfg_renew.htm",
+          "sha256": "d3dcf2a6b945b88e94404792d682b36bb08975747f92e9105a6fa0721ca0421b",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_map_bssinfo.htm",
+          "sha256": "1a4349cd5b866a79ca40146ffc4cabecb491674cd758d8f190d68676e58b40cf",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_map_channel_planning_score.htm",
+          "sha256": "8efd3f49115908a6bab842d2a38b7e9fc8d273d843a6a209074cf2dcc51448ab",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_map_channel_scan_result.htm",
+          "sha256": "c6bcf0f94b474026b32a613d438b2743d090a3146041f057f52bac66f9c6ddcf",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_map_client_capabilities.htm",
+          "sha256": "cb8b2d75151c9bb1b38a53177dc98e3663c57bb4579c31555828e532531ee95c",
+          "mode": 436
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_map_data_element.htm",
+          "sha256": "4072fdaf4e7111a06a080ef7bc7777b545a8c363ef65e61958bd08672c83e2d3",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_map_display_bootstrapping_uri.htm",
+          "sha256": "12fae4b5daa659d7c77f57fe9f042b96866867cb05c2e64dd53946b51aafe38d",
+          "mode": 436
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_map_runtime_topology.htm",
+          "sha256": "c36e95596fba7bcdcd0377e44dc6f3e2da996ff472886fbb5533fd765d40a566",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_multi_ap.htm",
+          "sha256": "58f98b96c446ef8794c3e48e1e8cfc7de739b4fc2dce551556d282b375ca2574",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_overview.htm",
+          "sha256": "ca0d1bb97c8efb0630483ad3681fe5ddfc55e8fb47f6d2f79543a1962d80367d",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci/view/admin_mtk/mtk_wifi_vif_cfg.htm",
+          "sha256": "15fae57b64dc3ed47830473d253724c4adad6f15e193e7728e260babbf4a69f0",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/luci-mod-network.json.mtk",
+          "sha256": "59008b7b8dcf2fb509d6483f9abbd3faabdd1dc25f1c9e2dc13b76829b8e9ffd",
+          "mode": 436
+        },
+        {
+          "path": "/usr/lib/lua/map_helper.so",
+          "sha256": "53e500f1cd7a9f07f39b362669c2f6a6e083f39d7610824ba7ec2594ebe0aeba",
+          "mode": 493
+        },
+        {
+          "path": "/usr/lib/lua/mtkwifi.lua",
+          "sha256": "f4ce2205d1a35883958fa2a71bcad30e92c3f8a165054a1862c8324b25f252d7",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/wps_action.lua",
+          "sha256": "097470215a9d716a0b9a027851b84d606f03d65f620fcf0d965b5799a2703b22",
+          "mode": 509
+        },
+        {
+          "path": "/www/luci-static/resources/chartist.min.css",
+          "sha256": "69becad175fe2be66debe15574ada1e4f15b9d9e7ea46f1909c7292655cd959c",
+          "mode": 436
+        },
+        {
+          "path": "/www/luci-static/resources/chartist.min.js",
+          "sha256": "521ff3b1f23992dab6e65705796f071363f6cc708d6284f34e08f56a91ba8083",
+          "mode": 436
+        },
+        {
+          "path": "/www/luci-static/resources/jquery-3.5.1.min.js",
+          "sha256": "f7f6a5894f1d19ddad6fa392b2ece2c5e578cbf7da4ea805b6885eb6985b6e3d",
+          "mode": 436
+        },
+        {
+          "path": "/www/luci-static/resources/monCon.js",
+          "sha256": "65062bb6f326002756dc94f6f47ecacef09027c519d25292ae0271ca471ce544",
+          "mode": 509
+        },
+        {
+          "path": "/www/luci-static/resources/vis.js",
+          "sha256": "9a20da23322d62291ad35062338f91f03d72518f5015e45ed8257f3a581b9bd4",
+          "mode": 509
+        }
+      ],
+      "reference_recipe": "package/feeds/mt7987/luci-app-mtk/Makefile",
+      "recipe_license": "not declared in package metadata",
+      "license_files": [
+        "package/firmware/mtk-binary-runtime/files/tool-licenses/luci-app-mtk/NOTICE"
+      ]
+    },
+    {
+      "package": "mtk-base-files",
+      "version": "1",
+      "reference_ipk": "/workspace/home/pan.li/test/be10000_4.8.6/mt7987a-8313/bin/packages/aarch64_cortex-a53/mt7987/mtk-base-files_1-_aarch64_cortex-a53.ipk",
+      "reference_ipk_sha256": "6ebac29f84aaf9079350f6c0ced15dfbfb5276ffa4144449b5553a9b6be3d2ec",
+      "output_ipk": "package/firmware/mtk-binary-runtime/blobs/tools/mtk-base-files_1-_aarch64_cortex-a53.ipk",
+      "output_ipk_sha256": "c8e0aeb875850acd91feafb8500d26443dc3a300cb9601b99b0aff97d136aef2",
+      "files": [
+        {
+          "path": "/etc/banner.mtk",
+          "sha256": "3081ecb440264d84e54e5e0110f7fd10dc730abb84e7d8fd14295c5996db6b9f",
+          "mode": 420
+        },
+        {
+          "path": "/etc/openwrt.config",
+          "sha256": "aa5a8e9c31f49f5a379706e2d2327ce7f4d3017fdd25131a6e634b37721c4a9b",
+          "mode": 420
+        },
+        {
+          "path": "/etc/sdk.version",
+          "sha256": "ffd921d857ec7804563012282445abe11b024583e83fd69fe60c6f3fc6facd10",
+          "mode": 436
+        },
+        {
+          "path": "/sbin/netsys_dbg.sh",
+          "sha256": "918b70b4d82aa429fc1d12a30ac8d28f063f27350e344f995b0f71c3f971606c",
+          "mode": 509
+        },
+        {
+          "path": "/sbin/smp.sh",
+          "sha256": "40a91df7a3f6aaf4b050ae31cfc17cd3f03679d6115396f8bd5c6a736a63211a",
+          "mode": 509
+        },
+        {
+          "path": "/usr/lib/lua/shuci.lua",
+          "sha256": "7ed3b78853a71883174c15a3aadd4df45541bf415038f62eb1ba92f35f726151",
+          "mode": 436
+        },
+        {
+          "path": "/usr/sbin/hwnat-disable.sh",
+          "sha256": "9a40ce7cf2af32911a70d33ecdeff5429483020a3e4eeff0f07235e625a76253",
+          "mode": 436
+        },
+        {
+          "path": "/usr/sbin/hwnat-enable.sh",
+          "sha256": "f734d329181e4bc801cbdba4025af311950aff81d422ea92861cb4ce741b6588",
+          "mode": 436
+        }
+      ],
+      "reference_recipe": "package/feeds/mt7987/mtk-base-files/Makefile",
+      "recipe_license": "GPL-2.0",
+      "license_files": []
+    },
+    {
+      "package": "mwctl",
+      "version": "1",
+      "reference_ipk": "/workspace/home/pan.li/test/be10000_4.8.6/mt7987a-8313/bin/packages/aarch64_cortex-a53/mt7987/mwctl_1_aarch64_cortex-a53.ipk",
+      "reference_ipk_sha256": "f545f9a730e4524f482ba8111882d9111c3685ec9bb277d7a517d4ef5f37ec42",
+      "output_ipk": "package/firmware/mtk-binary-runtime/blobs/wifi/mwctl_1_aarch64_cortex-a53.ipk",
+      "output_ipk_sha256": "182087a5aa64f22f2979abb88fd7ac0d9d659ab059af6b33936e1d58bc0aa90d",
+      "files": [
+        {
+          "path": "/usr/sbin/mwctl",
+          "sha256": "1bf5752106c6c6584e23dc31933d672a3d49bcd18b0e7381a77835d2d570c654",
+          "mode": 493
+        }
+      ],
+      "original_git_ipk_sha256": "7b4ecfdbd7b1cbf3d9240a885793a8756d62e287c057064908f761901428b56c",
+      "reference_recipe": "package/feeds/mt7987/mwctl/Makefile",
+      "recipe_license": "GPLv2",
+      "license_files": [
+        "package/firmware/mtk-binary-runtime/files/tool-licenses/mwctl/LICENSE"
+      ]
+    },
+    {
+      "package": "mt798x-wifi-script",
+      "version": "1",
+      "reference_ipk": "/workspace/home/pan.li/test/be10000_4.8.6/mt7987a-8313/bin/packages/aarch64_cortex-a53/mt798x_wifi_script/mt798x-wifi-script_1_aarch64_cortex-a53.ipk",
+      "reference_ipk_sha256": "d04f8b4904118b8082d87ddfc1d396e8e3a48c87ba045b483a27531c5da16ac1",
+      "output_ipk": "package/firmware/mtk-binary-runtime/blobs/wifi/mt798x-wifi-script_1_aarch64_cortex-a53.ipk",
+      "output_ipk_sha256": "6694bc9e1aef798b74d1c088ee6d745b591bfd863edc77eac432d06cccf41775",
+      "files": [
+        {
+          "path": "/etc/wireless/mediatek/map_mt7990.dbdc.b0.dat",
+          "sha256": "f149c4aef1a60ef9012ab5ee24606ba7b9e3298d4aab0577ad05bc44e8ee0bea",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/map_mt7990.dbdc.b1.dat",
+          "sha256": "eb7e272aa63579bfe29849e0e0abb601534f51242672dd1100dfee64834f2ab2",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990-sku-bf.dat",
+          "sha256": "bc9067a59728b28bd55e0324516b5bc401afb648380147402553140600969b17",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990-sku.dat",
+          "sha256": "c8b469706ba0c7c0a91bccf54d719274a186c23798daa9cf9365f44870659777",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.1.dat",
+          "sha256": "449bfea2d9fc970c59726659809f1bbdecd2544412aa0f6a22946a2fac016e72",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.11.dat",
+          "sha256": "05b970de364d6aa38bc57b942eb163f639d100f88fc851643f7596ae9e6a1488",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.12.dat",
+          "sha256": "2c649e64e7bb27428bda8b7df4e8aa09bb1b1f8dab9f0fd608138da2b29a2c2d",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.13.dat",
+          "sha256": "de952bc0703e3eeef6212190a3f25eac4bc68344a1bd76e88015b10eb6fcb11c",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.2.dat",
+          "sha256": "eadd83824d60e4ecf8255065de4b940db5f5df6e7cf1bd5fc04c204743d1ac4d",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.b0.dat",
+          "sha256": "1ab59686f6c32ceac99a49c2acf05357f66074b6fa0878c5e7357eb76f7529d2",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.b1.5g.dat",
+          "sha256": "e3c881b4b44d7eef8269a5622e1401dd92199f7e79a9cac441a5a400156463de",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.b1.dat",
+          "sha256": "aac72757867b75cf8f4c28f37d38a308913ecf964772fd5e37757ce5dff58163",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.b2.5g.dat",
+          "sha256": "0f0e3d9e61c50e2af3f0dd0fe5b85a600b76023bd75e15ceef1e6f1394132a21",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.b2.dat",
+          "sha256": "209103d18b39e22fd77a7d23aa70a0811dc577e21d4143e14d5839c5942ca9ea",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.ccn34.1.dat",
+          "sha256": "7188ecd901e0c8fe8e8cad5df76131bdc4cbde4222050f5176ad4fed7418b9de",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.ccn34.b0.dat",
+          "sha256": "62be547dede1f44f9bb9a057faac6609bc8fd84c3047bcaca218f17fe70ab48e",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.ccn34.b1.dat",
+          "sha256": "77ed123940be6a32963a3a56babab7b5d1e652720fe3f5b4a430bac9036bfd99",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.ccn34.b2.dat",
+          "sha256": "63334788a06e3c3f4bbc0df8e542ec52a12400bb67ecdf191b4fb1529f1476aa",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.dbdc.b0.dat",
+          "sha256": "3d248c497af0932466d2ba2043d91c6eb30b28c68f6ba1ca97e64a82227e6aec",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.dbdc.b1.dat",
+          "sha256": "cb65ac42a50c9e69da34b7954e6eff69d26ceb2ffb1921daac9f3e4b9c8ff012",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.slt.b0.dat",
+          "sha256": "4249af0a167f688f8e7c93c7265f1d4e74563d7d6db3bd3b6242857b84a10ed0",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/mt7990.slt.b1.dat",
+          "sha256": "7e2f6a1ceef5b8ebfcb05a30243f5d35f05e280e312f4573dccf03bad373bc6f",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/wifi_cert.1.dat",
+          "sha256": "8154175a5fa841f545492889885cb4f236416980f2d0676f593018def25f1bc0",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/wifi_cert.2.dat",
+          "sha256": "af4bbef052df6c515c387cc019f56b6f7046452bea696bf09304a4d73047c14b",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/wifi_cert_eht.1.dat",
+          "sha256": "cab4056827302c5539978fa1705239e58503befbc8f3fa96a61989ad2bbceb84",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/wifi_cert_eht.2.dat",
+          "sha256": "199fef3d6460a942ccf2a9e61d0e72291b72a47f3247fd0bf36d0a32508a95a3",
+          "mode": 493
+        },
+        {
+          "path": "/etc/wireless/mediatek/wifi_cert_eht.3.dat",
+          "sha256": "6d3cfc6c21d5b7594ea4169741f41e479f06afb32d9d52e909c41ff6e1453bd3",
+          "mode": 493
+        },
+        {
+          "path": "/lib/firmware/MT7990_EEPROM_iFEM233.bin",
+          "sha256": "1490530d72fa8369e2a3e62cd9755c9c2b8bf6cac9a5b6b837658f037c42a804",
+          "mode": 493
+        },
+        {
+          "path": "/lib/wifi/hostapd.lua",
+          "sha256": "87670364889f614881881e5a07ed7fd968fdd9f0a2bbb65eec81e8c9854d9099",
+          "mode": 493
+        },
+        {
+          "path": "/lib/wifi/hostapd_wps_er_action.lua",
+          "sha256": "2f656e2ae27a7efb31b42019a03327acbe1abe1b5c19308a04edd647b825da22",
+          "mode": 493
+        },
+        {
+          "path": "/lib/wifi/mtkdat.lua",
+          "sha256": "1ca8cad57ded6ad391818a74286fcaded5c43e3d99969390f2032e94dc6b05c7",
+          "mode": 493
+        },
+        {
+          "path": "/lib/wifi/mtwifi.lua",
+          "sha256": "0851ee2f63f6ec91bca521ac11ab242b29e74412d472eef140399f3948481eaf",
+          "mode": 493
+        },
+        {
+          "path": "/lib/wifi/quick_setting.lua",
+          "sha256": "f7ea978cb177ba483b4eab8df9c7ae81875ea0e7a4d5b668207e2ff06342b72f",
+          "mode": 493
+        },
+        {
+          "path": "/lib/wifi/set_bcn.lua",
+          "sha256": "65f9fa134bb3b9940b95b70df0c4300984dcb083554d2159b75b0032699dc90f",
+          "mode": 493
+        },
+        {
+          "path": "/lib/wifi/set_mgmt_rx.lua",
+          "sha256": "5afde86b2e5eabcdb119d790acd81b45355b3993d02bbd002bda99471a44bb80",
+          "mode": 493
+        },
+        {
+          "path": "/lib/wifi/supplicant.lua",
+          "sha256": "1729117d965dfcf26840c5d1520949f3638043d3c0bb21e2e567a553b5595eaa",
+          "mode": 493
+        },
+        {
+          "path": "/lib/wifi/supplicant_scan_action.sh",
+          "sha256": "435021ce127484b2eb5dc7e9815c2d3ef96463f55fa9def1f66d4da38d4dfa1c",
+          "mode": 493
+        },
+        {
+          "path": "/lib/wifi/wifi_services.lua",
+          "sha256": "a8ed3840e463b66a797336d8cd64c5544685c79835b5115cd74d89f86cc5a61b",
+          "mode": 493
+        },
+        {
+          "path": "/sbin/wifi",
+          "sha256": "826eacebc094f9efe674a63dd10225534948698629a344b2b91f1a7b46895d10",
+          "mode": 493
+        }
+      ],
+      "original_git_ipk_sha256": "380084c39963dd806b397655c5a2815e7b86a80571a03fada79a877917143c21",
+      "reference_recipe": "package/feeds/mt798x_wifi_script/mt798x-wifi-script/Makefile",
+      "recipe_license": "not declared in package metadata",
+      "license_files": []
+    }
+  ],
+  "script_source": "package/firmware/mtk-binary-runtime/sources/mtk-base-files",
+  "license_review": "Package metadata and discovered notices are evidence, not confirmation of redistribution rights for every vendor file."
+}

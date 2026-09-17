@@ -5,19 +5,19 @@ PKG_NAME:=mtk-binary-runtime
 PKG_VERSION:=8.3.1.3
 PKG_RELEASE:=1
 PKG_LICENSE:=Proprietary
-PKGARCH:=aarch64_cortex-a53
 
 include $(INCLUDE_DIR)/package.mk
 
-# Preserve released module bytes without changing stripping for other payloads.
+# User-space payloads are already taken from the distributed image.
+STRIP:=true
+# Preserve the released bytes of the prebuilt kernel modules as well.
 RSTRIP := $(subst $(SCRIPT_DIR)/strip-kmod.sh,$(CURDIR)/files/strip-runtime-kmod.sh,$(RSTRIP))
 
 define Package/mtk-wifi-runtime
   SECTION:=firmware
   CATEGORY:=Firmware
   TITLE:=MTK MT7990/MT7991 Wi-Fi binary runtime for GL-BE10000
-  DEPENDS:=@TARGET_mediatek_mt7987 +kmod-cfg80211 +kmod-mediatek_hnat +blkid +nand-utils +lua +liblua +libuci +libuci-lua +libnl-tiny +libopenssl +libubox +libubus +luci-lib-nixio
-  PROVIDES:=hostapd wpa-supplicant wpad
+  DEPENDS:=@TARGET_mediatek_mt7987 +@DRIVER_WEXT_SUPPORT +kmod-cfg80211 +kmod-mediatek_hnat +blkid +nand-utils +lua +liblua +libuci +libuci-lua +libnl-tiny +libopenssl +libubox +libubus +libgcc +wpad-openssl
 endef
 
 define Package/mtk-wifi-runtime/description
@@ -51,11 +51,24 @@ define Package/mtk-network-runtime/description
  The payload is ABI-locked to Linux 5.4.281.
 endef
 
+define Package/mtk-tools-runtime
+  SECTION:=firmware
+  CATEGORY:=Firmware
+  TITLE:=MTK shipping mesh and diagnostic tools for GL-BE10000
+  DEPENDS:=@TARGET_mediatek_mt7987 +mtk-wifi-runtime +libcurl +ip-bridge +libunwind +libjson-c +libpthread +librt +libgcc +luci-lib-nixio
+endef
+
+define Package/mtk-tools-runtime/description
+ Prebuilt MediaTek mesh, diagnostic and configuration tools from the
+ corresponding shipping firmware. No GL proprietary application is included.
+endef
+
 define Build/Prepare
 	$(if $(filter 5.4.281,$(LINUX_VERSION)),,$(error MTK binary runtime requires Linux 5.4.281, got $(LINUX_VERSION)))
 	rm -rf $(PKG_BUILD_DIR)
-	mkdir -p $(PKG_BUILD_DIR)/wifi $(PKG_BUILD_DIR)/phy $(PKG_BUILD_DIR)/network
+	mkdir -p $(PKG_BUILD_DIR)/wifi $(PKG_BUILD_DIR)/phy $(PKG_BUILD_DIR)/network $(PKG_BUILD_DIR)/tools
 	for ipk in $(CURDIR)/blobs/wifi/*.ipk; do \
+		case $$$${ipk##*/} in hostapd-*|wpad-*|wpa-cli_*) continue;; esac; \
 		tar -xOzf $$$$ipk ./data.tar.gz | tar -xzf - -C $(PKG_BUILD_DIR)/wifi; \
 	done
 	# wpa-cli is rebuilt from the release hostapd source package.
@@ -65,6 +78,9 @@ define Build/Prepare
 	done
 	for ipk in $(CURDIR)/blobs/network/*.ipk; do \
 		tar -xOzf $$$$ipk ./data.tar.gz | tar -xzf - -C $(PKG_BUILD_DIR)/network; \
+	done
+	for ipk in $(CURDIR)/blobs/tools/*.ipk; do \
+		tar -xOzf $$$$ipk ./data.tar.gz | tar -xzf - -C $(PKG_BUILD_DIR)/tools; \
 	done
 endef
 
@@ -77,6 +93,7 @@ define Package/mtk-wifi-runtime/install
 	$(INSTALL_DATA) ./files/LICENSE.BSD-3-Clause \
 		./files/LICENSE.GPL-2.0 ./files/LICENSE.MTK ./files/NOTICE \
 		$(1)/usr/share/licenses/mtk-wifi-runtime/
+	$(INSTALL_DATA) ./files/tool-licenses/mwctl/LICENSE $(1)/usr/share/licenses/mtk-wifi-runtime/LICENSE.mwctl
 endef
 
 define Package/mtk-phy-runtime/install
@@ -87,6 +104,13 @@ define Package/mtk-network-runtime/install
 	$(CP) $(PKG_BUILD_DIR)/network/. $(1)/
 endef
 
+define Package/mtk-tools-runtime/install
+	$(CP) $(PKG_BUILD_DIR)/tools/. $(1)/
+	$(INSTALL_DIR) $(1)/usr/share/licenses/mtk-tools-runtime
+	$(CP) ./files/tool-licenses/. $(1)/usr/share/licenses/mtk-tools-runtime/
+endef
+
 $(eval $(call BuildPackage,mtk-wifi-runtime))
 $(eval $(call BuildPackage,mtk-phy-runtime))
 $(eval $(call BuildPackage,mtk-network-runtime))
+$(eval $(call BuildPackage,mtk-tools-runtime))

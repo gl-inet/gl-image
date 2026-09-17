@@ -21,6 +21,8 @@ PKG_BUILD_PARALLEL:=1
 PKG_ASLR_PIE_REGULAR:=1
 
 PKG_CONFIG_DEPENDS:= \
+	CONFIG_PACKAGE_mtk-wifi-runtime \
+	CONFIG_MTK_WIFI7_CFG80211_SUPPORT \
 	CONFIG_PACKAGE_kmod-ath9k \
 	CONFIG_PACKAGE_kmod-cfg80211 \
 	CONFIG_PACKAGE_hostapd \
@@ -52,7 +54,8 @@ PKG_MIRROR_HASH:=2b09cc0dda2299465b266921890dcf83964922415038614fe80740d2f624a12
 endif
 
 TARGET_CFLAGS += -I$(LINUX_DIR)/include/uapi/linux/mtk_nl80211_inc
-ifeq ($(CONFIG_MTK_WIFI7_CFG80211_SUPPORT),y)
+# The bundled MTK driver uses the same cfg80211 integration as the shipping build.
+ifneq ($(filter y m,$(CONFIG_MTK_WIFI7_CFG80211_SUPPORT) $(CONFIG_PACKAGE_mtk-wifi-runtime)),)
 TARGET_CFLAGS += -DRT_CFG80211_SUPPORT
 endif
 
@@ -464,7 +467,7 @@ define Package/wpa-cli
   CATEGORY:=Network
   SUBMENU:=WirelessAPD
   VARIANT:=wpad-full-openssl
-  DEPENDS:=@$(subst $(space),||,$(foreach pkg,$(SUPPLICANT_PROVIDERS),PACKAGE_$(pkg)))||PACKAGE_mtk-wifi-runtime
+  DEPENDS:=@$(subst $(space),||,$(foreach pkg,$(SUPPLICANT_PROVIDERS),PACKAGE_$(pkg)))
   TITLE:=WPA Supplicant command line control utility
 endef
 

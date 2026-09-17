@@ -8,7 +8,7 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=gl-sdk4-tertf
-PKG_VERSION:=47b684ba117b
+PKG_VERSION:=git-2026.014.34734-47b684b
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-only
 

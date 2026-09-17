@@ -28,6 +28,8 @@ include $(INCLUDE_DIR)/package-defaults.mk
 
 MAKE_PATH:=src
 MAKE_VARS += PLATFORM=linux
+# Preserve the version embedded by the shipping build's git describe output.
+MAKE_FLAGS += WIREGUARD_TOOLS_VERSION=21.02.7-116-g2afc48a443-dirty
 
 define Package/wireguard-tools
   SECTION:=net

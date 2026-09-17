@@ -1,0 +1,28 @@
+{
+  "files": [
+    {
+      "path": "etc/init.d/boot",
+      "input_sha256": "0ee86e3166c3a119592876824f7cab6e38a756c5b1e886e777709bafda2aa2b3",
+      "output_sha256": "b12fe4613f3bbafaa248807758c4db0991f51568935fbbe7dfbfd0d275616a71",
+      "shipping_sha256": "b12fe4613f3bbafaa248807758c4db0991f51568935fbbe7dfbfd0d275616a71"
+    },
+    {
+      "path": "etc/uci-defaults/99-firewall",
+      "input_sha256": "1dfc767611d2c5a3f19effc32caf02b9c507758b28f3ae7e800441d8739d03fa",
+      "output_sha256": "a029e8519b91d6eb33aa0f5e14c6ded5f688f777d7c92d70326ec2b065f0f019",
+      "shipping_sha256": "a029e8519b91d6eb33aa0f5e14c6ded5f688f777d7c92d70326ec2b065f0f019"
+    },
+    {
+      "path": "lib/upgrade/stage2",
+      "input_sha256": "5a380e22e36e7bf3bebe835acc800b9ab447255943b63258031b4b85ad9e4000",
+      "output_sha256": "cfbca1a417f544516e3dd3fccc847551918ea1ec269bfdd929bd0b13f518c803",
+      "shipping_sha256": "5c46952d259425973bc9f9e36e3327d20bfab6b3a235b0c09ef98b08a7581e07"
+    },
+    {
+      "path": "sbin/sysupgrade",
+      "input_sha256": "639edd69a987c7b3d5604c67a174196e5c2c0e47cbb7a7bfd4027fcf08c24aa0",
+      "output_sha256": "accd2e9abe53e791b937d5f65432182507c9adbef0481d736d7ad0a6f34683d2",
+      "shipping_sha256": "c3af162e78ccfee75fe6da04addd08d48241761e07f498ba54629f9200928083"
+    }
+  ]
+}

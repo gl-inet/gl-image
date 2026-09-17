@@ -3,7 +3,7 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=gl-sdk4-kmwan
-PKG_VERSION:=f9e3929ee6a9
+PKG_VERSION:=git-2026.091.30082-f9e3929
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-only
 
