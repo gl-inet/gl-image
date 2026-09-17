@@ -1,0 +1,10 @@
+if [ "$ACTION" == "ifdown" ];then
+        [ "$(uci -q get glipv6.globals.enabled)" = "1" ] && {
+                if [ "$INTERFACE" == "wan6"  ]; then
+                        device=`ifstatus wan | jsonfilter -e @.device`
+                elif [ "$INTERFACE" == "secondwan6"  ]; then
+                        device=`ifstatus secondwan | jsonfilter -e @.device`
+                fi
+                [ -n "$device" -a -e "/sys/class/net/$device" ]  &&  ip -6 route flush default dev $device
+        }
+fi

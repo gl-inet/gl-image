@@ -3,7 +3,8 @@ include $(INCLUDE_DIR)/kernel.mk
 include version.mk
 
 PKG_NAME:=gl-sdk4-repeater-v2
-PKG_VERSION:=$(strip $(call findrev))
+# Source snapshot: 218a02a7b440ba339f55cdbc5cf52aa0243778ec
+PKG_VERSION:=git-2026.194.08662-218a02a
 PKG_RELEASE:=1
 
 PKG_BUILD_DEPENDS:=lua/host lua5.4/host

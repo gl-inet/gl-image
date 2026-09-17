@@ -4,7 +4,8 @@ include $(INCLUDE_DIR)/kernel.mk
 include ./version.mk
 
 PKG_NAME:=gl-sdk4-black_white_list
-PKG_VERSION:=$(strip $(call findrev))
+# Source snapshot: b9ed2946568527b4be0e956818eede618b6f3406
+PKG_VERSION:=git-2026.162.24246-b9ed294
 PKG_RELEASE:=1
 
 PKG_BUILD_DEPENDS:=lua/host

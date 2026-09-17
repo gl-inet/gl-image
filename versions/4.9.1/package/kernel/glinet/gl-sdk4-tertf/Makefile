@@ -9,7 +9,8 @@ include $(INCLUDE_DIR)/kernel.mk
 include ./version.mk
 
 PKG_NAME:=gl-sdk4-tertf
-PKG_VERSION:=$(strip $(call findrev))
+# Source snapshot: 39fdc49844749fa103b2dd553a0c41b91a9684d7
+PKG_VERSION:=git-2026.177.34583-39fdc49
 PKG_RELEASE:=1
 
 include $(INCLUDE_DIR)/package.mk

@@ -60,7 +60,6 @@ container:
 cd versions/4.9.1
 ./scripts/feeds update -a
 ./scripts/feeds install -a
-cp configs/gl-be14000-open-source.config .config
 make defconfig
 make prereq
 make -j"$(nproc)"
@@ -96,36 +95,33 @@ Do not interrupt power during the upgrade. After the open-source firmware
 boots, its default LAN address is `192.168.1.1`. LuCI is included in the public
 configuration. The proprietary GL.iNet web interface is not included.
 
-## Build Configuration Files
+## Default and Recovery Configuration
 
-Three configurations are included for distinct purposes:
+The independent version-directory `.config` is the default CCS/public build
+configuration. Normal builds do not copy a template or require menuconfig.
+Install the pinned feeds before `make defconfig`. Existing, correctly installed
+feeds need not be updated again for every local rebuild.
 
-- `configs/gl-be14000-baseline.config`: captured from the internal shipping build for audit and comparison only. It may name proprietary packages that are not present in this source release, so it is not a standalone customer-buildable configuration.
-- `configs/gl-be14000-open-source.config`: builds the public open-source image without independent GL.iNet proprietary applications or Web UI.
-- `configs/gl-be14000-ccs-validation.config`: enables the GPL/copyleft components corresponding to the distributed firmware, including retained GL.iNet kernel modules, public MTK modules, VPN modules, `wifidog-ng`, `chacha20poly1305`, and `port_forward`. Proprietary applications and Web UI remain excluded.
+- `configs/gl-be14000-ccs-validation.config` restores the default selection.
+- `configs/gl-be14000-open-source.config` is the compatibility template; its
+  normalized selections are the same as the CCS template, not a second build.
+- `configs/gl-be14000-baseline.config` is unchanged shipping audit evidence,
+  not a customer-buildable default and not a kernel configuration file.
 
-## CCS validation build
-
-After updating and installing the pinned feeds in the public build section,
-build the CCS validation firmware:
-
-```sh
-cp configs/gl-be14000-ccs-validation.config .config
-make defconfig
-make prereq
-make -j"$(nproc)"
-```
-
-Build the CCS validation firmware:
+Only to recover a missing or damaged configuration, after installing feeds:
 
 ```sh
+cp -p .config .config.user-backup  # omit if .config does not exist
 cp configs/gl-be14000-ccs-validation.config .config
 make defconfig
-make prereq
-make -j"$(nproc)"
 ```
 
-The CCS validation image is used to verify that the GPL/copyleft kernel modules in the distributed firmware are buildable from the published source. It is not intended to restore GL.iNet proprietary applications or the commercial Web UI.
+Modules selected `m` are built but not installed into the default rootfs.
+Some preserve shipping kernel compile-time inputs needed by other modules.
+The public image does not restore the proprietary GL.iNet applications or UI.
+`make distclean` removes configuration and build inputs; it is not routine
+incremental-build cleanup. The default `.config` must be included in the
+published source snapshot as well as these recovery templates.
 
 ## Feed and Patch Mapping
 
@@ -139,16 +135,31 @@ The public build uses the exact revisions in `feeds.conf.default`. The release i
 - The OpenWrt kernel package definition for `chacha20poly1305.ko`.
 - Retained GL.iNet kernel-module source under `package/kernel/glinet/`, including `gl-sdk4-port-forward`.
 
-## CCS Validation Result
+## Validation Status (2026-09-18)
 
-On 2026-09-15, the CCS configuration produced a complete image and the shipping-firmware kernel-module comparison reported:
+This is a delivery candidate, not a completed CCS or licensing acceptance.
+The latest compared public image, built before the input changes below, has
+SHA256 `ecb79224fdc247389c2e0bf6867d2aa53e4b73763895d8ace72a89528151e2b1`.
+Its full module comparison against the shipping image above found 245 shipping
+modules: 230 byte-identical, 15 different, zero missing, and 18 public extras.
+Userspace ELF comparison found 260 identical, 197 different, 186 shipping-only
+and 47 public-only files. These are inventory counts, not licensing decisions.
+Of the 197 differences, 180 Samba files have identical allocated sections,
+one differs only in GNU Build ID, and 16 require additional investigation.
 
-```text
-Shipping kernel modules: 245
-Comparison failures:      0
-```
+Subsequent input corrections restore five HNAT source files from verified
+shipping commits, align TRACE/FireWire/MBIM/ZRAM and USB PHY/BSG configuration,
+and deactivate the unshipped WireGuard header enum extension. These changes
+have not been compiled. The previous image hash and comparison must not be
+presented as validation of the changed inputs.
 
-This result validates kernel-module source/build correspondence. User-space license and source review remains a separate release checklist item.
+Remaining acceptance work includes rebuilding and comparing the changed inputs,
+hostapd source/runtime correspondence, the remaining module and userspace
+differences, missing shipping payload mapping, binary redistribution and source
+scope review, a clean public-dependency build, and device installation/function
+tests. Installation instructions above describe the intended workflow and are
+not a record of a device test performed in this round. The historical 2026-09-15
+comparison does not establish acceptance of this snapshot.
 
 ## Source layout
 

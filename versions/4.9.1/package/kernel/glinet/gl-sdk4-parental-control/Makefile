@@ -4,7 +4,8 @@ include ./version.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=gl-sdk4-parental-control
-PKG_VERSION:=$(strip $(call findrev))
+# Source snapshot: a36127de45ea0f5c44112c34bbcb36c61e042ee2
+PKG_VERSION:=git-2026.166.26433-a36127d
 PKG_RELEASE:=1
 
 PKG_BUILD_DEPENDS:=lua/host

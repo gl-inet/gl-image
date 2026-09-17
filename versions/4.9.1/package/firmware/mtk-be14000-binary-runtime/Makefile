@@ -5,9 +5,11 @@ PKG_NAME:=mtk-be14000-binary-runtime
 PKG_VERSION:=8.3.1.3
 PKG_RELEASE:=1
 PKG_LICENSE:=Proprietary
-PKGARCH:=aarch64_cortex-a53
 
 include $(INCLUDE_DIR)/package.mk
+
+# Preserve verified released modules; leave userspace and other modules unchanged.
+RSTRIP := $(subst $(SCRIPT_DIR)/strip-kmod.sh,$(CURDIR)/files/strip-runtime-kmod.sh,$(RSTRIP))
 
 define KernelPackage/be14000-mtk-wifi-abi
   SUBMENU:=Wireless Drivers
@@ -24,7 +26,7 @@ define Package/be14000-mtk-wifi-runtime
   SECTION:=firmware
   CATEGORY:=Firmware
   TITLE:=MTK MT7990/MT7991 Wi-Fi binary runtime for GL-BE14000
-  DEPENDS:=@TARGET_mediatek_mt7988 +kmod-be14000-mtk-wifi-abi +kmod-cfg80211 +kmod-mediatek_hnat +blkid +nand-utils +lua +liblua +libuci +libuci-lua +libnl-tiny +libopenssl +libubox +libubus +luci-lib-nixio
+  DEPENDS:=@TARGET_mediatek_mt7988 +kmod-be14000-mtk-wifi-abi +kmod-cfg80211 +kmod-mediatek_hnat +blkid +nand-utils +lua +liblua +libuci +libuci-lua +libnl-tiny +libopenssl +libubox +libubus
   PROVIDES:=hostapd wpa-supplicant wpad
 endef
 
@@ -78,6 +80,8 @@ endef
 
 define Package/be14000-mtk-wifi-runtime/install
 	$(CP) $(PKG_BUILD_DIR)/wifi/. $(1)/
+	$(if $(filter y,$(CONFIG_PACKAGE_mwctl)),rm -f $(1)/usr/sbin/mwctl)
+	$(if $(filter y,$(CONFIG_PACKAGE_wifi-profile)),rm -f $(1)/etc/wireless/mediatek/version)
 	$(INSTALL_DIR) $(1)/usr/share/licenses/mtk-wifi-runtime
 	$(INSTALL_DATA) ./files/LICENSE.BSD-3-Clause \
 		./files/LICENSE.GPL-2.0 ./files/LICENSE.MTK ./files/NOTICE \

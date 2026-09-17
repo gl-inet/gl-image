@@ -1,0 +1,20 @@
+Index: busybox-1.33.2/loginutils/login.c
+===================================================================
+--- busybox-1.33.2.orig/loginutils/login.c
++++ busybox-1.33.2/loginutils/login.c
+@@ -374,6 +374,15 @@ int login_main(int argc UNUSED_PARAM, ch
+ 		return EXIT_FAILURE;  /* Must be a terminal */
+ 	}
+ 
++	/* Ignore terminal/kill signals so serial noise or Ctrl+\ doesn't exit login
++	 * (else we'd hand TTY back to parent and SIGQUIT would hit process group 1 again). */
++	signal(SIGQUIT, SIG_IGN);
++	signal(SIGINT,  SIG_IGN);
++	signal(SIGHUP,  SIG_IGN);
++	signal(SIGTERM, SIG_IGN);
++	signal(SIGTSTP, SIG_IGN);
++	signal(SIGPIPE, SIG_IGN);
++
+ 	/* We install timeout handler only _after_ we saved G.tty_attrs */
+ 	signal(SIGALRM, alarm_handler);
+ 	alarm(TIMEOUT);

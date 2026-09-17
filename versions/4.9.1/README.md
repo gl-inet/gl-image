@@ -26,9 +26,9 @@ dependencies. Then run:
 ```sh
 ./scripts/feeds update -a
 ./scripts/feeds install -a
-cp configs/gl-be14000-open-source.config .config
 make defconfig
-make -j1
+make prereq
+make -j"$(nproc)"
 ```
 
 The sysupgrade image is generated under `bin/targets/mediatek/mt7988/`.
@@ -37,19 +37,18 @@ matching MediaTek runtime modules are supplied for the new ABI.
 
 For the complete release-specific build, CCS validation, source mapping and
 installation instructions, read `GL-BE14000_FIRMWARE_GUIDE.md`. The generic
-OpenWrt Quickstart above is for development and does not reproduce the shipping
-firmware by itself.
+OpenWrt Quickstart below is for development; use the release-specific workflow
+above with the included default `.config`. This is a delivery candidate, not
+a completed source/license, clean-build, or device acceptance.
 
 ## Build Configuration Files
 
-- `configs/gl-be14000-baseline.config`: internal shipping-build configuration
-  for audit and comparison only; it is not a standalone customer-buildable
-  configuration.
-- `configs/gl-be14000-open-source.config`: public firmware configuration with
-  independent GL.iNet proprietary applications and Web UI excluded.
-- `configs/gl-be14000-ccs-validation.config`: CCS validation configuration that
-  enables the published GPL/copyleft components without restoring proprietary
-  applications or the commercial Web UI.
+The independent `.config` is the default. Both
+`configs/gl-be14000-ccs-validation.config` and
+`configs/gl-be14000-open-source.config` normalize to the same selections and
+are recovery templates. Do not copy them over a customized configuration on
+every build. The unchanged `configs/gl-be14000-baseline.config` is shipping
+audit evidence only. See the firmware guide for recovery and validation status.
 
 ## OpenWrt
 
@@ -161,7 +160,6 @@ Configuration for CCS verification. It enables the GPL/copyleft kernel component
 For the public open-source image:
 
 ```sh
-cp configs/gl-be14000-open-source.config .config
 make defconfig
 make prereq
 make -j"$(nproc)"

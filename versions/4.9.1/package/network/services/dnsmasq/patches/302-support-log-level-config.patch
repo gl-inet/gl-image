@@ -1,0 +1,79 @@
+--- a/src/dnsmasq.h
++++ b/src/dnsmasq.h
+@@ -1058,7 +1058,7 @@ extern struct daemon {
+   char *log_file; /* optional log file */
+   int max_logs;  /* queue limit */
+   int cachesize, ftabsize;
+-  int port, query_port, min_port, max_port;
++  int port, query_port, min_port, max_port, log_level;
+   unsigned long local_ttl, neg_ttl, max_ttl, min_cache_ttl, max_cache_ttl, auth_ttl, dhcp_ttl, use_dhcp_ttl;
+   char *dns_client_id;
+   struct hostsfile *addn_hosts;
+--- a/src/option.c
++++ b/src/option.c
+@@ -171,6 +171,7 @@ struct myoption {
+ #define LOPT_DYNHOST       362
+ #define LOPT_LOG_DEBUG     363
+ #define LOPT_DHCP_MODE     364
++#define LOPT_LOG_LEVEL     365
+  
+ #ifdef HAVE_GETOPT_LONG
+ static const struct option opts[] =  
+@@ -347,6 +348,7 @@ static const struct myoption opts[] =
+     { "dynamic-host", 1, 0, LOPT_DYNHOST },
+     { "log-debug", 0, 0, LOPT_LOG_DEBUG },
+     { "dhcp-mode", 1, 0, LOPT_DHCP_MODE },
++    { "log-level", 1, 0, LOPT_LOG_LEVEL },
+     { NULL, 0, 0, 0 }
+   };
+ 
+@@ -530,6 +532,7 @@ static struct {
+   { LOPT_DUMPMASK, ARG_ONE, "<hex>", gettext_noop("Mask which packets to dump"), NULL },
+   { LOPT_SCRIPT_TIME, OPT_LEASE_RENEW, NULL, gettext_noop("Call dhcp-script when lease expiry changes."), NULL },
+   { LOPT_DHCP_MODE, ARG_ONE, "<mode>", gettext_noop("Router or passthrough"), NULL },
++  { LOPT_LOG_LEVEL, ARG_ONE, "<level>", gettext_noop("Configure the log level of dnsmasq"), NULL },
+   { 0, 0, NULL, NULL, NULL }
+ }; 
+ 
+@@ -4592,6 +4595,10 @@ err:
+ 	
+ 	break;
+       }
++    case LOPT_LOG_LEVEL:  /* --log-level */
++        if (!atoi_check16(arg, &daemon->log_level))
++            ret_err(gen_err);
++        break;
+ #endif
+ 		
+     default:
+@@ -5082,6 +5089,7 @@ void read_opts(int argc, char **argv, ch
+   daemon->soa_refresh = SOA_REFRESH;
+   daemon->soa_retry = SOA_RETRY;
+   daemon->soa_expiry = SOA_EXPIRY;
++  daemon->log_level = LOG_INFO;
+   
+ #ifndef NO_ID
+   add_txt("version.bind", "dnsmasq-" VERSION, 0 );
+--- a/src/log.c
++++ b/src/log.c
+@@ -350,6 +350,9 @@ void my_syslog(int priority, const char
+       return;
+     }
+   
++  if(priority > daemon->log_level)
++    return;
++
+   if ((entry = free_entries))
+     free_entries = entry->next;
+   else if (entries_alloced < max_logs && (entry = malloc(sizeof(struct log_entry))))
+--- a/src/dhcp.c
++++ b/src/dhcp.c
+@@ -290,7 +290,7 @@ void dhcp_packet(time_t now, int pxe_fd)
+       else
+ 	{
+ 	  if (iface_check(AF_INET, NULL, ifr.ifr_name, NULL))
+-	    my_syslog(MS_DHCP | LOG_WARNING, _("DHCP packet received on %s which has no address"), ifr.ifr_name);
++	    my_syslog(MS_DHCP | LOG_DEBUG, _("DHCP packet received on %s which has no address"), ifr.ifr_name);
+ 	  return;
+ 	}
+       

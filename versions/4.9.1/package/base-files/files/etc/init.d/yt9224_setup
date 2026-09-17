@@ -1,0 +1,8 @@
+#!/bin/sh /etc/rc.common
+
+START=90
+boot() {
+    for port in 4 5 6 7; do
+        echo "intphy extwrite $port 0x4e2 0x1e9" > /proc/smi
+    done
+}
