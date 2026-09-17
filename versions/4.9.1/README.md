@@ -35,6 +35,22 @@ The sysupgrade image is generated under `bin/targets/mediatek/mt7988/`.
 Do not change the kernel version or ABI-relevant kernel configuration unless
 matching MediaTek runtime modules are supplied for the new ABI.
 
+For the complete release-specific build, CCS validation, source mapping and
+installation instructions, read `GL-BE14000_FIRMWARE_GUIDE.md`. The generic
+OpenWrt Quickstart above is for development and does not reproduce the shipping
+firmware by itself.
+
+## Build Configuration Files
+
+- `configs/gl-be14000-baseline.config`: internal shipping-build configuration
+  for audit and comparison only; it is not a standalone customer-buildable
+  configuration.
+- `configs/gl-be14000-open-source.config`: public firmware configuration with
+  independent GL.iNet proprietary applications and Web UI excluded.
+- `configs/gl-be14000-ccs-validation.config`: CCS validation configuration that
+  enables the published GPL/copyleft components without restoring proprietary
+  applications or the commercial Web UI.
+
 ## OpenWrt
 
 OpenWrt Project is a Linux operating system targeting embedded devices. Instead

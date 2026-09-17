@@ -96,37 +96,21 @@ Do not interrupt power during the upgrade. After the open-source firmware
 boots, its default LAN address is `192.168.1.1`. LuCI is included in the public
 configuration. The proprietary GL.iNet web interface is not included.
 
-## Source layout
-
-- `configs/gl-be14000-open-source.config`: public device configuration.
-- `feeds.conf.default`: pinned feed revisions.
-- `package/firmware/mtk-be14000-binary-runtime`: MediaTek runtime IPKs and manifests.
-- `target/linux/mediatek`: kernel, DTS, board support and image definitions.
-- `package/glinet`: retained GL.iNet source packages.
-
-
 ## Build Configuration Files
 
 Three configurations are included for distinct purposes:
 
-- `configs/gl-be14000-baseline.config`: captured from the internal shipping build for audit and comparison. It may name proprietary packages that are not present in this source release.
+- `configs/gl-be14000-baseline.config`: captured from the internal shipping build for audit and comparison only. It may name proprietary packages that are not present in this source release, so it is not a standalone customer-buildable configuration.
 - `configs/gl-be14000-open-source.config`: builds the public open-source image without independent GL.iNet proprietary applications or Web UI.
 - `configs/gl-be14000-ccs-validation.config`: enables the GPL/copyleft components corresponding to the distributed firmware, including retained GL.iNet kernel modules, public MTK modules, VPN modules, `wifidog-ng`, `chacha20poly1305`, and `port_forward`. Proprietary applications and Web UI remain excluded.
 
-## Build
+## CCS validation build
 
-Update and install the pinned feeds first:
-
-```sh
-cd versions/4.9.1
-./scripts/feeds update -a
-./scripts/feeds install -a
-```
-
-Build the public open-source firmware:
+After updating and installing the pinned feeds in the public build section,
+build the CCS validation firmware:
 
 ```sh
-cp configs/gl-be14000-open-source.config .config
+cp configs/gl-be14000-ccs-validation.config .config
 make defconfig
 make prereq
 make -j"$(nproc)"
@@ -166,7 +150,7 @@ Comparison failures:      0
 
 This result validates kernel-module source/build correspondence. User-space license and source review remains a separate release checklist item.
 
-## Source Layout
+## Source layout
 
 - `configs/`: baseline, public-build and CCS-validation configurations.
 - `feeds.conf.default`: pinned feed URLs and revisions.
