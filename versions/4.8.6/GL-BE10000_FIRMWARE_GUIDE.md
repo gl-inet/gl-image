@@ -108,14 +108,10 @@ make prereq
 make -j"$(nproc)"
 ```
 
-For an internal shipping-build comparison:
-
-```sh
-cp configs/gl-be10000-baseline.config .config
-make defconfig
-make prereq
-make -j"$(nproc)"
-```
+The `configs/gl-be10000-baseline.config` file is for internal shipping-build
+audit and comparison only. It references proprietary packages that are not
+included in this public source release, so it is not a standalone build
+configuration and must not be used with the build commands below.
 
 For CCS validation of public GL GPL modules:
 

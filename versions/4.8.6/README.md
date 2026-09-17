@@ -35,11 +35,16 @@ The sysupgrade image is generated under `bin/targets/mediatek/mt7987/`.
 Do not change the kernel version or ABI-relevant kernel configuration unless
 matching MediaTek runtime modules are supplied for the new ABI.
 
+For the complete release-specific build, CCS validation, source mapping and
+installation instructions, read `GL-BE10000_FIRMWARE_GUIDE.md`. The generic
+OpenWrt Quickstart above is for development and does not reproduce the shipping
+firmware by itself.
+
 ## Build Configuration Files
 
 Three configurations are included for distinct purposes:
 
-- `configs/gl-be10000-baseline.config`: captured from the internal shipping build for audit and comparison.
+- `configs/gl-be10000-baseline.config`: captured from the internal shipping build for audit and comparison only; it is not a standalone customer-buildable configuration.
 - `configs/gl-be10000-open-source.config`: builds the public open-source image without independent GL.iNet proprietary applications or Web UI.
 - `configs/gl-be10000-ccs-validation.config`: enables GPL/copyleft components corresponding to the distributed firmware for CCS validation, while proprietary applications and Web UI remain excluded.
 
