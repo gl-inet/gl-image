@@ -18,11 +18,6 @@ the completed internal build tree. It includes package selections that are not
 part of this public source release. Use
 `configs/gl-mt3600be-open-source.config` to build the public-source image.
 
-For comparison with later releases, the 4.9.0 source release currently does
-not include `configs/gl-mt3600be-baseline.config`. Its available
-`gl-mt3600be-open-source.config` is the Clean configuration and must not be
-used as a substitute for a matching 4.9.0 shipping configuration.
-
 ## Build Configuration Files
 
 This source release provides three configuration files for different purposes:
@@ -31,7 +26,8 @@ This source release provides three configuration files for different purposes:
 
 Configuration captured from the internal shipping firmware build for audit and
 comparison purposes. It may reference GL.iNet proprietary components that are
-not included in this public source release.
+not included in this public source release. It is not a standalone customer-
+buildable configuration and must not be used as a build input.
 
 ### `configs/gl-mt3600be-open-source.config`
 

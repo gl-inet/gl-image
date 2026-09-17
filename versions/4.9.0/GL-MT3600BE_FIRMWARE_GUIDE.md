@@ -151,17 +151,11 @@ make prereq
 make -j"$(nproc)"
 ```
 
-For an internal shipping-build comparison:
-
-```sh
-cp configs/gl-mt3600be-baseline.config .config
-make defconfig
-make prereq
-make -j"$(nproc)"
-```
-
-This mode may reference proprietary GL packages and internal feeds. It is for
-internal audit and comparison only; it is not the public CCS build.
+The `configs/gl-mt3600be-baseline.config` file records the configuration
+captured from the internal shipping build. It is provided for audit and
+comparison only. Because this public source tree intentionally omits GL.iNet
+proprietary packages referenced by that configuration, it is not a standalone
+build configuration and must not be used with the build commands below.
 
 For CCS validation of public GL GPL components:
 

@@ -11,6 +11,15 @@ full customization, to use the device in ways never envisioned.
 
 Sunshine!
 
+## GL-MT3600BE release build
+
+For the reproducible build, CCS validation, source mapping and installation
+instructions for this release, read `GL-MT3600BE_FIRMWARE_GUIDE.md`. The generic
+OpenWrt Quickstart below is for development and does not by itself reproduce
+the mapped shipping firmware or the CCS validation image. Use the versioned
+configuration files from the guide rather than an arbitrary `make menuconfig`
+selection.
+
 ## Development
 
 To build your own firmware you need a GNU/Linux, BSD or MacOSX system (case
