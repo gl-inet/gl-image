@@ -1,0 +1,35 @@
+Index: tailscale-1.92.5/logtail/logtail.go
+===================================================================
+--- tailscale-1.92.5.orig/logtail/logtail.go
++++ tailscale-1.92.5/logtail/logtail.go
+@@ -819,29 +819,7 @@ func (lg *Logger) Logf(format string, ar
+ //
+ // This is intended as an interface for the stdlib "log" package.
+ func (lg *Logger) Write(buf []byte) (int, error) {
+-	if len(buf) == 0 {
+-		return 0, nil
+-	}
+-	inLen := len(buf) // length as provided to us, before modifications to downstream writers
+-
+-	level, buf := parseAndRemoveLogLevel(buf)
+-	if lg.stderr != nil && lg.stderr != io.Discard && int64(level) <= atomic.LoadInt64(&lg.stderrLevel) {
+-		if buf[len(buf)-1] == '\n' {
+-			lg.stderr.Write(buf)
+-		} else {
+-			// The log package always line-terminates logs,
+-			// so this is an uncommon path.
+-			withNL := append(buf[:len(buf):len(buf)], '\n')
+-			lg.stderr.Write(withNL)
+-		}
+-	}
+-
+-	lg.writeLock.Lock()
+-	defer lg.writeLock.Unlock()
+-
+-	b := lg.appendTextOrJSONLocked(lg.writeBuf[:0], buf, level)
+-	_, err := lg.sendLocked(b)
+-	return inLen, err
++	return 0, nil
+ }
+ 
+ var (

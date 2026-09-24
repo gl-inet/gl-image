@@ -24,17 +24,15 @@ Use a case-sensitive GNU/Linux filesystem and install the normal OpenWrt build
 dependencies. Then run:
 
 ```sh
-./scripts/feeds update -a
-./scripts/feeds install -a
-make defconfig
-make prereq
 make -j"$(nproc)"
 ```
 
 The included `.config` defaults to the CCS-validation configuration, so no
-configuration copy is needed. Update and install feeds successfully before
-running `make defconfig`, which otherwise may remove unavailable feed packages.
+configuration copy is needed. The first `make` installs pinned local feeds
+before refreshing the configuration, preserving selected feed packages.
 The sysupgrade image is generated under `bin/targets/mediatek/mt7987/`.
+The automatic preparation reads the feeds and build sources from this clone;
+no network connection is required after cloning. See [Offline Build](OFFLINE_BUILD.md).
 Do not change the kernel version or ABI-relevant kernel configuration unless
 matching MediaTek runtime modules are supplied for the new ABI.
 
@@ -83,21 +81,6 @@ documentation.
 gcc binutils bzip2 flex python3 perl make find grep diff unzip gawk getopt
 subversion libz-dev libc-dev rsync which
 ```
-
-### Quickstart
-
-1. Run `./scripts/feeds update -a` to obtain all the latest package definitions
-   defined in feeds.conf / feeds.conf.default
-
-2. Run `./scripts/feeds install -a` to install symlinks for all obtained
-   packages into package/feeds/
-
-3. Run `make menuconfig` to select your preferred configuration for the
-   toolchain, target system & firmware packages.
-
-4. Run `make` to build your firmware. This will download all sources, build the
-   cross-compile toolchain and then cross-compile the GNU/Linux kernel & all chosen
-   applications for your target system.
 
 ### Related Repositories
 

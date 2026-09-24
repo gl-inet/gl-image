@@ -35,6 +35,10 @@ else
 endif
 HOST_BUILD_DIR:=$(KERNEL_BUILD_DIR)/linux-$(LINUX_VERSION)
 PKG_HASH:=$(LINUX_KERNEL_HASH)
+ifneq ($(wildcard $(LOCAL_LINUX_SOURCE)/Makefile),)
+  PKG_SOURCE:=
+  PKG_SOURCE_URL:=
+endif
 LINUX_DIR := $(HOST_BUILD_DIR)
 FILES_DIR := 
 PATCH_DIR := ./patches$(if $(wildcard ./patches-$(LINUX_VERSION)),-$(LINUX_VERSION))

@@ -13,6 +13,8 @@
 /logs
 /feeds
 /feeds.conf
+# Ignore optional export archives; offline build inputs are tracked in Git.
+/be10000-4.8.6-*.tar.zst
 /files
 /overlay
 /package/feeds

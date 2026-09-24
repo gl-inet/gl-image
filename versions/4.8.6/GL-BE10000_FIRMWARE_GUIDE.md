@@ -96,23 +96,19 @@ sudo apt install -y \
 Start from the repository root, either on the native host or inside the Docker
 container. The included `.config` already selects the default CCS-validation build.
 
-Update and install feeds successfully before running `make defconfig`.
-The build system must first discover the feed
-packages; otherwise, selections such as `kmod-amneziawg` and `amneziawg-tools`
-can be removed from `.config`. If feeds were unavailable during an earlier
-`make defconfig`, install them, restore the release defaults as described below
-and rerun `make defconfig`.
+The first `make` indexes pinned feed sources already present in this clone
+before running `make defconfig`. It restores package dependencies
+without contacting upstream feed repositories.
 
 For the default public firmware and CCS validation, run in this order:
 
 ```sh
 cd versions/4.8.6
-./scripts/feeds update -a
-./scripts/feeds install -a
-make defconfig
-make prereq
 make -j"$(nproc)"
 ```
+
+All build inputs are in this repository. See
+[offline build instructions](OFFLINE_BUILD.md) for their layout and checks.
 
 The `configs/gl-be10000-baseline.config` file is for internal shipping-build
 audit and comparison only. It references proprietary packages that are not

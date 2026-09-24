@@ -39,20 +39,15 @@ For GL-BE10000, enter the required release directory under `versions/` and
 run these commands in order:
 
 ```sh
-./scripts/feeds update -a
-./scripts/feeds install -a
-make defconfig
-make prereq
 make -j"$(nproc)"
 ```
 
 Each release directory includes a default `.config` matching its CCS-validation
 configuration. No configuration copy is needed for the default build.
 
-Ensure feed updates and installation complete successfully before running
-`make defconfig`. Otherwise, package selections from
-unavailable feeds, such as `kmod-amneziawg`, can be removed from `.config`.
-The feeds are pinned to release revisions; keep those revisions unchanged.
+The first `make` restores pinned feeds and source inputs from this clone,
+then runs configuration and prerequisite checks without network access.
+See the version's `OFFLINE_BUILD.md` for details.
 
 The default build includes the retained public GPL/copyleft components and
 excludes independent GL.iNet proprietary applications and Web UI. The named

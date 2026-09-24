@@ -25,7 +25,13 @@ else
 endif
 
 ifeq ($(strip $(CONFIG_EXTERNAL_KERNEL_TREE)),"")
-  ifeq ($(strip $(CONFIG_KERNEL_GIT_CLONE_URI)),"")
+  ifneq ($(wildcard $(LOCAL_LINUX_SOURCE)/Makefile),)
+    define Kernel/Prepare/Default
+	$(CP) $(LOCAL_LINUX_SOURCE) $(KERNEL_BUILD_DIR)/
+	$(Kernel/Patch)
+	$(if $(QUILT),touch $(LINUX_DIR)/.quilt_used)
+    endef
+  else ifeq ($(strip $(CONFIG_KERNEL_GIT_CLONE_URI)),"")
     define Kernel/Prepare/Default
 	$(LINUX_CAT) $(DL_DIR)/$(LINUX_SOURCE) | $(TAR) -C $(KERNEL_BUILD_DIR) $(TAR_OPTIONS)
 	$(Kernel/Patch)
@@ -162,5 +168,4 @@ define Kernel/Clean/Default
 	rm -f $(LINUX_KERNEL)
 	$(_SINGLE)$(MAKE) -C $(KERNEL_BUILD_DIR)/linux-$(LINUX_VERSION) clean
 endef
-
 

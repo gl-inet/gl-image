@@ -1,0 +1,384 @@
+Index: go-1.20.6/api/go1.20.txt
+===================================================================
+--- go-1.20.6.orig/api/go1.20.txt
++++ go-1.20.6/api/go1.20.txt
+@@ -268,6 +268,11 @@ pkg net/http, type Transport struct, OnP
+ pkg net/netip, func IPv6LinkLocalAllRouters() Addr #51766
+ pkg net/netip, func IPv6Loopback() Addr #51777
+ pkg net, type Dialer struct, ControlContext func(context.Context, string, string, syscall.RawConn) error #55301
++pkg net, method (*Dialer) MultipathTCP() bool #56539
++pkg net, method (*Dialer) SetMultipathTCP(bool) #56539
++pkg net, method (*ListenConfig) MultipathTCP() bool #56539
++pkg net, method (*ListenConfig) SetMultipathTCP(bool) #56539
++pkg net, method (*TCPConn) MultipathTCP() (bool, error) #59166
+ pkg os/exec, type Cmd struct, Cancel func() error #50436
+ pkg os/exec, type Cmd struct, WaitDelay time.Duration #50436
+ pkg os/exec, var ErrWaitDelay error #50436
+Index: go-1.20.6/src/internal/poll/sockopt.go
+===================================================================
+--- go-1.20.6.orig/src/internal/poll/sockopt.go
++++ go-1.20.6/src/internal/poll/sockopt.go
+@@ -34,3 +34,12 @@ func (fd *FD) SetsockoptLinger(level, na
+ 	defer fd.decref()
+ 	return syscall.SetsockoptLinger(fd.Sysfd, level, name, l)
+ }
++
++// GetsockoptInt wraps the getsockopt network call with an int argument.
++func (fd *FD) GetsockoptInt(level, name int) (int, error) {
++	if err := fd.incref(); err != nil {
++		return -1, err
++	}
++	defer fd.decref()
++	return syscall.GetsockoptInt(fd.Sysfd, level, name)
++}
+Index: go-1.20.6/src/net/dial.go
+===================================================================
+--- go-1.20.6.orig/src/net/dial.go
++++ go-1.20.6/src/net/dial.go
+@@ -15,8 +15,41 @@ import (
+ // See golang.org/issue/31510
+ const (
+ 	defaultTCPKeepAlive = 15 * time.Second
++
++	// For the moment, MultiPath TCP is not used by default
++	// See go.dev/issue/56539
++	defaultMPTCPEnabled = false
++)
++
++// mptcpStatus is a tristate for Multipath TCP, see go.dev/issue/56539
++type mptcpStatus uint8
++
++const (
++	// The value 0 is the system default, linked to defaultMPTCPEnabled
++	mptcpUseDefault mptcpStatus = iota
++	mptcpEnabled
++	mptcpDisabled
+ )
+ 
++func (m *mptcpStatus) get() bool {
++	switch *m {
++	case mptcpEnabled:
++		return true
++	case mptcpDisabled:
++		return false
++	}
++
++	return defaultMPTCPEnabled
++}
++
++func (m *mptcpStatus) set(use bool) {
++	if use {
++		*m = mptcpEnabled
++	} else {
++		*m = mptcpDisabled
++	}
++}
++
+ // A Dialer contains options for connecting to an address.
+ //
+ // The zero value for each field is equivalent to dialing
+@@ -108,6 +141,12 @@ type Dialer struct {
+ 	//
+ 	// If ControlContext is not nil, Control is ignored.
+ 	ControlContext func(ctx context.Context, network, address string, c syscall.RawConn) error
++
++
++	// If mptcpStatus is set to a value allowing Multipath TCP (MPTCP) to be
++	// used, any call to Dial with "tcp(4|6)" as network will use MPTCP if
++	// supported by the operating system.
++	mptcpStatus mptcpStatus
+ }
+ 
+ func (d *Dialer) dualStack() bool { return d.FallbackDelay >= 0 }
+@@ -281,6 +320,24 @@ func (r *Resolver) resolveAddrList(ctx c
+ 	return naddrs, nil
+ }
+ 
++// MultipathTCP reports whether MPTCP will be used.
++//
++// This method doesn't check if MPTCP is supported by the operating
++// system or not.
++func (d *Dialer) MultipathTCP() bool {
++	return d.mptcpStatus.get()
++}
++
++// SetMultipathTCP directs the Dial methods to use, or not use, MPTCP,
++// if supported by the operating system. This method overrides the
++// system default.
++//
++// If MPTCP is not available on the host or not supported by the server,
++// the Dial methods will fall back to TCP.
++func (d *Dialer) SetMultipathTCP(use bool) {
++	d.mptcpStatus.set(use)
++}
++
+ // Dial connects to the address on the named network.
+ //
+ // Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
+@@ -577,7 +634,11 @@ func (sd *sysDialer) dialSingle(ctx cont
+ 	switch ra := ra.(type) {
+ 	case *TCPAddr:
+ 		la, _ := la.(*TCPAddr)
+-		c, err = sd.dialTCP(ctx, la, ra)
++		if sd.MultipathTCP() {
++			c, err = sd.dialMPTCP(ctx, la, ra)
++		} else {
++			c, err = sd.dialTCP(ctx, la, ra)
++		}
+ 	case *UDPAddr:
+ 		la, _ := la.(*UDPAddr)
+ 		c, err = sd.dialUDP(ctx, la, ra)
+@@ -613,6 +674,29 @@ type ListenConfig struct {
+ 	// that do not support keep-alives ignore this field.
+ 	// If negative, keep-alives are disabled.
+ 	KeepAlive time.Duration
++
++	// If mptcpStatus is set to a value allowing Multipath TCP (MPTCP) to be
++	// used, any call to Listen with "tcp(4|6)" as network will use MPTCP if
++	// supported by the operating system.
++	mptcpStatus mptcpStatus
++}
++
++// MultipathTCP reports whether MPTCP will be used.
++//
++// This method doesn't check if MPTCP is supported by the operating
++// system or not.
++func (lc *ListenConfig) MultipathTCP() bool {
++	return lc.mptcpStatus.get()
++}
++
++// SetMultipathTCP directs the Listen method to use, or not use, MPTCP,
++// if supported by the operating system. This method overrides the
++// system default.
++//
++// If MPTCP is not available on the host or not supported by the client,
++// the Listen method will fall back to TCP.
++func (lc *ListenConfig) SetMultipathTCP(use bool) {
++	lc.mptcpStatus.set(use)
+ }
+ 
+ // Listen announces on the local network address.
+@@ -633,7 +717,11 @@ func (lc *ListenConfig) Listen(ctx conte
+ 	la := addrs.first(isIPv4)
+ 	switch la := la.(type) {
+ 	case *TCPAddr:
+-		l, err = sl.listenTCP(ctx, la)
++		if sl.MultipathTCP() {
++			l, err = sl.listenMPTCP(ctx, la)
++		} else {
++			l, err = sl.listenTCP(ctx, la)
++		}
+ 	case *UnixAddr:
+ 		l, err = sl.listenUnix(ctx, la)
+ 	default:
+Index: go-1.20.6/src/net/mptcpsock_linux.go
+===================================================================
+--- /dev/null
++++ go-1.20.6/src/net/mptcpsock_linux.go
+@@ -0,0 +1,127 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"context"
++	"errors"
++	"internal/poll"
++	"internal/syscall/unix"
++	"sync"
++	"syscall"
++)
++
++var (
++	mptcpOnce      sync.Once
++	mptcpAvailable bool
++	hasSOLMPTCP    bool
++)
++
++// These constants aren't in the syscall package, which is frozen
++const (
++	_IPPROTO_MPTCP = 0x106
++	_SOL_MPTCP     = 0x11c
++	_MPTCP_INFO    = 0x1
++)
++
++func supportsMultipathTCP() bool {
++	mptcpOnce.Do(initMPTCPavailable)
++	return mptcpAvailable
++}
++
++// Check that MPTCP is supported by attempting to create an MPTCP socket and by
++// looking at the returned error if any.
++func initMPTCPavailable() {
++	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_STREAM, _IPPROTO_MPTCP)
++	switch {
++	case errors.Is(err, syscall.EPROTONOSUPPORT): // Not supported: >= v5.6
++	case errors.Is(err, syscall.EINVAL): // Not supported: < v5.6
++	case err == nil: // Supported and no error
++		poll.CloseFunc(s)
++		fallthrough
++	default:
++		// another error: MPTCP was not available but it might be later
++		mptcpAvailable = true
++	}
++
++	major, minor := unix.KernelVersion()
++	// SOL_MPTCP only supported from kernel 5.16
++	hasSOLMPTCP = major > 5 || (major == 5 && minor >= 16)
++}
++
++func (sd *sysDialer) dialMPTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
++	if supportsMultipathTCP() {
++		if conn, err := sd.doDialTCPProto(ctx, laddr, raddr, _IPPROTO_MPTCP); err == nil {
++			return conn, nil
++		}
++	}
++
++	// Fallback to dialTCP if Multipath TCP isn't supported on this operating
++	// system. But also fallback in case of any error with MPTCP.
++	//
++	// Possible MPTCP specific error: ENOPROTOOPT (sysctl net.mptcp.enabled=0)
++	// But just in case MPTCP is blocked differently (SELinux, etc.), just
++	// retry with "plain" TCP.
++	return sd.dialTCP(ctx, laddr, raddr)
++}
++
++func (sl *sysListener) listenMPTCP(ctx context.Context, laddr *TCPAddr) (*TCPListener, error) {
++	if supportsMultipathTCP() {
++		if dial, err := sl.listenTCPProto(ctx, laddr, _IPPROTO_MPTCP); err == nil {
++			return dial, nil
++		}
++	}
++
++	// Fallback to listenTCP if Multipath TCP isn't supported on this operating
++	// system. But also fallback in case of any error with MPTCP.
++	//
++	// Possible MPTCP specific error: ENOPROTOOPT (sysctl net.mptcp.enabled=0)
++	// But just in case MPTCP is blocked differently (SELinux, etc.), just
++	// retry with "plain" TCP.
++	return sl.listenTCP(ctx, laddr)
++}
++
++// hasFallenBack reports whether the MPTCP connection has fallen back to "plain"
++// TCP.
++//
++// A connection can fallback to TCP for different reasons, e.g. the other peer
++// doesn't support it, a middle box "accidentally" drops the option, etc.
++//
++// If the MPTCP protocol has not been requested when creating the socket, this
++// method will return true: MPTCP is not being used.
++//
++// Kernel >= 5.16 returns EOPNOTSUPP/ENOPROTOOPT in case of fallback.
++// Older kernels will always return them even if MPTCP is used: not usable.
++func hasFallenBack(fd *netFD) bool {
++	_, err := fd.pfd.GetsockoptInt(_SOL_MPTCP, _MPTCP_INFO)
++
++	// 2 expected errors in case of fallback depending on the address family
++	//   - AF_INET:  EOPNOTSUPP
++	//   - AF_INET6: ENOPROTOOPT
++	return err == syscall.EOPNOTSUPP || err == syscall.ENOPROTOOPT
++}
++
++// isUsingMPTCPProto reports whether the socket protocol is MPTCP.
++//
++// Compared to hasFallenBack method, here only the socket protocol being used is
++// checked: it can be MPTCP but it doesn't mean MPTCP is used on the wire, maybe
++// a fallback to TCP has been done.
++func isUsingMPTCPProto(fd *netFD) bool {
++	proto, _ := fd.pfd.GetsockoptInt(syscall.SOL_SOCKET, syscall.SO_PROTOCOL)
++
++	return proto == _IPPROTO_MPTCP
++}
++
++// isUsingMultipathTCP reports whether MPTCP is still being used.
++//
++// Please look at the description of hasFallenBack (kernel >=5.16) and
++// isUsingMPTCPProto methods for more details about what is being checked here.
++func isUsingMultipathTCP(fd *netFD) bool {
++	if hasSOLMPTCP {
++		return !hasFallenBack(fd)
++	}
++
++	return isUsingMPTCPProto(fd)
++}
+Index: go-1.20.6/src/net/mptcpsock_stub.go
+===================================================================
+--- /dev/null
++++ go-1.20.6/src/net/mptcpsock_stub.go
+@@ -0,0 +1,23 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !linux
++
++package net
++
++import (
++	"context"
++)
++
++func (sd *sysDialer) dialMPTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
++	return sd.dialTCP(ctx, laddr, raddr)
++}
++
++func (sl *sysListener) listenMPTCP(ctx context.Context, laddr *TCPAddr) (*TCPListener, error) {
++	return sl.listenTCP(ctx, laddr)
++}
++
++func isUsingMultipathTCP(fd *netFD) bool {
++	return false
++}
+Index: go-1.20.6/src/net/tcpsock_posix.go
+===================================================================
+--- go-1.20.6.orig/src/net/tcpsock_posix.go
++++ go-1.20.6/src/net/tcpsock_posix.go
+@@ -65,13 +65,17 @@ func (sd *sysDialer) dialTCP(ctx context
+ }
+ 
+ func (sd *sysDialer) doDialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
++	return sd.doDialTCPProto(ctx, laddr, raddr, 0)
++}
++
++func (sd *sysDialer) doDialTCPProto(ctx context.Context, laddr, raddr *TCPAddr, proto int) (*TCPConn, error) {
+ 	ctrlCtxFn := sd.Dialer.ControlContext
+ 	if ctrlCtxFn == nil && sd.Dialer.Control != nil {
+ 		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+ 			return sd.Dialer.Control(network, address, c)
+ 		}
+ 	}
+-	fd, err := internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_STREAM, 0, "dial", ctrlCtxFn)
++	fd, err := internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_STREAM, proto, "dial", ctrlCtxFn)
+ 
+ 	// TCP has a rarely used mechanism called a 'simultaneous connection' in
+ 	// which Dial("tcp", addr1, addr2) run on the machine at addr1 can
+@@ -101,7 +105,7 @@ func (sd *sysDialer) doDialTCP(ctx conte
+ 		if err == nil {
+ 			fd.Close()
+ 		}
+-		fd, err = internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_STREAM, 0, "dial", ctrlCtxFn)
++		fd, err = internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_STREAM, proto, "dial", ctrlCtxFn)
+ 	}
+ 
+ 	if err != nil {
+@@ -165,13 +169,17 @@ func (ln *TCPListener) file() (*os.File,
+ }
+ 
+ func (sl *sysListener) listenTCP(ctx context.Context, laddr *TCPAddr) (*TCPListener, error) {
++	return sl.listenTCPProto(ctx, laddr, 0)
++}
++
++func (sl *sysListener) listenTCPProto(ctx context.Context, laddr *TCPAddr, proto int) (*TCPListener, error) {
+ 	var ctrlCtxFn func(cxt context.Context, network, address string, c syscall.RawConn) error
+ 	if sl.ListenConfig.Control != nil {
+ 		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+ 			return sl.ListenConfig.Control(network, address, c)
+ 		}
+ 	}
+-	fd, err := internetSocket(ctx, sl.network, laddr, nil, syscall.SOCK_STREAM, 0, "listen", ctrlCtxFn)
++	fd, err := internetSocket(ctx, sl.network, laddr, nil, syscall.SOCK_STREAM, proto, "listen", ctrlCtxFn)
+ 	if err != nil {
+ 		return nil, err
+ 	}

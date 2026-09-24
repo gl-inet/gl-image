@@ -15,6 +15,11 @@ PKG_SOURCE:=linux-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=@KERNEL/linux/kernel/v5.x
 PKG_HASH:=60ed866fa951522a5255ea37ec3ac2006d3f3427d4783a13ef478464f37cdb19
 
+ifneq ($(wildcard $(TOPDIR)/offline-sources/bpftools-$(PKG_VERSION)/tools/lib/bpf/Makefile),)
+  PKG_SOURCE:=
+  PKG_SOURCE_URL:=
+endif
+
 PKG_MAINTAINER:=Tony Ambardar <itugrok@yahoo.com>
 
 PKG_USE_MIPS16:=0
@@ -33,6 +38,14 @@ TAR_OPTIONS+= \
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/nls.mk
+
+ifneq ($(wildcard $(TOPDIR)/offline-sources/bpftools-$(PKG_VERSION)/tools/lib/bpf/Makefile),)
+  define Build/Prepare
+	mkdir -p $(dir $(PKG_BUILD_DIR))
+	$(CP) $(TOPDIR)/offline-sources/bpftools-$(PKG_VERSION) $(dir $(PKG_BUILD_DIR))
+	$(Build/Patch)
+  endef
+endif
 
 define Package/bpftool/Default
   SECTION:=net
