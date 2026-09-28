@@ -40,15 +40,12 @@ listed in the [version guide](versions/4.9.1/GL-BE14000_FIRMWARE_GUIDE.md):
 
 ```sh
 cd versions/4.9.1
-./scripts/feeds update -a
-./scripts/feeds install -a
-make defconfig
-make prereq
 make -j"$(nproc)"
 ```
 
-Feeds use the pinned revisions in `feeds.conf.default`, not floating latest
-versions. A normal build does not require copying a template or menuconfig.
+The first `make` restores pinned feeds and build inputs from this clone without
+network access. A normal build needs no configuration copy or menuconfig.
+See the version's `OFFLINE_BUILD.md` for input checks.
 The guide covers the build environment, configuration files, included source
 and runtime components, and firmware installation.
 

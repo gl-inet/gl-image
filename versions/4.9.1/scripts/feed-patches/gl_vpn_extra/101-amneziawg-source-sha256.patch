@@ -1,0 +1,6 @@
+--- a/kmod-amneziawg/build-oot.mk
++++ b/kmod-amneziawg/build-oot.mk
+@@ -11 +11,2 @@
+-PKG_SOURCE_VERSION:=ac946a9df100a17d342b5982d1947deef1b51952
++PKG_SOURCE_VERSION:=ac946a9df100a17d342b5982d1947deef1b51952
++PKG_MIRROR_HASH:=a40d1aaa52f28500eb7cc181306e31adc3cf6b19f9260233cfea5e759d776df6

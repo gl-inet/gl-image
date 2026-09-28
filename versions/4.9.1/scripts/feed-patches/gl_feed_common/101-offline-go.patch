@@ -1,0 +1,18 @@
+--- a/adguardhome-conntrack/Makefile
++++ b/adguardhome-conntrack/Makefile
+@@ -101,2 +101,2 @@ define Build/Prepare
+-		GOPROXY=https://goproxy.cn,direct go get github.com/florianl/go-conntrack@v0.4.0 && \
+-		GOPROXY=https://goproxy.cn,direct go mod tidy
++		GOMODCACHE="$(GO_MOD_CACHE_DIR)" GOPROXY=off GOSUMDB=off go get github.com/florianl/go-conntrack@v0.4.0 && \
++		GOMODCACHE="$(GO_MOD_CACHE_DIR)" GOPROXY=off GOSUMDB=off go mod tidy
+@@ -110,2 +110,2 @@ define Build/Prepare
+-		GOPROXY=https://goproxy.cn,direct go get github.com/florianl/go-conntrack@v0.4.0 && \
+-		GOPROXY=https://goproxy.cn,direct go mod tidy
++		GOMODCACHE="$(GO_MOD_CACHE_DIR)" GOPROXY=off GOSUMDB=off go get github.com/florianl/go-conntrack@v0.4.0 && \
++		GOMODCACHE="$(GO_MOD_CACHE_DIR)" GOPROXY=off GOSUMDB=off go mod tidy
+--- a/golang/golang-package.mk
++++ b/golang/golang-package.mk
+@@ -197 +197,2 @@
+-	GOPROXY=https://goproxy.cn
++	GOPROXY=off \
++	GOSUMDB=off

@@ -62,7 +62,11 @@ else
       LINUX_SOURCE:=linux-$(LINUX_VERSION).tar.xz
   endif
 
-  ifneq (,$(findstring -rc,$(LINUX_VERSION)))
+  LOCAL_LINUX_SOURCE:=$(TOPDIR)/offline-sources/linux-$(LINUX_VERSION)
+
+  ifneq ($(wildcard $(LOCAL_LINUX_SOURCE)/Makefile),)
+      LINUX_SITE:=
+  else ifneq (,$(findstring -rc,$(LINUX_VERSION)))
       LINUX_SITE:=https://git.kernel.org/torvalds/t
   else ifeq ($(call qstrip,$(CONFIG_EXTERNAL_KERNEL_TREE))$(call qstrip,$(CONFIG_KERNEL_GIT_CLONE_URI)),)
       LINUX_SITE:=@KERNEL/linux/kernel/v$(word 1,$(subst ., ,$(KERNEL_BASE))).x
@@ -299,4 +303,3 @@ kernel_patchver_ge=$(call kernel_version_cmp,-ge,$(KERNEL_PATCHVER),$(1))
 kernel_patchver_eq=$(call kernel_version_cmp,-eq,$(KERNEL_PATCHVER),$(1))
 kernel_patchver_le=$(call kernel_version_cmp,-le,$(KERNEL_PATCHVER),$(1))
 kernel_patchver_lt=$(call kernel_version_cmp,-lt,$(KERNEL_PATCHVER),$(1))
-

@@ -12,6 +12,8 @@
 /logs
 /feeds
 /feeds.conf
+# Optional export archives are ignored; offline inputs are tracked in Git.
+/be14000-4.9.1-*.tar.zst
 /files
 /overlay
 /package/feeds

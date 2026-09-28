@@ -1,0 +1,213 @@
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/compat/Kbuild.include
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/compat/Kbuild.include
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/compat/Kbuild.include
+@@ -108,20 +108,46 @@ ifneq ($(shell grep -s -F "\#define LINU
+ ccflags-y += -DISDEBIAN
+ endif
+ 
++ifeq ($(CONFIG_GL_FORCE_OUT_CRYPTO),y)
++ccflags-y += -DGL_FORCE_USE_ZINC_CRYPTO=1
++endif
++
++ifeq ($(CONFIG_GL_FORCE_OUT_CRYPTO),y)
++ccflags-y += -I$(kbuild-dir)/compat/crypto/blake2s/include/crypto
++else
+ ifeq ($(wildcard $(srctree)/include/crypto/blake2s.h),)
+-ccflags-y += -I$(kbuild-dir)/compat/crypto/blake2s/include
++ifneq ($(CONFIG_GL_FORCE_NOT_OUT_CRYPTO),y)
++ccflags-y += -I$(kbuild-dir)/compat/crypto/blake2s/include/crypto
++endif
++endif
+ endif
+ 
++ifeq ($(CONFIG_GL_FORCE_OUT_CRYPTO),y)
++ccflags-y += -I$(kbuild-dir)/compat/crypto/chacha20poly1305/include/crypto
++else
+ ifeq ($(wildcard $(srctree)/include/crypto/chacha20poly1305.h),)
+-ccflags-y += -I$(kbuild-dir)/compat/crypto/chacha20poly1305/include
++ifneq ($(CONFIG_GL_FORCE_NOT_OUT_CRYPTO),y)
++ccflags-y += -I$(kbuild-dir)/compat/crypto/chacha20poly1305/include/crypto
++endif
++endif
+ endif
+ 
++ifeq ($(CONFIG_GL_FORCE_OUT_CRYPTO),y)
++ccflags-y += -I$(kbuild-dir)/compat/crypto/utils/include/crypto
++else
+ ifeq ($(wildcard $(srctree)/include/crypto/utils.h),)
+ ccflags-y += -I$(kbuild-dir)/compat/crypto/utils/include
+ endif
++endif
+ 
++ifeq ($(CONFIG_GL_FORCE_OUT_CRYPTO),y)
++ccflags-y += -I$(kbuild-dir)/compat/crypto/curve25519/include/crypto
++else
+ ifeq ($(wildcard $(srctree)/include/crypto/curve25519.h),)
+-ccflags-y += -I$(kbuild-dir)/compat/crypto/curve25519/include
++ifneq ($(CONFIG_GL_FORCE_NOT_OUT_CRYPTO),y)
++ccflags-y += -I$(kbuild-dir)/compat/crypto/curve25519/include/crypto
++endif
++endif
+ endif
+ 
+ ifeq ($(wildcard $(srctree)/include/linux/kstrtox.h),)
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/cookie.c
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/cookie.c
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/cookie.c
+@@ -10,9 +10,15 @@
+ #include "ratelimiter.h"
+ #include "timers.h"
+ 
++#if defined(GL_FORCE_USE_ZINC_CRYPTO) && (GL_FORCE_USE_ZINC_CRYPTO == 1)
++#include "blake2s.h"
++#include "chacha20poly1305.h"
++#include "com_utils.h"
++#else
+ #include <crypto/blake2s.h>
+ #include <crypto/chacha20poly1305.h>
+ #include <crypto/utils.h>
++#endif
+ 
+ #include <net/ipv6.h>
+ 
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/main.c
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/main.c
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/main.c
+@@ -12,6 +12,10 @@
+ #include "netlink.h"
+ #include "uapi/wireguard.h"
+ 
++#if defined(GL_FORCE_USE_ZINC_CRYPTO) && (GL_FORCE_USE_ZINC_CRYPTO == 1)
++#include "crypto/zinc.h"
++#endif
++
+ #include <linux/init.h>
+ #include <linux/module.h>
+ #include <net/genetlink.h>
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/messages.h
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/messages.h
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/messages.h
+@@ -6,9 +6,15 @@
+ #ifndef _WG_MESSAGES_H
+ #define _WG_MESSAGES_H
+ 
++#if defined(GL_FORCE_USE_ZINC_CRYPTO) && (GL_FORCE_USE_ZINC_CRYPTO == 1)
++#include "curve25519.h"
++#include "chacha20poly1305.h"
++#include "blake2s.h"
++#else
+ #include <crypto/curve25519.h>
+ #include <crypto/chacha20poly1305.h>
+ #include <crypto/blake2s.h>
++#endif
+ 
+ #include <linux/kernel.h>
+ #include <linux/param.h>
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/netlink.c
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/netlink.c
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/netlink.c
+@@ -14,7 +14,11 @@
+ #include <linux/if.h>
+ #include <net/genetlink.h>
+ #include <net/sock.h>
++#if defined(GL_FORCE_USE_ZINC_CRYPTO) && (GL_FORCE_USE_ZINC_CRYPTO == 1)
++#include "com_utils.h"
++#else
+ #include <crypto/utils.h>
++#endif
+ #include <linux/random.h>
+ #include <linux/bitops.h>
+ 
+@@ -1072,4 +1076,4 @@ int wg_genl_mcast_peer_unknown(struct wg
+ err:
+ 	nlmsg_free(skb);
+ 	return ret;
+-}
+\ No newline at end of file
++}
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/noise.c
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/noise.c
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/noise.c
+@@ -18,7 +18,11 @@
+ #include <linux/bitmap.h>
+ #include <linux/scatterlist.h>
+ #include <linux/highmem.h>
++#if defined(GL_FORCE_USE_ZINC_CRYPTO) && (GL_FORCE_USE_ZINC_CRYPTO == 1)
++#include "com_utils.h"
++#else
+ #include <crypto/utils.h>
++#endif
+ 
+ /* This implements Noise_IKpsk2:
+  *
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/compat/crypto/utils/include/crypto/com_utils.h
+===================================================================
+--- /dev/null
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/compat/crypto/utils/include/crypto/com_utils.h
+@@ -0,0 +1 @@
++#include <crypto/algapi.h>
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/compat/compat.h
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/compat/compat.h
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/compat/compat.h
+@@ -894,7 +894,7 @@ static inline void skb_mark_not_on_list(
+ #endif
+ #endif
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 200) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 249)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 285)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 320))) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0) && !defined(ISUBUNTU2004)
++#if defined(GL_FORCE_USE_ZINC_CRYPTO) || ((LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 200) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 249)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 285)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 320))) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0) && !defined(ISUBUNTU2004)) && !defined(GL_FORCE_NOT_USE_ZINC_CRYPTO)
+ #define COMPAT_INIT_CRYPTO
+ #define blake2s_init zinc_blake2s_init
+ #define blake2s_init_key zinc_blake2s_init_key
+@@ -946,7 +946,7 @@ static inline void skb_mark_not_on_list(
+ #define chacha20_neon zinc_chacha20_neon
+ #endif
+ 
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
++#if defined(GL_FORCE_COMPAT_SIMD) || (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)) && !defined(GL_FORCE_NOT_COMPAT_SIMD)
+ #define COMPAT_CRYPTO_IS_ZINC
+ #define COMPAT_MAYBE_SIMD_CONTEXT(ctx) , ctx
+ #else
+@@ -1087,7 +1087,7 @@ static inline void skb_reset_redirect(st
+ #define pre_exit exit
+ #endif
+ 
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
++#if defined(GL_COMPAT_OLD_IP_TUNNEL_IF) || (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)) && !defined(GL_NOT_COMPAT_OLD_IP_TUNNEL_IF)
+ #include <linux/skbuff.h>
+ #include <linux/ip.h>
+ #include <linux/ipv6.h>
+@@ -1401,7 +1401,11 @@ static inline char *nla_strdup(const str
+ 
+ /* Kernel 6.19+ renamed blake2s_state to blake2s_ctx and changed blake2s() arg order */
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 19, 0)
++#if defined(GL_FORCE_USE_ZINC_CRYPTO) && (GL_FORCE_USE_ZINC_CRYPTO == 1)
++#include "blake2s.h"
++#else
+ #include <crypto/blake2s.h>
++#endif
+ #define blake2s_ctx blake2s_state
+ #define blake2s(key, keylen, in, inlen, out, outlen) \
+ 	blake2s(out, in, key, outlen, inlen, keylen)
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/Kbuild
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/Kbuild
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/Kbuild
+@@ -16,9 +16,11 @@ else
+ 	kbuild-dir := $(src)
+ endif
+ 
++ifneq ($(CONFIG_GL_FORCE_NOT_OUT_CRYPTO),y)
+ ifeq ($(shell [ $(VERSION) -lt 5 -o \( $(VERSION) -eq 5 -a $(PATCHLEVEL) -lt 10 \) ] && echo y),y)
+ 	include $(src)/crypto/Kbuild.include
+ endif
++endif
+ include $(src)/compat/Kbuild.include
+ 
+ obj-$(if $(KBUILD_EXTMOD),m,$(CONFIG_AMNEZIAWG)) := amneziawg.o

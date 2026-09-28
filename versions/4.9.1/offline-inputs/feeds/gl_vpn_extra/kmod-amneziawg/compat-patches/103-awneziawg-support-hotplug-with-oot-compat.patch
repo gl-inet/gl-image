@@ -1,0 +1,222 @@
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/Kbuild
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/Kbuild
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/Kbuild
+@@ -8,7 +8,7 @@ ccflags-$(CONFIG_AMNEZIAWG_DEBUG) += -DD
+ ccflags-$(if $(WIREGUARD_VERSION),y,) += -D'WIREGUARD_VERSION="$(WIREGUARD_VERSION)"'
+ ccflags-$(if $(OMIT_ENDPOINTS),y,) += -D'OMIT_ENDPOINTS="$(OMIT_ENDPOINTS)"'
+ 
+-amneziawg-y := main.o noise.o device.o peer.o timers.o queueing.o send.o receive.o socket.o peerlookup.o allowedips.o ratelimiter.o cookie.o netlink.o junk.o magic_header.o
++amneziawg-y := main.o noise.o device.o peer.o timers.o queueing.o send.o receive.o socket.o peerlookup.o allowedips.o ratelimiter.o cookie.o netlink.o junk.o magic_header.o hotplug.o
+ 
+ ifeq ($(shell [ $(VERSION) -lt 6 -o \( $(VERSION) -eq 6 -a $(PATCHLEVEL) -lt 1 \) ] && echo y),y)
+ 	kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/hotplug.c
+===================================================================
+--- /dev/null
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/hotplug.c
+@@ -0,0 +1,121 @@
++#include <linux/workqueue.h>
++#include <linux/netlink.h>
++#include <linux/kobject.h>
++#include <linux/skbuff.h>
++#include <linux/if.h>
++
++#include "messages.h"
++
++#define SUBSYSTEM_NAME  "wireguard"
++
++#define EVENT_BUF_SIZE  2048
++#define ACTION_BUF_LEN  128
++#define PEER_PUB_BUF_LEN        64
++struct wg_event {
++    struct work_struct work;
++    char ifname[IFNAMSIZ];
++    char action[ACTION_BUF_LEN];
++    unsigned char peerpubkey[PEER_PUB_BUF_LEN];
++};
++
++
++/* -------------------------------------------------------------------------*/
++
++static const char b64_table[] =
++    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
++
++static void keytobase64(const unsigned char *src, int len, char *out)
++{
++    size_t i = 0, j = 0, mod = 0;
++
++    while (i < len) {
++        uint32_t octet_a = i < len ? (uint32_t)src[i++] : 0;
++        uint32_t octet_b = i < len ? (uint32_t)src[i++] : 0;
++        uint32_t octet_c = i < len ? (uint32_t)src[i++] : 0;
++
++        uint32_t triple = (octet_a << 16) | (octet_b << 8) | octet_c;
++
++        out[j++] = b64_table[(triple >> 18) & 0x3F];
++        out[j++] = b64_table[(triple >> 12) & 0x3F];
++        out[j++] = (i - 1 > len) ? '=' : b64_table[(triple >> 6) & 0x3F];
++        out[j++] = (i > len) ? '=' : b64_table[triple & 0x3F];
++    }
++
++    mod = len % 3;
++    if (mod == 1) {
++        out[j - 1] = '=';
++        out[j - 2] = '=';
++    } else if (mod == 2) {
++        out[j - 1] = '=';
++    }
++
++    out[j] = '\0';
++}
++
++static int bh_event_add_var(struct sk_buff *skb, int argv,
++                                                       const char *format, ...)
++{
++    static char buf[128];
++    char *s;
++    va_list args;
++    int len;
++
++    if (argv)
++        return 0;
++
++    va_start(args, format);
++    len = vsnprintf(buf, sizeof(buf), format, args);
++    va_end(args);
++
++    if (len >= sizeof(buf)) {
++        //WARN(1, "buffer size too small\n");
++        return -ENOMEM;
++    }
++
++    s = skb_put(skb, len + 1);
++    strcpy(s, buf);
++
++    return 0;
++}
++
++static void hotplug_work(struct work_struct *work)
++{
++    struct wg_event *event = container_of(work, struct wg_event, work);
++    struct sk_buff *skb;
++
++    skb = alloc_skb(EVENT_BUF_SIZE, GFP_KERNEL);
++    if (!skb)
++        goto out_free_event;
++
++    bh_event_add_var(skb, 0, "SUBSYSTEM=%s", SUBSYSTEM_NAME);
++    bh_event_add_var(skb, 0, "ACTION=%s", event->action);
++    bh_event_add_var(skb, 0, "ifname=%s", event->ifname);
++    bh_event_add_var(skb, 0, "peerpubkey=%s", event->peerpubkey);
++
++    NETLINK_CB(skb).dst_group = 1;
++    broadcast_uevent(skb, 0, 1, GFP_KERNEL);
++
++out_free_event:
++    kfree(event);
++}
++
++void wireguard_hotplug(const char *ifname, const char *action, unsigned char *peerpubkey)
++{
++    struct wg_event *event;
++    unsigned char pubkey_str[PEER_PUB_BUF_LEN] = {0};
++
++    if (!strcmp(ifname, "wgserver"))
++        return;
++
++    keytobase64(( const unsigned char *)peerpubkey, NOISE_PUBLIC_KEY_LEN, pubkey_str);
++    event = kzalloc(sizeof(struct wg_event), GFP_ATOMIC);
++    if (!event)
++        return;
++
++    memcpy(event->ifname, ifname, IFNAMSIZ);
++    memcpy(event->peerpubkey, pubkey_str, PEER_PUB_BUF_LEN);
++    memcpy(event->action, action, strlen(action) < ACTION_BUF_LEN ? strlen(action) : ACTION_BUF_LEN-1);
++
++    INIT_WORK(&event->work, hotplug_work);
++    schedule_work(&event->work);
++}
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/hotplug.h
+===================================================================
+--- /dev/null
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/hotplug.h
+@@ -0,0 +1,14 @@
++#ifndef __HOTPLUG_H__
++#define __HOTPLUG_H__
++
++#define  REKEY_GIVEUP_EVENT "REKEY-GIVEUP"
++#define  REKEY_TIMEOUT_EVENT "REKEY-TIMEOUT"
++#define  KEYPAIR_CREATED_EVENT "KEYPAIR-CREATED"
++
++extern void wireguard_hotplug(const char *ifname, const char *action, unsigned char *peerpubkey);
++extern void wg_hotplug_init(void);
++extern void wg_hotplug_free(void);
++
++#endif
++
++
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/noise.c
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/noise.c
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/noise.c
+@@ -12,6 +12,7 @@
+ #include "peerlookup.h"
+ #include "netlink.h"
+ #include "socket.h"
++#include "hotplug.h"
+ 
+ #include <linux/rcupdate.h>
+ #include <linux/slab.h>
+@@ -870,6 +871,8 @@ bool wg_noise_handshake_begin_session(st
+ 		ret = wg_index_hashtable_replace(
+ 			handshake->entry.peer->device->index_hashtable,
+ 			&handshake->entry, &new_keypair->entry);
++
++		wireguard_hotplug(handshake->entry.peer->device->dev->name, KEYPAIR_CREATED_EVENT, handshake->remote_static);
+ 	} else {
+ 		kfree_sensitive(new_keypair);
+ 	}
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/send.c
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/send.c
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/send.c
+@@ -34,6 +34,9 @@ static void wg_packet_send_handshake_ini
+ 	int i;
+ 	struct jp_spec* spec;
+ 
++	if (!strncmp(peer->device->dev->name, "wgs", 3))
++		return;
++
+ 	if (!wg_birthdate_has_expired(atomic64_read(&peer->last_sent_handshake),
+ 				      REKEY_TIMEOUT))
+ 		return; /* This function is rate limited. */
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/timers.c
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/timers.c
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/timers.c
+@@ -8,6 +8,7 @@
+ #include "peer.h"
+ #include "queueing.h"
+ #include "socket.h"
++#include "hotplug.h"
+ 
+ /*
+  * - Timer for retransmitting the handshake if we don't hear back after
+@@ -60,6 +61,8 @@ static void wg_expired_retransmit_handsh
+ 		if (!timer_pending(&peer->timer_zero_key_material))
+ 			mod_peer_timer(peer, &peer->timer_zero_key_material,
+ 				       jiffies + REJECT_AFTER_TIME * 3 * HZ);
++
++		wireguard_hotplug(peer->device->dev->name, REKEY_GIVEUP_EVENT, peer->handshake.remote_static);
+ 	} else {
+ 		++peer->timer_handshake_attempts;
+ 		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %d seconds, retrying (try %d)\n",
+@@ -73,6 +76,7 @@ static void wg_expired_retransmit_handsh
+ 		wg_socket_clear_peer_endpoint_src(peer);
+ 
+ 		wg_packet_send_queued_handshake_initiation(peer, true);
++		wireguard_hotplug(peer->device->dev->name, REKEY_TIMEOUT_EVENT, peer->handshake.remote_static);
+ 	}
+ }
+ 

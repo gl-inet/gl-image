@@ -1,0 +1,75 @@
+--- a/scripts/mkits.sh
++++ b/scripts/mkits.sh
+@@ -17,6 +17,7 @@
+ usage() {
+ 	printf "Usage: %s -A arch -C comp -a addr -e entry" "$(basename "$0")"
+ 	printf " -v version -k kernel [-D name -n address -d dtb] -o its_file"
++	printf "[-R rootfs]"
+ 
+ 	printf "\n\t-A ==> set architecture to 'arch'"
+ 	printf "\n\t-C ==> set compression type 'comp'"
+@@ -28,13 +29,14 @@ usage() {
+ 	printf "\n\t-D ==> human friendly Device Tree Blob 'name'"
+ 	printf "\n\t-n ==> fdt unit-address 'address'"
+ 	printf "\n\t-d ==> include Device Tree Blob 'dtb'"
+-	printf "\n\t-o ==> create output file 'its_file'\n"
++	printf "\n\t-o ==> create output file 'its_file'"
++	printf "\n\t-R ==> specify rootfs file for embedding hash\n"
+ 	exit 1
+ }
+ 
+ FDTNUM=1
+ 
+-while getopts ":A:a:c:C:D:d:e:k:n:o:v:" OPTION
++while getopts ":A:a:c:C:D:d:e:k:n:o:v:R:" OPTION
+ do
+ 	case $OPTION in
+ 		A ) ARCH=$OPTARG;;
+@@ -48,6 +50,7 @@ do
+ 		n ) FDTNUM=$OPTARG;;
+ 		o ) OUTPUT=$OPTARG;;
+ 		v ) VERSION=$OPTARG;;
++		R ) ROOTFS_FILE=$OPTARG;;
+ 		* ) echo "Invalid option passed to '$0' (options:$*)"
+ 		usage;;
+ 	esac
+@@ -82,6 +85,30 @@ if [ -n "${DTB}" ]; then
+ 	FDT_PROP="fdt = \"fdt-$FDTNUM\";"
+ fi
+ 
++# Conditionally create rootfs hash information
++if [ -f "${ROOTFS_FILE}" ]; then
++	ROOTFS_SIZE=$(stat -c %s ${ROOTFS_FILE})
++
++	ROOTFS_SHA1=$(sha1sum ${ROOTFS_FILE} | awk '{print "<0x"substr($0,1,8) " 0x"substr($0,9,8) " 0x"substr($0,17,8) " 0x"substr($0,25,8) " 0x"substr($0,33,8) ">"}')
++	ROOTFS_CRC32=$(crc32sum ${ROOTFS_FILE})
++
++	ROOTFS="
++	rootfs {
++		size = <${ROOTFS_SIZE}>;
++
++		hash-1 {
++			value = <0x${ROOTFS_CRC32}>;
++			algo = \"crc32\";
++		};
++
++		hash-2 {
++			value = ${ROOTFS_SHA1};
++			algo = \"sha1\";
++		};
++	};
++"
++fi
++
+ # Create a default, fully populated DTS file
+ DATA="/dts-v1/;
+ 
+@@ -109,6 +136,8 @@ DATA="/dts-v1/;
+ ${FDT_NODE}
+ 	};
+ 
++${ROOTFS}
++
+ 	configurations {
+ 		default = \"${CONFIG}\";
+ 		${CONFIG} {

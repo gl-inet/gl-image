@@ -57,16 +57,13 @@ From the repository root, either on the host or inside the container:
 
 ```sh
 cd versions/4.9.1
-./scripts/feeds update -a
-./scripts/feeds install -a
-make defconfig
-make prereq
 make -j"$(nproc)"
 ```
 
 The included `.config` is the default. Normal builds do not require copying
-a template or running `menuconfig`. Feeds are pinned in `feeds.conf.default`;
-install them before running `make defconfig`.
+a template or running `menuconfig`. The first `make` indexes pinned feeds
+and refreshes configuration using inputs in this clone. No network access
+is needed after cloning. See [offline build instructions](OFFLINE_BUILD.md).
 
 The resulting sysupgrade image is:
 

@@ -15,11 +15,23 @@ PKG_SOURCE_URL:=@KERNEL/linux/kernel/firmware
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_HASH:=eeddb4e6bef31fd1a3757f12ccc324929bbad97855c0b9ec5ed780f74de1837d
 
+ifneq ($(wildcard $(TOPDIR)/offline-sources/linux-firmware-$(PKG_VERSION)/inside-secure/eip197_minifw/ifpp.bin),)
+  PKG_SOURCE:=
+  PKG_SOURCE_URL:=
+endif
+
 PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
 
 SCAN_DEPS = *.mk
 
 include $(INCLUDE_DIR)/package.mk
+
+ifneq ($(wildcard $(TOPDIR)/offline-sources/linux-firmware-$(PKG_VERSION)/inside-secure/eip197_minifw/ifpp.bin),)
+  define Build/Prepare
+	mkdir -p $(PKG_BUILD_DIR)
+	$(CP) $(TOPDIR)/offline-sources/linux-firmware-$(PKG_VERSION)/. $(PKG_BUILD_DIR)/
+  endef
+endif
 
 define Package/firmware-default
   SECTION:=firmware

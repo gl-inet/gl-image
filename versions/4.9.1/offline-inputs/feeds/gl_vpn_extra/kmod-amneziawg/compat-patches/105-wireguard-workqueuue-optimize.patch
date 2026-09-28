@@ -1,0 +1,29 @@
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/device.c
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/device.c
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/device.c
+@@ -389,18 +389,18 @@ static int wg_newlink(struct net_device
+ 		goto err_free_index_hashtable;
+ #endif
+ 
+-	wg->handshake_receive_wq = alloc_workqueue("wg-kex-%s",
+-			WQ_CPU_INTENSIVE | WQ_FREEZABLE, 0, dev->name);
++	wg->handshake_receive_wq = alloc_workqueue("r-%s",
++			WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_SYSFS, 0, dev->name);
+ 	if (!wg->handshake_receive_wq)
+ 		goto err_free_tstats;
+ 
+-	wg->handshake_send_wq = alloc_workqueue("wg-kex-%s",
+-			WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
++	wg->handshake_send_wq = alloc_workqueue("s-%s",
++			WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_SYSFS, 0, dev->name);
+ 	if (!wg->handshake_send_wq)
+ 		goto err_destroy_handshake_receive;
+ 
+-	wg->packet_crypt_wq = alloc_workqueue("wg-crypt-%s",
+-			WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0, dev->name);
++	wg->packet_crypt_wq = alloc_workqueue("o-%s",
++			WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_CPU_INTENSIVE | WQ_SYSFS, 0, dev->name);
+ 	if (!wg->packet_crypt_wq)
+ 		goto err_destroy_handshake_send;
+ 

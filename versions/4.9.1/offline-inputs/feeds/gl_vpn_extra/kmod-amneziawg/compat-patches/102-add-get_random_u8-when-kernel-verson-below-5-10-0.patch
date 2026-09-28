@@ -1,0 +1,22 @@
+Index: amneziawg-linux-kernel-module-amneziawg-ac946a9/src/compat/compat.h
+===================================================================
+--- amneziawg-linux-kernel-module-amneziawg-ac946a9.orig/src/compat/compat.h
++++ amneziawg-linux-kernel-module-amneziawg-ac946a9/src/compat/compat.h
+@@ -1168,6 +1168,17 @@ static inline void dst_cache_reset_now(s
+ }
+ #endif
+ 
++#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
++#include <linux/random.h>
++#include <linux/types.h>
++static inline u8 get_random_u8(void)
++{
++    u8 rnd;
++    get_random_bytes(&rnd, 1);
++    return rnd;
++}
++#endif
++
+ #if defined(ISUBUNTU1604) || defined(ISRHEL7)
+ #include <linux/siphash.h>
+ #ifndef _WG_LINUX_SIPHASH_H

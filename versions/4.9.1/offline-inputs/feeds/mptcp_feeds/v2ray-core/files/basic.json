@@ -1,0 +1,61 @@
+{
+  "log": {
+      "loglevel": "none",
+      "access": "/dev/null"
+  },
+  "inbounds": [
+  {
+    "tag":"transparent",
+    "port": 1080,
+    //"port": 1883,
+    "protocol": "dokodemo-door",
+    "settings": {
+      "network": "tcp,udp",
+      //"address": "127.0.0.1",
+      //"port": 1883,
+      "followRedirect": true
+    },
+    "streamSettings": {
+      "sockopt": {
+        "tproxy": "tproxy",
+        "mark":255
+      }
+    }
+  }
+  ],
+  "outbounds": [
+      {
+          "protocol": "vmess",
+          "streamSettings": {
+              "sockopt": {
+                "mptcp": true
+            },
+              "network": "tcp"
+          },
+          "tag": "mptunout"
+      },
+{
+          "tag": "dns-out",
+          "protocol": "dns",
+          "streamSettings": {
+          "sockopt": {
+             "mark": 255
+            }
+          }  
+    }
+  ],
+"routing": {
+  "domainStrategy": "IPOnDemand",
+  "rules": [
+    {
+      "type": "field",
+      "inboundTag": [
+        "transparent"
+      ],
+      "port": 53,
+      "network": "udp",
+      "outboundTag": "dns-out" 
+    }
+  ]
+}
+}

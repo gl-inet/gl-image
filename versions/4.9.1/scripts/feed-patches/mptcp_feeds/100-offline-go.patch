@@ -1,0 +1,6 @@
+--- a/lang/golang/golang-package.mk
++++ b/lang/golang/golang-package.mk
+@@ -196 +196,2 @@
+-	GOPROXY=https://goproxy.cn
++	GOPROXY=off \
++	GOSUMDB=off

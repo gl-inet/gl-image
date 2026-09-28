@@ -73,6 +73,16 @@ endif
 
 _ignore = $(foreach p,$(IGNORE_PACKAGES),--ignore $(p))
 
+ifneq ($(GL_OFFLINE_PREPARING),1)
+ifneq ($(wildcard $(TOPDIR)/offline-inputs/feeds.lock.tsv),)
+prepare-tmpinfo scripts/config/conf: tmp/.offline-inputs-ready
+
+tmp/.offline-inputs-ready: scripts/prepare-offline.sh
+	@+GL_OFFLINE_PREPARING=1 ./scripts/prepare-offline.sh
+	@touch $@
+endif
+endif
+
 prepare-tmpinfo: FORCE
 	@+$(MAKE) -r -s staging_dir/host/.prereq-build $(PREP_MK)
 	mkdir -p tmp/info
@@ -266,4 +276,3 @@ ifeq ($(findstring v,$(DEBUG)),)
 endif
 .PHONY: help FORCE
 .NOTPARALLEL:
-

@@ -1,0 +1,108 @@
+#!/bin/sh /etc/rc.common
+
+USE_PROCD=1
+START=89
+
+CONF="mptun"
+PROG="/usr/bin/mptun"
+
+. /lib/functions/mptun.sh
+. /lib/functions/gl_util.sh
+
+update_modem_cfg()
+{
+    local modem_iface=$(ubus list|grep interface.modem|grep -v -E '4|6')
+    [ -z "$modem_iface" ] && return
+
+    local modem_name="$(echo $modem_iface|cut -d. -f3)"
+    [ -z "$modem_name" ] && return
+
+    local ubus_data="$(ubus call ${modem_iface}_4 status)"
+    [ -z "$ubus_data" ] && ubus_data="$(ubus call ${modem_iface} status)"
+
+    local up="$(echo $ubus_data|jsonfilter -e "@.up")"
+    local online_dev
+    [ $up = true ] && online_dev="$(echo $ubus_data|jsonfilter -e "@.l3_device")"
+    [ -z "$online_dev" ] && return
+
+    __load_member() {
+        [ -z "$(echo $1|grep modem)" ] && return
+        local enable=$(uci get mptun.$1.enable)
+        [ -z "$enable" ] && enable='0'
+        [ "$1" != "$modem_name" -a "$1" != "${modem_name}_4" ] && {
+            uci del mptun.$1
+            uci set mptun.${modem_name}_4=interface
+            uci set mptun.${modem_name}_4.enable=$enable
+            uci set mptun.${modem_name}_4.metric='6'
+            uci set mptun.${modem_name}_4.device=$online_dev
+            uci add_list mptun.${modem_name}_4.mptcp_flags='subflow'
+            uci commit mptun
+            sync
+        }
+    }
+    config_foreach __load_member interface
+}
+
+update_conf() {
+    [ -z "$1" ] && return
+    local inited=$(uci -q get mptun.$1.inited)
+    update_devinfo "$1"
+}
+
+start_service() {
+    [ "$(get_country_code)" = "CN" ] && {
+        uci set mptun.global.enable=0
+        uci set mptun.global.use_exit=0
+        uci commit mptun
+        sync
+        return 0
+    }
+
+    config_load "$CONF"
+
+    local enabled dev udpmark tcpmark use_exit dns
+    local service_mode IPRB_disabled
+    config_get_bool enabled "global" "enable" "0"
+    config_get dev "global" "mptun" "mptun0"
+    config_get udpmark "global" "udpmark" "0x2"
+    config_get tcpmark "global" "tcpmark" "0x1"
+
+    config_get service_mode "global" "service_mode" "classic"
+    config_get IPRB_disabled "IPRB" "disabled" "0"
+    [ "${service_mode}" = "IPRB" -a "${IPRB_disabled}" = "1" ] && {
+        return 0
+    }
+
+    config_foreach update_conf interface
+
+    [ "$enabled" -eq "1" ] || return 1
+    local profile
+    config_get profile "config" "profile"
+    [ -z "$profile" ] && return 1
+
+    update_modem_cfg
+    sync
+
+    mptun_init "$profile" "$dev" "$udpmark" "$tcpmark"
+
+    [ -e "$PROG" ] || return
+    [ -e "/var/run/mpnode.json" ] || return
+
+    procd_open_instance "$CONF"
+    procd_set_param command "$PROG" run
+    procd_append_param command -config "/etc/mptun/basic.json" -config "/var/run/mpnode.json" -format json
+    [ -f "/var/run/mptun_dns.json" ] && procd_append_param command -config "/var/run/mptun_dns.json"
+    [ -f "/var/run/mptun_dns_policy.json" ] && procd_append_param command -config "/var/run/mptun_dns_policy.json"
+    procd_set_param limits core="unlimited"
+    procd_set_param limits nofile="1000000 1000000"
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_set_param respawn
+    procd_close_instance
+    echo c >/proc/net/nf_conntrack
+}
+
+stop_service() {
+    [ -e "/var/run/mpnode.json" ] && killall -9 $PROG
+    mptun_clean
+}

@@ -1,0 +1,22 @@
+Index: openvpn-2.6.12/src/openvpn/init.c
+===================================================================
+--- openvpn-2.6.12.orig/src/openvpn/init.c
++++ openvpn-2.6.12/src/openvpn/init.c
+@@ -3893,8 +3893,16 @@ do_close_free_key_schedule(struct contex
+     buf_clear(&c->c1.ks.tls_crypt_v2_wkc);
+     free_buf(&c->c1.ks.tls_crypt_v2_wkc);
+ 
+-    if (!(c->sig->signal_received == SIGUSR1 && c->options.persist_key))
++    const bool soft_usr1_persist = (c->sig->signal_received == SIGUSR1) && c->options.persist_key;
++
++    if (soft_usr1_persist && !free_ssl_ctx)
++    {
++        msg(M_INFO, "SKIP key_schedule free due to SIGUSR1+persist-key (keeping ctx)");
++    }
++    else
+     {
++        msg(M_INFO, "FREE key_schedule (sig=%d free_ssl_ctx=%d)",
++            c->sig->signal_received, free_ssl_ctx);
+         key_schedule_free(&c->c1.ks, free_ssl_ctx);
+     }
+ }
