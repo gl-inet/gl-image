@@ -1,0 +1,37 @@
+{
+        "u-boot-env" : {
+                "start": 8192,
+                "end" : 9215
+        },
+
+        "factory" : {
+                "start": 9216,
+                "end" : 17407
+        },
+
+        "fip": {
+                "start": 17408,
+                "end" : 23551
+        },
+
+        "glcfg": {
+                "start": 23552,
+                "end" : 25599
+        },
+
+        "log": {
+                "start": 25600,
+                "end" : 29695
+        },
+
+        "kernel" : {
+                "start": 29696,
+                "end" : 95231
+        },
+
+        "rootfs" : {
+                "start": 95232,
+                "end" : 121733119
+        }
+}
+

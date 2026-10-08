@@ -3,6 +3,7 @@
 GL-BE10000 source releases:
 
 * [Firmware 4.8.6 build and upgrade guide](versions/4.8.6/GL-BE10000_FIRMWARE_GUIDE.md)
+* [GL-BE10000 U-Boot and TF-A build guide](versions/4.8.6/mt7988-mt7987-boot/README.md)
 
 OpenWrt Project is a Linux operating system targeting embedded devices. Instead
 of trying to create a single, static firmware, OpenWrt provides a fully

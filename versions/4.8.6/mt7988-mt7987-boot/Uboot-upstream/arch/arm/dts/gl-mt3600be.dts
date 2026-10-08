@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+/dts-v1/;
+#include "mt7987a.dtsi"
+#include "mt3600be-spim-nand.dtsi"
+#include "mt7987a-spim-nand-rfb-u-boot.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "MediaTek MT7987A SPIM-NAND RFB";
+	compatible = "mediatek,mt7987a-spim-snand",
+		     "mediatek,mt7987a", "mediatek,mt7987";
+
+	chosen {
+		bootargs = "console=ttyS0,115200n1 loglevel=8";
+	};
+
+	config {
+        bootcmd = "mtkboardboot";
+
+        blink_led = "blue:run";
+        system_led = "white:system";
+
+        environment {
+            lu = "mtkupgrade fip uboot-gl-mt3600be.bin";
+            lf = "mtkupgrade fw openwrt-gl-mt3600be.bin";
+        };
+    };
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&pio 4 GPIO_ACTIVE_LOW>;
+			debounce-interval = <10>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led@0 {
+			label = "white:system";
+			gpios = <&pio 49 GPIO_ACTIVE_LOW>;
+		};
+
+		led@1 {
+			label = "blue:run";
+			gpios = <&pio 48 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+

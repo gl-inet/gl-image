@@ -1,0 +1,99 @@
+# _PLAT_MT7622 is not set
+# _PLAT_MT7629 is not set
+# _PLAT_MT7981 is not set
+# _PLAT_MT7986 is not set
+# _PLAT_MT7987 is not set
+_PLAT_MT7988=y
+PLAT="mt7988"
+_SUPPORTS_DDR4=y
+_SUPPORTS_DDR_COMB=y
+# _DRAM_DDR3 is not set
+# _DRAM_DDR4 is not set
+_DRAM_DDR_COMB=y
+DRAM_USE_COMB=1
+_SUPPORTS_DRAM_SIZE_LIMIT=y
+_SUPPORTS_DDR3_256MB=y
+_SUPPORTS_DDR3_512MB=y
+_SUPPORTS_DDR4_1GB=y
+_SUPPORTS_DDR4_2GB=y
+_SUPPORTS_DDR3_FREQ=y
+_SUPPORTS_DDR3_1866=y
+_SUPPORTS_DDR3_2133=y
+_DEFAULT_DDR3_2133=y
+_SUPPORTS_DDR4_FREQ=y
+_SUPPORTS_DDR4_2666=y
+_SUPPORTS_DDR4_3200=y
+_DEFAULT_DDR4_3200=y
+_SUPPORTS_DRAM_DEBUG_LOG=y
+
+#
+# Advanced DRAM configurations
+#
+_DRAM_SIZE_AUTO=y
+# _DDR3_FREQ_1866 is not set
+_DDR3_FREQ_2133=y
+DDR3_FREQ_2133=1
+_DDR4_FREQ_2666=y
+#_DDR4_FREQ_3200 is not set
+DDR4_FREQ_2666=1
+# _MT7988_DDR4_8GB is not set
+# _DRAM_DEBUG_LOG is not set
+# end of Advanced DRAM configurations
+
+_SUPPORTS_BOOT_DEVICE_SNFI_NAND=y
+_SUPPORTS_BOOT_DEVICE_SPIM_NAND=y
+_SUPPORTS_BOOT_DEVICE_EMMC_SD=y
+_DEFAULT_BOOT_DEVICE_EMMC=y
+# _BOOT_DEVICE_SPI_NOR is not set
+# _BOOT_DEVICE_SNFI_NAND is not set
+# _BOOT_DEVICE_SPIM_NAND is not set
+_BOOT_DEVICE_EMMC=y
+# _BOOT_DEVICE_SD is not set
+# _BOOT_DEVICE_RAM is not set
+
+#
+# Advanced boot device configuration
+#
+_BROM_NAND_HEADER_HSM20=y
+_DEFAULT_NAND_NMBM=y
+# end of Advanced boot device configuration
+
+BOOT_DEVICE="emmc"
+
+#
+# Platform configurations
+#
+_SUPPORTS_I2C=y
+_SUPPORTS_EMERG_MEM_DUMP=y
+_SUPPORTS_I2P5G_PHY=y
+_ENABLE_I2C_SUPPORT=y
+# _ENABLE_EMERG_MEM_DUMP is not set
+# _ENABLE_JTAG is not set
+# _ENABLE_BL31_RUNTIME_LOG is not set
+I2C_SUPPORT=1
+# _ENABLE_EIP197_SUPPORT is not set
+# _ENABLE_BL2_CPU_FULL_SPEED is not set
+# _ENABLE_FWDL is not set
+# end of Platform configurations
+
+_BUILD_FIP=y
+BL33="u-boot.bin"
+
+#
+# Advanced build configurations
+#
+# _ENABLE_BL2_COMPRESS is not set
+# _ENABLE_FIP_COMPRESS is not set
+# _USE_MKIMAGE is not set
+# end of Advanced build configurations
+
+_SUPPORTS_AR_V2=y
+# _ENABLE_SBC is not set
+CROSS_COMPILE="/usr/bin/aarch64-linux-gnu-"
+# _LOG_LEVEL_NONE is not set
+# _LOG_LEVEL_ERROR is not set
+# _LOG_LEVEL_NOTICE is not set
+_LOG_LEVEL_WARNING=y
+# _LOG_LEVEL_INFO is not set
+# _LOG_LEVEL_VERBOSE is not set
+LOG_LEVEL=30

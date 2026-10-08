@@ -1,0 +1,190 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (C) 2022 MediaTek Inc. All rights reserved.
+ *
+ * Author: Weijie Gao <weijie.gao@mediatek.com>
+ */
+
+/dts-v1/;
+
+#include "mt7621.dtsi"
+
+/ {
+	compatible = "mediatek,mt7621-rfb", "mediatek,mt7621-soc";
+	model = "MediaTek MT7621 RFB (SPI-NOR)";
+
+	aliases {
+		serial0 = &uart0;
+		spi0 = &spi;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x08000000>; /* 128MiB */
+	};
+
+	chosen {
+		stdout-path = &uart0;
+	};
+
+	config {
+		bootcmd = "mtkboardboot";
+
+		blink_led = "blue:run";
+        system_led = "white:system";
+
+		environment {
+				lu = "mtkupgrade fip uboot-gl-mg1300.bin";
+				lf = "mtkupgrade fw openwrt-gl-mg1300.bin";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		reset {
+			label = "reset";
+			linux,code = <0x198>;
+			gpios = <&gpio0 18 1>;
+			debounce-interval = <10>;
+		};
+
+		wps {
+			label = "wps";
+			linux,code = <0x211>;
+			gpios = <&gpio0 15 1>;
+			debounce-interval = <10>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		system_led: system  {
+			label = "white:system";
+			gpios = <&gpio0 13 1>;
+			default-state = "off";
+		};
+
+		blink_led: blink {
+			label = "blue:run";
+			gpios = <&gpio0 14 1>;
+			default-state = "off";
+		};
+	};
+
+};
+
+&pinctrl {
+	state_default: pin_state {
+		gpios {
+			groups = "i2c", "uart3", "pcie reset", "jtag", "wdt";
+			function = "gpio";
+		};
+		jtag_gpio {
+			groups = "jtag";
+			bias-pull-up;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&gpio {
+	status = "okay";
+};
+
+&spi {
+	status = "okay";
+	num-cs = <2>;
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <25000000>;
+		reg = <0>;
+
+		/* NOR 前 1MiB 固定分区，与 CONFIG_MTDPARTS_DEFAULT 对齐（首分区名为 fip，供 httpd / generic_mtd_write_fip）。 */
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "fip";
+				reg = <0x0 0x80000>;
+			};
+
+			partition@80000 {
+				label = "u-boot-env";
+				reg = <0x80000 0x10000>;
+			};
+
+			partition@90000 {
+				label = "factory";
+				reg = <0x90000 0x10000>;
+			};
+
+			partition@a0000 {
+				label = "log";
+				reg = <0xa0000 0x40000>;
+			};
+
+			partition@e0000 {
+				label = "CFG";
+				reg = <0xe0000 0x20000>;
+			};
+		};
+	};
+
+	spi_nand@0 {
+		/*
+		 * GigaDevice GD5F1GQ5UEYIGR (1Gbit SPI NAND)
+		 *
+		 * NOTE: MT7621's SPI controller is not a full SPI-MEM/QSPI
+		 * controller. Keep SPI transfers on 1 data line unless the
+		 * board wiring truly supports dual/quad I/O on IO2/IO3.
+		 */
+		compatible = "spi-nand";
+		reg = <1>;
+		spi-max-frequency = <20000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			/*
+			 * SPI-NOR 上启动（CS0），SPI-NAND（CS1）用于 UBI 存储。
+			 * size=0 表示直到设备末尾（剩余全部给 UBI）。
+			 */
+			partition@0 {
+				label = "ubi";
+				reg = <0x0 0x0>;
+				compatible = "linux,ubi";
+			};
+		};
+	};
+};
+
+&eth {
+	status = "okay";
+};
+
+&mmc {
+	cap-sd-highspeed;
+
+	status = "okay";
+};
+
+&ssusb {
+	status = "okay";
+};
+
+&u3phy {
+	status = "okay";
+};

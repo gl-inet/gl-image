@@ -1,0 +1,344 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+/dts-v1/;
+#include "mt7988.dtsi"
+#include "mt7988-u-boot.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+        model = "mt7988-rfb";
+        compatible = "mediatek,mt7988-rfb";
+
+        chosen {
+                stdout-path = &uart0;
+        };
+
+        memory@40000000 {
+                device_type = "memory";
+                reg = <0 0x40000000 0 0x10000000>;
+        };
+
+	config {
+        	bootcmd = "mtkboardboot";
+        	environment {
+            		lu = "mtkupgrade fip uboot-gl-be14000.bin";
+            		lf = "mtkupgrade fw openwrt-gl-be14000.bin";
+			ethpluglock = "yes";
+			ethswlinkwait = "300";
+			ethphyanegwait = "300";
+		};
+	};
+
+        reg_3p3v: regulator-3p3v {
+                compatible = "regulator-fixed";
+                regulator-name = "fixed-3.3V";
+                regulator-min-microvolt = <3300000>;
+                regulator-max-microvolt = <3300000>;
+                regulator-boot-on;
+                regulator-always-on;
+        };
+
+        reg_1p8v: regulator-1p8v {
+                compatible = "regulator-fixed";
+                regulator-name = "fixed-1.8V";
+                regulator-min-microvolt = <1800000>;
+                regulator-max-microvolt = <1800000>;
+                regulator-boot-on;
+                regulator-always-on;
+        };
+};
+
+&uart0 {
+        status = "okay";
+};
+
+&i2c1 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&i2c1_pins>;
+        status = "okay";
+};
+
+&eth0 {
+        status = "okay";
+        phy-mode = "usxgmii";
+        mediatek,switch = "mt7988";
+
+        fixed-link {
+                speed = <10000>;
+                full-duplex;
+                pause;
+        };
+};
+
+&eth1 {
+        status = "okay";
+        pinctrl-names = "default";
+        pinctrl-0 = <&mdio_pins>;
+        phy-mode = "usxgmii";
+        phy-handle = <&yt9224>;
+        mediatek,switch = "yt9224";
+        /delete-property/ mediatek,mcm;
+
+        mdio {
+                clock-frequency = <10500000>;
+        };
+
+        yt9224: ethernet-phy@29 {
+                compatible = "ethernet-phy-ieee802.3-c45";
+                reg = <29>;
+                status = "okay";
+                reset-gpios = <&pio 0 GPIO_ACTIVE_LOW>;
+                reset-assert-us = <100000>;
+                reset-deassert-us = <2210000>;
+        };
+};
+
+&eth2 {
+        status = "okay";
+        pinctrl-names = "default";
+        pinctrl-0 = <&mdio_pins>;
+        phy-mode = "usxgmii";
+        phy-handle = <&phy2>;
+
+        mdio {
+                clock-frequency = <10500000>;
+        };
+
+        phy2: ethernet-phy@0 {
+                compatible = "ethernet-phy-ieee802.3-c45";
+                reg = <0>;
+                reset-gpios = <&pio 1 GPIO_ACTIVE_LOW>;
+                reset-assert-us = <100000>;
+                reset-deassert-us = <300000>;
+                mdi-reversal = /bits/ 16 <1>;
+        };
+};
+
+&pcie0 {
+        status = "okay";
+};
+
+&pcie1 {
+        status = "okay";
+};
+
+/* PCIE2 not working in u-boot */
+&pcie2 {
+        status = "disabled";
+};
+
+/* PCIE3 not working in u-boot */
+&pcie3 {
+        status = "disabled";
+};
+
+&pio {
+        mdio_pins: mdio_pins {
+                conf-mdc {
+                        groups = "mdc_mdio0";
+                        drive-strength = <MTK_DRIVE_10mA>;
+                };
+        };
+
+        i2c1_pins: i2c1-pins {
+                mux {
+                        function = "i2c";
+                        groups = "i2c1_0";
+                };
+        };
+
+        pwm_pins: pwm-pins {
+                mux {
+                        function = "pwm";
+                        groups = "pwm0", "pwm1", "pwm2", "pwm3", "pwm4",
+                                 "pwm5", "pwm6", "pwm7";
+                };
+        };
+
+        spi0_pins: spi0-pins {
+                mux {
+                        function = "spi";
+                        groups = "spi0", "spi0_wp_hold";
+                };
+
+                conf-pu {
+                        pins = "SPI0_CSB", "SPI0_HOLD", "SPI0_WP";
+                        drive-strength = <MTK_DRIVE_8mA>;
+                        bias-pull-up = <MTK_PUPD_SET_R1R0_11>;
+                };
+
+                conf-pd {
+                        pins = "SPI0_CLK", "SPI0_MOSI", "SPI0_MISO";
+                        drive-strength = <MTK_DRIVE_8mA>;
+                        bias-pull-down = <MTK_PUPD_SET_R1R0_11>;
+                };
+
+        };
+	/*
+	 * MT7988 has no spi1_wp_hold (only spi0/spi2 wp_hold). Invalid group
+	 * breaks mux; match Linux mt7988a.dtsi (spi1-only).
+	 */
+	spi1_pins: spi1-pins {
+		mux {
+			function = "spi";
+			groups = "spi1";
+		};
+
+		conf-pu {
+			pins = "SPI1_CSB";
+			drive-strength = <MTK_DRIVE_8mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_11>;
+		};
+
+		conf-pd {
+			pins = "SPI1_CLK", "SPI1_MOSI", "SPI1_MISO";
+			drive-strength = <MTK_DRIVE_8mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_11>;
+		};
+	};
+
+	jtag_disable: jtag_disable {
+		mux {
+			function = "jtag";
+			groups = "gpio59";
+		};
+	};
+
+
+        spi2_pins: spi2-pins {
+                mux {
+                        function = "spi";
+                        groups = "spi2", "spi2_wp_hold";
+                };
+
+                conf-pu {
+                        pins = "SPI2_CSB", "SPI2_HOLD", "SPI2_WP";
+                        drive-strength = <MTK_DRIVE_8mA>;
+                        bias-pull-up = <MTK_PUPD_SET_R1R0_11>;
+                };
+
+                conf-pd {
+                        pins = "SPI2_CLK", "SPI2_MOSI", "SPI2_MISO";
+                        drive-strength = <MTK_DRIVE_8mA>;
+                        bias-pull-down = <MTK_PUPD_SET_R1R0_11>;
+                };
+        };
+
+        mmc0_pins_default: mmc0default {
+                mux {
+                        function = "flash";
+                        groups =  "emmc_51";
+                };
+
+                conf-cmd-dat {
+                        pins = "EMMC_DATA_0", "EMMC_DATA_1", "EMMC_DATA_2",
+                               "EMMC_DATA_3", "EMMC_DATA_4", "EMMC_DATA_5",
+                               "EMMC_DATA_6", "EMMC_DATA_7", "EMMC_CMD";
+                        input-enable;
+                        drive-strength = <MTK_DRIVE_12mA>;
+                        mediatek,pull-up-adv = <1>;     /* pull-up 10K */
+                };
+
+                conf-clk {
+                        pins = "EMMC_CK";
+                        drive-strength = <MTK_DRIVE_12mA>;
+                        mediatek,pull-down-adv = <2>;   /* pull-down 50K */
+                };
+
+                conf-dsl {
+                        pins = "EMMC_DSL";
+                        mediatek,pull-down-adv = <2>;   /* pull-down 50K */
+                };
+
+                conf-rst {
+                        pins = "EMMC_RSTB";
+                        drive-strength = <MTK_DRIVE_12mA>;
+                        mediatek,pull-up-adv = <1>;     /* pull-up 10K */
+                };
+        };
+};
+
+//fan
+&pwm {
+        pinctrl-names = "default";
+        pinctrl-0 = <&pwm_pins>;
+        status = "okay";
+};
+
+&spi0 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&spi0_pins>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        status = "okay";
+        must_tx;
+        enhance_timing;
+        dma_ext;
+        ipm_design;
+        support_quad;
+        tick_dly = <2>;
+        sample_sel = <0>;
+};
+
+&mmc0 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&mmc0_pins_default>;
+        max-frequency = <52000000>;
+        bus-width = <8>;
+        cap-mmc-highspeed;
+        cap-mmc-hw-reset;
+        vmmc-supply = <&reg_3p3v>;
+        vqmmc-supply = <&reg_1p8v>;
+        non-removable;
+        status = "okay";
+};
+
+// LCD (mediatek,spi-ipm + four clocks; U-Boot mtk_spim expects parent-clk/sel-clk/spi-clk/hclk)
+&spi1 {
+	compatible = "mediatek,ipm-spi-single", "mediatek,spi-ipm";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pins &jtag_disable>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clocks = <&topckgen CLK_TOP_MPLL_D2>,
+		 <&topckgen CLK_TOP_SPI_SEL>,
+		 <&infracfg CLK_INFRA_104M_SPI1>,
+		 <&infracfg CLK_INFRA_66M_SPI1_HCK>;
+	clock-names = "parent-clk", "sel-clk", "spi-clk", "hclk";
+	status = "okay";
+	must_tx;
+	enhance_timing;
+	dma_ext;
+	ipm_design;
+	tick_dly = <2>;
+	sample_sel = <0>;
+
+	st7789_lcd: st7789@0 {
+		compatible = "gl,st7789";
+		reg = <0>;
+		spi-max-frequency = <52000000>;
+		dc-gpios = <&pio 62 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pio 68 GPIO_ACTIVE_HIGH>;
+		backlight-gpios = <&pio 59 GPIO_ACTIVE_HIGH>;
+		/* Same pin/polarity as gpio-keys /reset */
+		reset-button-gpios = <&pio 13 GPIO_ACTIVE_LOW>;
+	};
+};
+
+//SFP
+&spi2 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&spi2_pins>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        status = "okay";
+        must_tx;
+        enhance_timing;
+        dma_ext;
+        ipm_design;
+        support_quad;
+        tick_dly = <2>;
+        sample_sel = <0>;
+};
+
