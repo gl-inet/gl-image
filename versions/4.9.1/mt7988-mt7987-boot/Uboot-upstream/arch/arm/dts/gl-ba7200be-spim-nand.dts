@@ -1,0 +1,207 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+/dts-v1/;
+#include "mt7988-rfb.dts"
+#include "mt7988-u-boot.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "BA7200BE";
+	compatible = "gl,ba7200be", "mediatek,mt7988-rfb";
+
+	bl2_verify {
+		bl2_compatible = "spim-nand";
+	};
+
+	config {
+		bootcmd = "mtkboardboot";
+		/delete-property/ u-boot,mmc-env-partition;
+		environment {
+			lu = "mtkupgrade fip uboot-gl-ba7200be.bin";
+			lf = "mtkupgrade fw openwrt-gl-ba7200be.bin";
+			ethpluglock = "yes";
+			ethswlinkwait = "300";
+			ethphyanegwait = "300";
+		};
+	};
+};
+
+/*
+ * BA7200BE Ethernet (U-Boot device names)
+ *
+ *   eth0  ethernet@15110100  YT9224 switch (USXGMII_0 / GMAC0)  -> LAN 4x RJ45
+ *   eth1  ethernet@15110200  MT7988 built-in 2.5G PHY (GMAC1)   -> WAN 1x RJ45
+ *
+ * ethpluglock=yes (default) auto-picks the first link-up port via eth_init();
+ * no manual setenv ethact is required for ping/TFTP/httpd.
+ */
+
+/* eth0: YT9224 on USXGMII_0 (GMAC0), per BA7200BE schematic */
+&eth2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio_pins>;
+	phy-mode = "usxgmii";
+	phy-handle = <&yt9224>;
+	mediatek,switch = "yt9224";
+	/delete-property/ mediatek,mcm;
+	/delete-node/ fixed-link;
+
+	mdio {
+		clock-frequency = <2500000>;
+	};
+
+	yt9224: ethernet-phy@29 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <29>;
+		status = "okay";
+		reset-gpios = <&pio 0 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <100000>;
+		reset-deassert-us = <2210000>;
+	};
+};
+
+/* eth1: MT7988 built-in 2.5G PHY (WAN), GMAC1 / xgmii / phy@15 */
+&eth1 {
+	status = "okay";
+	phy-mode = "xgmii";
+	phy-handle = <&gephy>;
+	/delete-property/ mediatek,mcm;
+	/delete-node/ ethernet-phy@0;
+
+	gephy: ethernet-phy@15 {
+		compatible = "ethernet-phy-id0033.9c11";
+		reg = <15>;
+		phy-mode = "xgmii";
+	};
+};
+
+&mmc0 {
+	status = "disabled";
+};
+
+&spi2 {
+	status = "disabled";
+};
+
+&pio {
+	i2p5gbe_led0_pins: led0_2p5gbe_pins {
+		mux {
+			function = "led";
+			groups = "2p5gbe_led0";
+		};
+	};
+
+	spi1_pins: spi1-pins {
+		mux {
+			function = "spi";
+			groups = "spi1";
+		};
+
+		conf-pu {
+			pins = "SPI1_CSB";
+			drive-strength = <MTK_DRIVE_8mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_11>;
+		};
+
+		conf-pd {
+			pins = "SPI1_CLK", "SPI1_MOSI", "SPI1_MISO";
+			drive-strength = <MTK_DRIVE_8mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_11>;
+		};
+	};
+
+	jtag_disable: jtag_disable {
+		mux {
+			function = "jtag";
+			groups = "gpio59";
+		};
+	};
+};
+
+&spi0 {
+	spi_nand@0 {
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		mediatek,nmbm;
+		mediatek,bmt-max-ratio = <1>;
+		mediatek,bmt-max-reserved-blocks = <64>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bl2";
+				reg = <0x000000 0x100000>;
+			};
+
+			partition@100000 {
+				label = "u-boot-env";
+				reg = <0x100000 0x80000>;
+			};
+
+			factory: partition@180000 {
+				label = "factory";
+				reg = <0x180000 0x400000>;
+			};
+
+			partition@580000 {
+				label = "fip";
+				reg = <0x580000 0x300000>;
+			};
+
+			partition@880000 {
+				label = "log";
+				reg = <0x880000 0x40000>;
+			};
+
+			partition@8c0000 {
+				label = "CFG";
+				reg = <0x8c0000 0x40000>;
+			};
+
+			partition@900000 {
+				label = "ubi";
+				reg = <0x900000 0x1d700000>;
+				compatible = "linux,ubi";
+				volumes {
+					ubi_rootfs: ubi-volume-fit {
+						volname = "firmware";
+					};
+				};
+			};
+		};
+	};
+};
+
+&spi1 {
+	compatible = "mediatek,ipm-spi-single", "mediatek,spi-ipm";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pins &jtag_disable>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clocks = <&topckgen CLK_TOP_MPLL_D2>,
+		 <&topckgen CLK_TOP_SPI_SEL>,
+		 <&infracfg CLK_INFRA_104M_SPI1>,
+		 <&infracfg CLK_INFRA_66M_SPI1_HCK>;
+	clock-names = "parent-clk", "sel-clk", "spi-clk", "hclk";
+	status = "okay";
+	must_tx;
+	enhance_timing;
+	dma_ext;
+	ipm_design;
+	tick_dly = <2>;
+	sample_sel = <0>;
+
+	st7789_lcd: st7789@0 {
+		compatible = "gl,st7789";
+		reg = <0>;
+		spi-max-frequency = <52000000>;
+		dc-gpios = <&pio 62 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pio 68 GPIO_ACTIVE_HIGH>;
+		backlight-gpios = <&pio 59 GPIO_ACTIVE_HIGH>;
+		reset-button-gpios = <&pio 13 GPIO_ACTIVE_LOW>;
+	};
+};

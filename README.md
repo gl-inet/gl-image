@@ -3,6 +3,7 @@
 GL-BE14000 source releases:
 
 * [Firmware 4.9.1 build and upgrade guide](versions/4.9.1/GL-BE14000_FIRMWARE_GUIDE.md)
+* [GL-BE14000 U-Boot and TF-A build guide](versions/4.9.1/mt7988-mt7987-boot/README.md)
 
 OpenWrt Project is a Linux operating system targeting embedded devices. Instead
 of trying to create a single, static firmware, OpenWrt provides a fully

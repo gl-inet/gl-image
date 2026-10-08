@@ -1,0 +1,221 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+/dts-v1/;
+#include "mt7987a.dtsi"
+#include "mt7987a-u-boot.dtsi"
+#include "mt7987-netsys-u-boot.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "MediaTek MT7987A SPIM-NAND RFB";
+	compatible = "mediatek,mt7987a-spim-snand",
+		     "mediatek,mt7987a", "mediatek,mt7987";
+
+	chosen {
+		bootargs = "console=ttyS0,115200n1 loglevel=8";
+	};
+
+	bl2_verify {
+		bl2_compatible = "spim-nand";
+	};
+
+	config {
+        bootcmd = "mtkboardboot";
+
+        environment {
+            lu = "mtkupgrade fip uboot-gl-be10000.bin";
+            lf = "mtkupgrade fw openwrt-gl-be10000.bin";
+        };
+    };
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&pio 4 GPIO_ACTIVE_LOW>;
+			debounce-interval = <10>;
+		};
+	};
+};
+
+&eth0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio0_pins>;
+	phy-mode = "2500base-x";
+	phy-handle = <&phy7>;
+
+	phy7: phy@7 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <7>;
+		reset-assert-us = <100000>;
+		reset-deassert-us = <100000>;
+		reset-gpios = <&pio 42 GPIO_ACTIVE_LOW>;
+		interrupt-parent = <&pio>;
+		interrupts = <41 IRQ_TYPE_LEVEL_LOW>;
+		//realtek,aldps-enable;
+	};
+};
+
+&eth1 {
+	status = "okay";
+	pinctrl-names = "i2p5gbe-led";
+	pinctrl-0 = <&i2p5gbe_led0_pins>;
+	phy-mode = "xgmii";
+	phy-handle = <&phy15>;
+
+	phy15: ethernet-phy@15 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <15>;
+		phy-mode = "xgmii";
+	};
+};
+
+&eth2 {
+	status = "diabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio0_pins>;
+	phy-mode = "2500base-x";
+	phy-handle = <&phy11>;
+
+	fixed-link {
+		speed = <2500>;
+		full-duplex;
+	};
+
+	phy11: eth-phy@11 {
+		compatible = "ethernet-phy-id03a2.a411";
+		reg = <11>;
+		phy-mode = "2500base-x";
+		reset-gpios = <&pio 48 GPIO_ACTIVE_HIGH>;
+		reset-assert-us = <100000>;
+		reset-deassert-us = <100000>;
+	};
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_flash_pins>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "disabled";
+	must_tx;
+	enhance_timing;
+	dma_ext;
+	ipm_design;
+	support_quad;
+	tick_dly = <2>;
+	sample_sel = <0>;
+
+	/delete-node/ flash@0;
+	spi_nor@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <52000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+	};
+};
+
+&pio {
+    spi1_1_pins: spi1_1-pins {
+		mux {
+			function = "spi";
+			groups = "spi1_1";
+		};
+	};
+};
+
+&spi1 {
+	pinctrl-0 = <&spi1_1_pins>;
+	pinctrl-names = "default";
+    #address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+    must_tx;
+	enhance_timing;
+	dma_ext;
+	ipm_design;
+	tick_dly = <2>;
+	sample_sel = <0>;
+
+	st7789_lcd: st7789@0 {
+		compatible = "gl,st7789";
+		reg = <0>;
+		spi-max-frequency = <52000000>;
+		dc-gpios = <&pio 22 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pio 10 GPIO_ACTIVE_HIGH>;
+		backlight-gpios = <&pio 12 GPIO_ACTIVE_HIGH>;
+		/* Same pin/polarity as gpio-keys /reset */
+		reset-button-gpios = <&pio 4 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&spi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi2_flash_pins>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	must_tx;
+	enhance_timing;
+	dma_ext;
+	ipm_design;
+	support_quad;
+	tick_dly = <2>;
+	sample_sel = <0>;
+
+	/delete-node/ flash@0;
+	spi_nand@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <52000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		mediatek,nmbm;
+		mediatek,bmt-max-ratio = <1>;
+		mediatek,bmt-max-reserved-blocks = <64>;
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			partition@0 {
+				label = "bl2";
+				reg = <0x00000 0x0100000>;
+			};
+			partition@100000 {
+				label = "u-boot-env";
+				reg = <0x0100000 0x0080000>;
+			};
+			factory: partition@180000 {
+				label = "factory";
+				reg = <0x180000 0x0400000>;
+			};
+			partition@580000 {
+				label = "fip";
+				reg = <0x580000 0x0300000>;
+			};
+			partition@880000 {
+				label = "log";
+				reg = <0x880000 0x0040000>;
+			};
+			partition@8C0000 {
+				label = "CFG";
+				reg = <0x8C0000 0x0040000>;
+			};
+			partition@900000 {
+				label = "ubi";
+				reg = <0x900000 0x1D700000>;
+				compatible = "linux,ubi";
+				volumes {
+					ubi_rootfs: ubi-volume-fit {
+						volname = "firmware";
+					};
+				};
+			};
+		};
+	};
+};

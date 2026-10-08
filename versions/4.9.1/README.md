@@ -11,12 +11,16 @@ files for Linux 5.4.281.
 | Area | Delivery form |
 | --- | --- |
 | OpenWrt framework, board support and GL.iNet hardware drivers | Source code |
+| GL-BE14000 U-Boot and TF-A | Source snapshot under `mt7988-mt7987-boot/` |
 | MT7990/MT7991 Wi-Fi stack and control programs | Binary runtime package |
 | RTL8261 PHY and YT92xx switch support | Binary runtime package |
 | MediaTek mapfilter, forwarding and QoS extensions | Binary runtime package |
 
 The binary runtime packages are selected by the versioned device configuration
 and are included automatically in the generated firmware image.
+
+U-Boot and TF-A are built separately. Follow the
+[GL-BE14000 bootloader build guide](mt7988-mt7987-boot/README.md).
 
 ### Build GL-BE14000
 

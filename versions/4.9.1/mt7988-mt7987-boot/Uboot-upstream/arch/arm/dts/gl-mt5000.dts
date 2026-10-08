@@ -1,0 +1,132 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+/dts-v1/;
+#include "mt7987a.dtsi"
+#include "mt7987-pinctrl.dtsi"
+#include "mt7987-netsys-u-boot.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "MediaTek MT7987 EMMC RFB";
+	compatible = "mediatek,mt7987a-emmc",
+		     "mediatek,mt7987a", "mediatek,mt7987";
+
+	chosen {
+		bootargs = "console=ttyS0,115200n1 loglevel=8  \
+			    earlycon=uart8250,mmio32,0x11000000 \
+			    pci=pcie_bus_perf ubi.block=0,firmware \
+			    root=/dev/fit0 rootwait";
+	};
+
+	config {
+        bootcmd = "mtkboardboot";
+
+        blink_led = "blue:run";
+        system_led = "white:system";
+
+        environment {
+            lu = "mtkupgrade fip uboot-gl-mt5000.bin";
+            lf = "mtkupgrade fw openwrt-gl-mt5000.bin";
+        };
+    };
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&pio 4 GPIO_ACTIVE_LOW>;
+			debounce-interval = <10>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led@0 {
+			label = "white:system";
+			gpios = <&pio 7 GPIO_ACTIVE_LOW>;
+		};
+
+		led@1 {
+			label = "blue:run";
+			gpios = <&pio 44 GPIO_ACTIVE_LOW>;
+		};
+
+		led@2 {
+			label = "vpn";
+			gpios = <&pio 43 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	reg_1p8v: regulator-1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&spi1 {
+	status = "disabled";
+};
+
+&i2c0 {
+	status = "disabled";
+};
+
+&eth0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio0_pins>;
+	phy-mode = "2500base-x";
+	mediatek,switch = "auto";
+	reset-gpios = <&pio 48 GPIO_ACTIVE_HIGH>;
+
+	fixed-link {
+		speed = <2500>;
+		full-duplex;
+		pause;
+	};
+};
+
+&eth1 {
+	status = "okay";
+	pinctrl-names = "i2p5gbe-led";
+	pinctrl-0 = <&i2p5gbe_led0_pins>;
+	phy-mode = "xgmii";
+	phy-handle = <&phy15>;
+
+	phy15: ethernet-phy@15 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <15>;
+		phy-mode = "xgmii";
+	};
+};
+
+&mmc0 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&mmc_pins_default>;
+	pinctrl-1 = <&mmc_pins_uhs>;
+	bus-width = <8>;
+	max-frequency = <26000000>;
+	hs400-ds-delay = <0x12814>;
+	vqmmc-supply = <&reg_3p3v>;
+	vmmc-supply = <&reg_3p3v>;
+	non-removable;
+	no-sd;
+	no-sdio;
+	status = "okay";
+};

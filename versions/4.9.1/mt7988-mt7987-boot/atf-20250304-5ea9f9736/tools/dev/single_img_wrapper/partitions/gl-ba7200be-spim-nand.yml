@@ -1,0 +1,68 @@
+# Copyright (C) 2021-2022 SkyLake Huang
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+# SPI-NAND flash layout (BA7200BE, 512MB):
+#       0x0~0x100000: bl2,         1024K
+#  0x100000~0x180000: u-boot-env,   512K
+#  0x180000~0x580000: factory,     4096K
+#  0x580000~0x880000: fip,         3072K
+#  0x880000~0x8C0000: log,          256K
+#  0x8C0000~0x900000: CFG,          256K
+#  0x900000~0x1E000000: ubi
+
+mt7988:
+  default:
+    bl2:
+      start: 0x0
+      size: 0x100000
+    factory:
+      start: 0x180000
+      size: 0x400000
+    fip:
+      start: 0x580000
+      size: 0x300000
+    log:
+      start: 0x880000
+      size: 0x40000
+    cfg:
+      start: 0x8C0000
+      size: 0x40000
+    ubi:
+      kernel:
+        start: 0x900000
+        size: 0x1d700000
+  "dual-image":
+    bl2:
+      start: 0x0
+      size: 0x100000
+    factory:
+      start: 0x180000
+      size: 0x400000
+    fip:
+      start: 0x580000
+      size: 0x300000
+    ubi:
+      kernel:
+        start: 0x900000
+      rootfs:
+        size: 0x14a1400
+      kernel2:
+      rootfs2:
+        size: 0x14a1400
+      rootfs_data:
+        size: 0x500000
+      u-boot-env:
+        size: 0x80000

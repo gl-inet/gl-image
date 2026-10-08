@@ -1,0 +1,37 @@
+{
+    "u-boot-env" : {
+        "start": 8192,
+        "end" : 9215,
+        "part_type_guid" : "{3de21764-95bd-54bd-a5c3-4abe786f38a8}"
+    },
+
+    "factory" : {
+        "start": 9216,
+        "end" : 17407
+    },
+
+    "fip": {
+        "start": 17408,
+        "end" : 22527
+    },
+
+    "cfg": {
+        "start": 22528,
+        "end" : 26623
+    },
+
+    "log": {
+        "start": 26624,
+        "end" : 30719
+    },
+
+    "kernel" : {
+        "start": 30720,
+        "end" : 96255
+    },
+
+    "rootfs" : {
+        "start": 96256,
+        "end" : 14269881
+    }
+}
