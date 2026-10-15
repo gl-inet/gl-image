@@ -259,6 +259,16 @@ The PHY firmware data and the driver source remain separate components.
 
 ## Install the firmware
 
+Choose the instructions for the image you are installing:
+
+| Image | Upgrade instructions |
+| --- | --- |
+| OpenWrt sysupgrade firmware | Follow the Web or SSH steps in this section. |
+| Bootloader FIP or BL2 | Follow the [U-Boot build and flashing guide](mt7988-mt7987-boot/README.md#install-fip-using-the-u-boot-web-interface). |
+
+Bootloader installation uses the U-Boot recovery page or serial console.
+The normal firmware upgrade below does not install FIP or BL2.
+
 When the router is still running GL.iNet firmware, open
 `http://192.168.8.1`, select **System > Upgrade > Local Upgrade**, upload the
 generated sysupgrade image and do not retain settings.
