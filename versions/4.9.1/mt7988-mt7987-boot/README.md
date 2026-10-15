@@ -1,5 +1,9 @@
 # GL-BE14000 Bootloader
 
+For normal operating-system firmware upgrades, see
+[Install the firmware](../GL-BE14000_FIRMWARE_GUIDE.md#install-the-firmware).
+This README covers building and installing the bootloader images.
+
 This directory contains U-Boot 2025.04-rc3 and the MediaTek TF-A snapshot
 `atf-20250304-5ea9f9736` for GL-BE14000 (MT7988). The bootloader is built
 separately from the OpenWrt firmware in the parent directory.
@@ -46,9 +50,167 @@ atf-20250304-5ea9f9736/build/mt7988/release/fip.bin
 atf-20250304-5ea9f9736/build/mt7988/release/bl2.img
 ```
 
-Boot images are not sysupgrade images. Installing them requires a separate
-bootloader flashing procedure; the parent firmware build and normal firmware
-upgrade do not install these images.
+## Image Purpose and Supported Hardware
+
+| Build output | Contents | Installation target |
+| --- | --- | --- |
+| `Uboot-upstream/u-boot.bin` | Raw U-Boot payload (BL33). | Input to the TF-A build. |
+| `atf-20250304-5ea9f9736/build/mt7988/release/fip.bin` | TF-A FIP containing BL31 and the U-Boot BL33 payload. | Upload to `/uboot.html`, or use the serial `mtkupgrade fip` operation. |
+| `atf-20250304-5ea9f9736/build/mt7988/release/bl2.img` | First-stage boot image; initializes DRAM and loads FIP. | The separate serial `mtkupgrade bl2` operation. |
+
+These images are for **GL-BE14000** with the hardware configuration below:
+
+- SoC: MT7988; eMMC; TF-A uses the DDR combination configuration,
+  automatic DRAM size detection, DDR3 2133 / DDR4 2666 settings.
+- U-Boot configuration: `gl_be14000_defconfig`; device tree:
+  `Uboot-upstream/arch/arm/dts/gl-be14000-emmc.dts`.
+- TF-A configuration: `atf-20250304-5ea9f9736/configs/gl_be14000_defconfig`.
+- The upgrade implementation uses eMMC device 0. FIP is written to the GPT
+  partition named `fip` in the user area. BL2 is written at offset 0 of
+  eMMC hardware partition 1 (Linux `mmcblk0boot0`), with a 1 MiB limit;
+  the command also configures the eMMC boot options.
+- The U-Boot environment uses eMMC user-area offset `0x400000`, size
+  `0x80000`. Preserve the existing GPT and factory/device-specific data.
+  Do not assume that FIP has a fixed Linux partition number.
+
+This source release identifies hardware through the board configurations and
+device tree; it does not enumerate PCB revision numbers. Check the model and
+PCB revision printed on the device/board and match its storage and DRAM to this
+profile before installing. A different flash geometry, boot layout, DRAM type,
+or secure-boot configuration requires a matching build. The source does not
+establish compatibility with every PCB revision or with secure-boot-fused units.
+Do not use GL-BE10000 images on GL-BE14000 or vice versa.
+
+Boot images are not sysupgrade images. OpenWrt `sysupgrade` and the normal
+GL.iNet firmware upgrade page install the operating-system firmware; they do
+not install these boot images. The U-Boot recovery server is a separate program
+running before Linux. Its **U-BOOT UPDATE** page is the installation interface
+described below.
+
+## Install FIP Using the U-Boot Web Interface
+
+This method updates FIP, including U-Boot and BL31. It preserves the installed
+BL2. Use the serial procedure below when BL2 must also be replaced.
+
+### Prepare the Image and PC
+
+1. Build U-Boot and TF-A using the instructions above. Use the `fip.bin`
+   produced for this model and this hardware profile.
+2. Record the checksums on the build PC:
+
+   ```sh
+   sha256sum atf-20250304-5ea9f9736/build/mt7988/release/fip.bin
+   md5sum atf-20250304-5ea9f9736/build/mt7988/release/fip.bin
+   ```
+
+   SHA256 identifies the image in the installation record. MD5 is used only
+   to compare with the uploaded-file checksum displayed by the Web page.
+3. Prepare a PC with an Ethernet port, Ethernet cable, and Chrome or Edge.
+   Connect it directly to a router LAN port. Configure the PC Ethernet adapter
+   with static IPv4 address `192.168.1.2` and subnet mask
+   `255.255.255.0`; no gateway or DNS is needed on this direct link.
+   Disable other connections that route `192.168.1.0/24`.
+4. Keep a known-good boot image for this exact device and stable power available.
+   A failed bootloader write can prevent both normal boot and Web recovery.
+
+### Enter Recovery and Install
+
+1. Power off the router. Hold the **Reset** button, apply power, and continue
+   holding Reset during startup until the router enters U-Boot recovery mode;
+   then release it. Follow the device's recovery indication. A Reset press
+   after Linux starts invokes a different operation.
+2. Open `http://192.168.1.1/uboot.html`. Confirm that the page says
+   **U-BOOT UPDATE**, rather than the ordinary firmware update page.
+3. Select the model's TF-A **`fip.bin`**. Do not select the raw
+   `Uboot-upstream/u-boot.bin`, `bl2.img`, a sysupgrade image, or a
+   whole-flash image. Renaming a file to `.bin` does not change its format.
+4. Click **Upload**. Compare the displayed file size and MD5 with your local
+   file and wait for the upload to finish. Image-format validation does not
+   establish that the model or hardware revision is correct.
+5. Click **Update** after the page confirms the upload. Wait for successful
+   completion and the router's automatic restart. Keep power connected
+   throughout the write; do not restart or submit another update while flashing.
+6. Restore the PC's normal network settings when finished.
+
+The Web implementation checks the FIP header and writes the `fip` target
+through the model's storage writer, which reads back the written data for
+verification. The `/uboot.html` operation does **not** write BL2. This is
+why the file to upload here is the complete `fip.bin`, despite the page
+being named "U-Boot update".
+
+## Install Through the Serial Console and TFTP
+
+Use this method for BL2 or FIP installation through the console.
+
+### Tools and Connection
+
+Place the model's `fip.bin` and `bl2.img` in the PC's TFTP root
+(`192.168.1.2/24`, using the filenames in the table below), then connect the
+serial console at **115200 baud, 8N1, no flow control**, interrupt autoboot,
+and run the corresponding `mtkupgrade` command at the U-Boot prompt.
+
+### Check the Existing Bootloader and Storage
+
+At the U-Boot prompt, run:
+
+```text
+version
+help mtkupgrade
+printenv ipaddr serverip
+mmc dev 0 0
+mmc info
+mmc part
+```
+
+Confirm eMMC device 0 and a GPT partition named `fip`.
+The commands below require an existing working bootloader with the MediaTek
+`mtkupgrade` command and the stated storage layout. They are not a BootROM
+recovery procedure for a device whose bootloader no longer runs.
+
+### Choose the Operation
+
+Run **one** of the following interactive commands at the U-Boot prompt:
+
+| Operation | Command | TFTP filename to enter |
+| --- | --- | --- |
+| Install the complete FIP (BL31 and U-Boot). | `mtkupgrade fip` | `fip-be14000.bin` |
+| Install BL2. | `mtkupgrade bl2` | `bl2-be14000.img` |
+
+Select **TFTP client** from the load-method menu. Enter U-Boot address
+`192.168.1.1`, server address `192.168.1.2`, mask `255.255.255.0`
+if requested, and the filename in the table. For a complete boot-chain
+installation, install the matching FIP first, then BL2 from the same TF-A build,
+checking success after each operation before rebooting.
+
+The console FIP path may erase the stored U-Boot environment through its
+post-upgrade action. Record custom environment values before upgrading; after
+reboot, check the defaults and restore only values appropriate for this board.
+
+Wait for `ATF FIP upgrade completed!` or `ATF BL2 upgrade completed!`,
+as applicable, and ensure no image
+validation, erase, write, or readback-verification error precedes it.
+Then run:
+
+```text
+reset
+```
+
+Preserve the factory/calibration data, operating-system partitions and GPT and
+boot environment unless the selected operation explicitly resets it.
+A partition-table or whole-device image write is not required for these steps.
+BL2 replacement is sensitive to DRAM and storage compatibility; do not proceed
+after any validation or write failure.
+
+
+## Source References
+
+- `Uboot-upstream/configs/gl_be14000_defconfig` and the board device tree above.
+- `Uboot-upstream/failsafe/failsafe.c` and
+  `Uboot-upstream/failsafe/fsdata/uboot.html`: Web upload format and write target.
+- `Uboot-upstream/board/mediatek/common/bootmenu_mmc.c` and
+  `bootmenu_mmc_common.c`: upgrade targets and storage writes.
+- `Uboot-upstream/board/mediatek/common/cmd_mtkupgrade.c` and
+  `load_data.c`: interactive upgrade and TFTP prompts.
 
 Copyright and license notices are preserved in the supplied source files,
 `Uboot-upstream/Licenses/`, and `atf-20250304-5ea9f9736/license.rst`.

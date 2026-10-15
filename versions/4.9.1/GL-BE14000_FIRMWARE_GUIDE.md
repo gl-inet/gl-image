@@ -95,6 +95,16 @@ copy step is required.
 
 ## Install the Firmware
 
+Choose the instructions for the image you are installing:
+
+| Image | Upgrade instructions |
+| --- | --- |
+| OpenWrt sysupgrade firmware | Follow the Web or SSH steps in this section. |
+| Bootloader FIP or BL2 | Follow the [U-Boot build and flashing guide](mt7988-mt7987-boot/README.md#install-fip-using-the-u-boot-web-interface). |
+
+Bootloader installation uses the U-Boot recovery page or serial console.
+The normal firmware upgrade below does not install FIP or BL2.
+
 From GL.iNet Web UI, open `http://192.168.8.1` and select
 **System > Upgrade > Local Upgrade**. Upload the generated sysupgrade image
 and disable keeping settings.
